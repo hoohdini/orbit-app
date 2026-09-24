@@ -1,0 +1,30 @@
+# 환경변수와 키
+.env
+.env.*
+!.env.example
+
+# node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+services/compute/models/
+
+# 편집기·OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 개인정보가 들어갈 수 있는 파일
+*.xlsx
+*.csv
+!supabase/seed*.csv
+data/

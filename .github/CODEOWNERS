@@ -1,0 +1,20 @@
+# 경로별 담당. PR 리뷰어가 자동 지정된다.
+# 팀원 GitHub 아이디를 받으면 아래 자리 표시를 바꾼다.
+
+/supabase/                         @hoohdini
+/docs/                             @hoohdini
+/apps/web/app/(modules)/onboarding/  @hoohdini
+/apps/web/app/(modules)/home/        @hoohdini
+/apps/web/app/(modules)/card/        @hoohdini
+/apps/web/app/api/onboarding/        @hoohdini
+/apps/web/app/api/home/              @hoohdini
+/apps/web/app/api/card/              @hoohdini
+
+# 민찬 (아이디 확인 후 교체)
+# /apps/web/app/(modules)/tabletalk/   @minchan-github-id
+# /apps/web/app/(modules)/coffeechat/  @minchan-github-id
+# /apps/web/app/(modules)/poster/      @minchan-github-id
+# /apps/web/app/api/tabletalk/         @minchan-github-id
+# /apps/web/app/api/coffeechat/        @minchan-github-id
+# /apps/web/app/api/poster/            @minchan-github-id
+# /services/compute/                   @minchan-github-id
