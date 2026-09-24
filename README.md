@@ -18,10 +18,10 @@
 
 ```bash
 git clone <저장소 주소>
-cd orbit-app/apps/web
-npm install
-cp .env.example .env.local      # 값은 팀 채널에서 받은 것으로 채운다. 커밋 금지
-npm run dev                     # http://localhost:3000
+cd orbit-app
+npm run install:web                       # apps/web 의 의존성 설치
+copy apps\web\.env.example apps\web\.env.local   # 값은 팀 채널에서 받은 것으로 채운다. 커밋 금지
+npm run dev                               # http://localhost:3000, 확인은 /api/health
 ```
 
 계산 서비스는 `services/compute/README.md` 를 본다. DB 는 Supabase 대시보드에서 `supabase/migrations` 의 SQL 을 순서대로 실행한다(`docs/SETUP_SUPABASE.md`).
