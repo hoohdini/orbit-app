@@ -60,5 +60,5 @@ def coffeechat(req: CoffeechatRequest) -> dict:
     # 알고리즘은 pipeline/ 에 있다. 남은 것은 DB 입출력
     # 체크인 명단 + edges 뷰 → scoring.inject (만남 반영, 주소는 안 바꿈) → scoring.directional
     # 배정: scoring.table_matrix (호스트 단방향, 결합 방식 params) + 테이블토크 동석자 금지 → seating.assign
-    # 추천: recs.personal (한 방향 점수 a, 이미 만난 사람 제외) · recs.reasons
+    # 추천: recs.personal(scoring.rec_matrix(a)) — 기본 min, REC_SCORE 로 선택. 이미 만난 사람 제외 · recs.reasons
     raise HTTPException(status_code=501, detail="not implemented")

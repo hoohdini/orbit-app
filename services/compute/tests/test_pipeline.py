@@ -57,6 +57,15 @@ def test_scoring_rules():
     assert np.allclose(A, A.T)
 
 
+def test_rec_matrix_modes():
+    O, S, *_ = fake_people()
+    a = scoring.directional(S, O)
+    assert np.allclose(scoring.rec_matrix(a, "one_way"), a)
+    assert np.allclose(scoring.rec_matrix(a, "min"), np.minimum(a, a.T))
+    os.environ.pop("REC_SCORE", None)
+    assert np.allclose(scoring.rec_matrix(a), np.minimum(a, a.T))      # 기본은 min
+
+
 def test_blank_seek():
     O, S, *_ = fake_people()
     blank = np.zeros(N, bool)

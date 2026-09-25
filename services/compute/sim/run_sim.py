@@ -83,7 +83,7 @@ def main():
     t_r2 = time.time() - t
     met = same | seating.same_table_pairs(r2.table) | (W > 0)
     np.fill_diagonal(met, True)
-    lists, exposure = recs.personal(a2, met, seed=0)
+    lists, exposure = recs.personal(scoring.rec_matrix(a2), met, seed=0)
 
     print(f"가상 {n}명 (호스트 {is_host.sum()} · 빈 Seek {blank.sum()})")
     print(f"  모델 로드 {t_load:.1f}초 · 임베딩 {t_embed:.1f}초 · 코드북+주소 {t_cb:.2f}초")

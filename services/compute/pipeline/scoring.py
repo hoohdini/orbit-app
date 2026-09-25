@@ -3,8 +3,9 @@
 a[i, j] = cos(seek_i, offer_j)   i 가 j 에게서 얻는 것 (한 방향)
 
 쓰는 곳 (연구 저장소 docs/33 G16c · 노션 9/23 1-1)
-  개인 추천 목록     a 그대로. 리허설 정답("내가 건진 게 있나")이 한 사람의 답이라 한 방향이 정의에 맞다
-                     공동저술 사람별 비교에서 a 0.713 · min 0.694
+  개인 추천 목록     REC_SCORE 로 고른다. 기본 min (처음 합의). one_way 는 a 그대로
+                     근거가 갈림 — 공동저술 사람별 a 0.713 · min 0.694, 스피드데이팅 min 0.538 · a 0.528
+                     리허설에서 두 점수를 비교해 본행사 전에 정한다
   테이블 배정       두 사람이 같이 앉으므로 두 방향을 합친다. min · 평균 · 조화평균 중 무엇이 나은지는 리허설에서 정한다
                      세 값을 pair_scores 에 같이 남긴다(score_ab, score_ba)
   호스트            want 가 없다. 학생 ↔ 호스트 쌍은 학생 쪽 한 방향만 쓴다. 호스트끼리는 0
@@ -44,6 +45,17 @@ def combine(a: np.ndarray, mode: str = "min") -> np.ndarray:
         raise ValueError(f"모르는 결합 방식 {mode}")
     np.fill_diagonal(c, 0.0)
     return c
+
+
+def rec_matrix(a: np.ndarray, mode: str | None = None) -> np.ndarray:
+    """개인 추천용 점수. mode: min | avg | harmonic | one_way (기본은 환경변수 REC_SCORE, 없으면 min)."""
+    import os
+    mode = mode or os.environ.get("REC_SCORE", "min")
+    if mode == "one_way":
+        r = a.copy()
+        np.fill_diagonal(r, 0.0)
+        return r
+    return combine(a, mode)
 
 
 def table_matrix(a: np.ndarray, is_host: np.ndarray, mode: str = "min") -> np.ndarray:
