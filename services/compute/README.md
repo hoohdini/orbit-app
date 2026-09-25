@@ -45,6 +45,34 @@ uvicorn main:app --reload --port 8000
 | 담금질 | 매번 전체 재계산 | 증분 계산 | 결과는 같고(시험으로 확인) 속도만 다름 |
 | 무작위 자리 | 없음 | `random_ratio` (기본 0) | 리허설 정확도가 0.65 미만이면 15~40% 가 이득 |
 
+## 구조
+
+| 파일 | 하는 일 |
+|---|---|
+| `main.py` | 진입점(FastAPI). 비밀값 확인, 잘못된 상태는 409 |
+| `service.py` | 두 작업의 흐름. precompute(발급 · 테이블토크 배정) · coffeechat(만남 반영 · 커피챗 배정 · 추천) |
+| `repo.py` | DB 입출력. `SupabaseRepo`(실제) · `MemoryRepo`(DB 없이 시험). 칸 이름은 0001_init.sql 그대로 |
+| `pipeline/` | 알고리즘 (아래 표) |
+| `eval/rehearsal_accuracy.py` | 리허설 정확도. 사람별 정확도(누른 동석자 필요) · 만족도 순위상관(보조) |
+| `sim/` | 가상 참가자 CSV 만들기 · 실제 모델로 한 바퀴 |
+| `tests/` | `test_pipeline` 12개 · `test_service` 3개(한 바퀴 · 대체 경로 · 오류) · `test_main` 2개(비밀값 · 409) · `test_eval` 2개 |
+
+## 행사 흐름과 호출
+
+```
+행사 전날      POST /precompute {}                      새 코드북 · 전원 주소 · 라벨 · 테이블토크 배정 초안
+체크인 마감    POST /precompute {"reuse_codebook": true}  저장된 코드북에 현장 등록자만 붙이고, 체크인한 사람으로 배정을 다시 냄
+               운영 콘솔에서 공개
+테이블토크 뒤   POST /coffeechat {}                       명함 교환 반영 · 테이블토크 동석자 금지 · 커피챗 배정 초안 · 개인 추천
+```
+
+- 운영진(role=staff)은 주소 · 배정 · 추천에서 뺀다
+- 코드북은 `ops_state` 의 `codebook:<버전>` 에 저장하고 `codebook_active` 로 가리킨다(표를 새로 만들지 않음). 주소는 다시 학습하지 않는다
+- 만족도 응답률이 `min_response_rate`(기본 0.5) 미만이면 만남 반영 없이 텍스트 점수로만 커피챗을 낸다(대체 경로)
+- 요청 본문 선택값: `table_mode`(min · avg · harmonic) · `random_ratio` · `rec_mode`(없으면 `REC_SCORE`) · `beta`
+- 한 바퀴 확인: `python sim/make_fake_csv.py sim/fake_70.csv` 다음 `python sim/run_service_sim.py sim/fake_70.csv`
+  (맥 CPU, 모델 로드 9초 · 전날 0.9초 · 체크인 마감 0.6초 · 커피챗 0.3초 · 제약 위반 0)
+
 ## 진입점
 
 | 경로 | 언제 | 하는 일 |
