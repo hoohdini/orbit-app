@@ -48,14 +48,17 @@ def health() -> dict:
 
 @app.post("/precompute", dependencies=[Depends(require_secret)])
 def precompute(req: PrecomputeRequest) -> dict:
-    # TODO(민찬): 06_event_loop.py 의 issue() + assign_tables() 이식
-    # 1) participants/profiles 읽기  2) 임베딩(passage 접두사, 평균 제거)  3) RQ-KMeans K=8 L=3
-    # 4) sids/labels 쓰기  5) 테이블토크 배정 draft → assign_versions/tables_meta/table_members/pair_scores
+    # 알고리즘은 pipeline/ 에 있다(embed · codebook · scoring · seating · recs). 남은 것은 DB 입출력
+    # 1) participants/profiles 읽기  2) embed.Encoder.people (query: 접두사, 점수용 벡터는 평균 제거 없음)
+    # 3) codebook.fit (출처별 평균 제거, K=8 L=3)  4) sids/labels 쓰기
+    # 5) seating.assign → assign_versions/tables_meta/table_members/pair_scores(score, score_ab, score_ba)
     raise HTTPException(status_code=501, detail="not implemented")
 
 
 @app.post("/coffeechat", dependencies=[Depends(require_secret)])
 def coffeechat(req: CoffeechatRequest) -> dict:
-    # TODO(민찬): 체크인 명단 + edges 뷰 + satisfaction 으로 점수 재계산, 커피챗 배정 draft, recs 생성
-    # 점수: min(내 seek·상대 offer, 상대 seek·내 offer). 호스트는 단방향. 테이블토크 동석자는 금지 쌍
+    # 알고리즘은 pipeline/ 에 있다. 남은 것은 DB 입출력
+    # 체크인 명단 + edges 뷰 → scoring.inject (만남 반영, 주소는 안 바꿈) → scoring.directional
+    # 배정: scoring.table_matrix (호스트 단방향, 결합 방식 params) + 테이블토크 동석자 금지 → seating.assign
+    # 추천: recs.personal (한 방향 점수 a, 이미 만난 사람 제외) · recs.reasons
     raise HTTPException(status_code=501, detail="not implemented")
