@@ -22,7 +22,7 @@ export default function BottomNav() {
           const base = "flex flex-col items-center px-2 py-1 text-[11px]";
           if ("disabled" in it && it.disabled) {
             return (
-              <li key={it.href} className={`${base} text-gray-300`} aria-disabled>
+              <li key={it.href} className={`${base} text-gray-300`}>
                 <span className="h-5 w-5 rounded-full bg-gray-200" />
                 {it.label}
               </li>

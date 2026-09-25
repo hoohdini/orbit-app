@@ -1,10 +1,26 @@
-// 홈 모듈 (담당: 성하). 이 폴더 안에서만 작업한다. docs/MODULES.md 참고.
-export default function Page() {
+// 홈 (담당: 성하). 7단계에서 궤도·소개 카드를 채운다. 지금은 me 정보만 보여 준다.
+"use client";
+
+import { useEffect, useState } from "react";
+import { api, type Me } from "@/lib/client";
+import TopBar from "@/components/TopBar";
+import SidBadge from "@/components/SidBadge";
+import Loading from "@/components/Loading";
+
+export default function HomePage() {
+  const [me, setMe] = useState<Me | null>(null);
+  useEffect(() => {
+    api<Me>("/api/onboarding/me").then((r) => r.ok && setMe(r.data));
+  }, []);
+  if (!me) return <Loading />;
   return (
-    <main className="min-h-screen p-6">
-      <h1 className="text-2xl font-bold">홈</h1>
-      <p className="mt-2 text-gray-600">궤도 시각화, 내 간단 소개, 하단 메뉴, 사용설명서</p>
-      <p className="mt-6 text-sm text-gray-400">담당 성하. 아직 백지 상태다.</p>
-    </main>
+    <>
+      <TopBar title="홈" right={[{ href: "/home/guide", label: "사용설명서" }]} />
+      <main className="space-y-4 p-4">
+        <p className="text-sm text-gray-600">{me.participant.display_name} 님</p>
+        <SidBadge sid={me.sid?.offer_sid ?? null} label={me.sid?.label} temp={me.sid?.is_temp} tableNo={me.table?.table_no ?? null} />
+        <div className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-400">궤도 시각화 자리 (7단계)</div>
+      </main>
+    </>
   );
 }
