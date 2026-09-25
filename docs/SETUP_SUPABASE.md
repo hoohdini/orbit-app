@@ -14,8 +14,9 @@
 1. 왼쪽 메뉴 SQL Editor → New query.
 2. `supabase/migrations/0001_init.sql` 내용을 붙여 넣고 Run. 오류 없이 끝나야 한다.
 3. 같은 방법으로 `0002_rls.sql` 실행.
-4. 같은 방법으로 `supabase/seed.sql` 실행(개발용만. `orbit-event` 에는 넣지 않는다).
-5. Table Editor 에서 `participants` 에 10명이 보이면 끝.
+4. 같은 방법으로 `0003_pin_nullable.sql` 실행.
+5. 같은 방법으로 `supabase/seed.sql`, 이어서 `supabase/seed_dev_assign.sql` 실행(개발용만. `orbit-event` 에는 넣지 않는다).
+6. SQL Editor 에서 `select * from current_tables;` 가 12행이면 끝. 로그인 시험용 숫자는 기존 10명 0000, 김민수(연세대) 1111, 김민수(고려대) 2222.
 
 ## 3. 키 확인
 
