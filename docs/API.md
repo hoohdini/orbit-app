@@ -36,14 +36,14 @@
 | card | /api/card/me | GET | 없음 | { card: {...}, qr_payload } | 예정 |
 | card | /api/card/scan | POST | qr_payload | { saved_card: {...} } | 예정 |
 | card | /api/card/wallet | GET | 없음 | { cards: [...] } | 예정 |
-| tabletalk | /api/tabletalk/table | GET | 없음 | { table_no, label, members: [{id, display_name, affiliation, topic_tags, offer_text}] } | 예정 |
-| tabletalk | /api/tabletalk/satisfaction | POST | score 1~5, comment? | { saved: true } | 예정 |
-| coffeechat | /api/coffeechat/table | GET | 없음 | { table_no, label, talk_prompts, members: [...] } | 예정 |
-| coffeechat | /api/coffeechat/recs | GET | 없음 | { recs: [{rank, target: {id, display_name, affiliation}, current_table_no, reason}] } | 예정 |
-| poster | /api/poster/scan | POST | qr_payload | { poster: {id, title}, quiz: {id, question, choices} } | 예정 |
-| poster | /api/poster/answer | POST | quiz_id, choice_index | { correct: bool, stamp_count, ticket_issued: bool } | 예정 |
-| poster | /api/poster/interest | POST | poster_id, score 1~5 | { saved: true } | 예정 |
-| poster | /api/poster/stamps | GET | 없음 | { stamps: [...], total, tickets: [...] } | 예정 |
+| tabletalk | /api/tabletalk/table | GET | 없음 | { table_no, label, members: [{id, display_name, affiliation, topic_tags, offer_text}] } | 있음 |
+| tabletalk | /api/tabletalk/satisfaction | POST | score 1~5, comment? | { saved: true } | 있음 |
+| coffeechat | /api/coffeechat/table | GET | 없음 | { table_no, label, talk_prompts, members: [...] } | 있음 |
+| coffeechat | /api/coffeechat/recs | GET | 없음 | { recs: [{rank, target: {id, display_name, affiliation}, current_table_no, reason}] } | 있음 |
+| poster | /api/poster/scan | POST | qr_payload | { poster: {id, title}, quiz: {id, question, choices} } | 있음 |
+| poster | /api/poster/answer | POST | quiz_id, choice_index | { correct: bool, stamp_count, ticket_issued: bool } | 있음 |
+| poster | /api/poster/interest | POST | poster_id, score 1~5 | { saved: true } | 있음 |
+| poster | /api/poster/stamps | GET | 없음 | { stamps: [...], total, tickets: [...] } | 있음 |
 | ops | /api/ops/reset-pin | POST | participant_id | { pin } 새 무작위 4자리를 한 번만 돌려준다 | 있음 |
 | ops | /api/ops/add-participant | POST | display_name, affiliation?, role, cohort?, is_host?, pin?, offer_text?, seek_text?, topic_tags? | { participant, pin } 워크인 추가 | 있음 |
 | ops | /api/ops/checkin | POST | participant_id, is_late? | { checked_at } | 예정 |
