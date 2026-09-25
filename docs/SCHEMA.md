@@ -15,7 +15,7 @@
 
 | 테이블 | 무엇 | 누가 쓰나 | 비고 |
 |---|---|---|---|
-| participants | 참가자 기본 정보, 비밀번호 해시(첫 로그인 때 참가자가 정함, 그 전엔 null), 동의 시각 | 사전 적재(운영), 온보딩(login_pin_hash, consent_at) | `is_host` 는 단방향 점수 대상, `is_admin` 은 콘솔. `entry_token` 은 예비 |
+| participants | 참가자 기본 정보, 로그인 숫자 4자리의 해시(사전 적재 때 휴대폰 뒤 4자리 또는 무작위로 정함. null 이면 로그인 불가), 동의 시각 | 사전 적재(운영), 온보딩(consent_at), 운영 콘솔(login_pin_hash 재발급) | `is_host` 는 단방향 점수 대상, `is_admin` 은 콘솔. `entry_token` 은 예비 |
 | profiles | offer_text(하는 일), seek_text(찾는 사람), 주제 태그, 관계 태그, 링크 | 사전 적재, 온보딩 확인·수정 | 컬럼 이름은 have/want 로 바뀔 수 있다. 회의 확정 전 |
 | sids | 주소 두 개와 벡터 두 개, 코드북 버전 | 계산 서비스(전날 배치) | 당일 재발급 없음 |
 | labels | 주소 앞자리별 사람이 읽는 라벨 | 전날 배치, 운영 검수 | |
