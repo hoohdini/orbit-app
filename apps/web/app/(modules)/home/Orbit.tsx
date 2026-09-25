@@ -17,7 +17,7 @@ const RADIUS: Record<number, number> = { 3: 58, 2: 98, 1: 138 };
 const RING_TEXT: Record<number, string> = { 3: "앞 3자리 일치", 2: "앞 2자리 일치", 1: "앞 1자리 일치" };
 
 function short(name: string) {
-  return name.length > 4 ? name.slice(0, 4) : name;
+  return name.length > 5 ? name.slice(0, 5) : name;
 }
 
 export default function Orbit({ data, myName }: { data: OrbitData; myName: string }) {

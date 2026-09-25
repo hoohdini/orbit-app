@@ -27,4 +27,5 @@ Thumbs.db
 *.xlsx
 *.csv
 !supabase/seed*.csv
+!scripts/sample_participants.csv
 data/
