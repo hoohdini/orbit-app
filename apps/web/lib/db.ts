@@ -12,6 +12,7 @@ export function db(): SupabaseClient {
   if (!url || !key) {
     throw new Error("SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY 가 없다. apps/web/.env.local 을 확인한다");
   }
-  client = createClient(url, key, { auth: { persistSession: false } });
+  // 대시보드에서 복사한 값이 https://<ref>.supabase.co/rest/v1/ 처럼 경로를 포함해도 되게 origin 만 쓴다
+  client = createClient(new URL(url).origin, key, { auth: { persistSession: false } });
   return client;
 }

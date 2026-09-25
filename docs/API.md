@@ -19,7 +19,7 @@
 
 ## 세션
 
-- 로그인: `POST /api/onboarding/login` (display_name, pin) 또는 (entry_token). 성공 시 httpOnly 쿠키 `orbit_session`(서명된 JWT, participant id, is_admin, 24시간).
+- 로그인: `POST /api/onboarding/login` (display_name, pin). 성공 시 httpOnly 쿠키 `orbit_session`(서명된 JWT, participant id, is_admin, 24시간). 첫 로그인은 checkins 에 자동 기록된다.
 - 로그아웃: `POST /api/onboarding/logout`.
 - 관리자 경로(`/api/ops/*`)는 `requireAdmin()`.
 
@@ -28,9 +28,10 @@
 | 모듈 | 경로 | 방법 | 입력 | 응답 data | 상태 |
 |---|---|---|---|---|---|
 | 공용 | /api/health | GET | 없음 | { version, db: ok/fail } | 있음 |
-| onboarding | /api/onboarding/login | POST | display_name, pin 또는 entry_token | { participant: {id, display_name, role} } | 예정 |
-| onboarding | /api/onboarding/consent | POST | agreed: true | { consent_at } | 예정 |
-| onboarding | /api/onboarding/me | GET | 없음 | { participant, profile, table: {round, table_no, label} 또는 null } | 예정 |
+| onboarding | /api/onboarding/login | POST | display_name, pin(숫자 4자리), participant_id? | { participant: {id, display_name, role, is_admin}, consented } 또는 동명이인이면 { choose: [{id, display_name, affiliation, role, cohort}] }. 실패 401, 5회 실패 후 10분 423 | 있음 |
+| onboarding | /api/onboarding/logout | POST | 없음 | { ok } | 있음 |
+| onboarding | /api/onboarding/consent | POST | agreed: true | { consent_at } | 있음 |
+| onboarding | /api/onboarding/me | GET | 없음 | { participant, profile, consented, sid: {offer_sid, seek_sid, label, is_temp} 또는 null, table: {table_no, label, version} 또는 null } | 있음 |
 | home | /api/home/orbit | GET | 없음 | { me: {sid_prefix, label}, rings: [{prefix_len, people: [{id, display_name, affiliation}]}] } | 예정 |
 | card | /api/card/me | GET | 없음 | { card: {...}, qr_payload } | 예정 |
 | card | /api/card/scan | POST | qr_payload | { saved_card: {...} } | 예정 |
@@ -43,6 +44,8 @@
 | poster | /api/poster/answer | POST | quiz_id, choice_index | { correct: bool, stamp_count, ticket_issued: bool } | 예정 |
 | poster | /api/poster/interest | POST | poster_id, score 1~5 | { saved: true } | 예정 |
 | poster | /api/poster/stamps | GET | 없음 | { stamps: [...], total, tickets: [...] } | 예정 |
+| ops | /api/ops/reset-pin | POST | participant_id | { pin } 새 무작위 4자리를 한 번만 돌려준다 | 있음 |
+| ops | /api/ops/add-participant | POST | display_name, affiliation?, role, cohort?, is_host?, pin?, offer_text?, seek_text?, topic_tags? | { participant, pin } 워크인 추가 | 있음 |
 | ops | /api/ops/checkin | POST | participant_id, is_late? | { checked_at } | 예정 |
 | ops | /api/ops/publish | POST | version | { published_at } | 예정 |
 | ops | /api/ops/status | GET | 없음 | { phase, checkins, satisfaction_rate, exchanges, compute_heartbeat } | 예정 |
