@@ -66,7 +66,8 @@ def test_full_loop():
     assert len(repo.t["sids"]) == 70                                    # 운영진은 주소 없음
     assert all(len(s["offer_sid"]) == 3 and len(s["offer_vec"]) == DIM for s in repo.t["sids"])
     assert repo.ops_get("codebook_active:dev") == r1["codebook_version"]
-    assert any(len(l["prefix"]) == 1 for l in repo.t["labels"])
+    assert repo.t["labels"] and all(len(l["prefix"]) == 1 for l in repo.t["labels"])   # 첫자리 묶음만
+    assert all(m["label"] is None for m in repo.t["tables_meta"])                           # 테이블 이름표 없음
     v1 = r1["version"]
     members = [m for m in repo.t["table_members"] if m["version"] == v1]
     assert len(members) == 70 and len({m["table_no"] for m in members}) == r1["tables"]

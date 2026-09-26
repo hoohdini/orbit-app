@@ -2,7 +2,7 @@
 // 화면은 이 목록을 순서대로 보여 준다. 문구를 바꿀 때는 label 만 고친다.
 export const SATISFACTION_CHOICES = [
   { key: "gained", label: "새로 얻은 게 있었다" },
-  { key: "enjoyed", label: "대화는 즐거웠다" },
+  { key: "different", label: "좋았지만 내 관심사와는 조금 달랐다" },
   { key: "unsure", label: "잘 모르겠다" },
   { key: "mismatch", label: "나와는 잘 안 맞았다" },
 ] as const;

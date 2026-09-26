@@ -67,18 +67,16 @@ def _embed(enc, P: list[dict], prof: dict[str, dict]):
 
 
 def _labels(codes: np.ndarray, tags: list[list[str]], version: str) -> list[dict]:
-    """주소 앞 1자리 · 2자리마다 사람이 읽는 이름. 그 칸 사람들의 주제 태그 중 가장 흔한 것."""
+    """주소 첫자리 묶음(최대 K개)마다 붙이는 이름표 초안. 그 묶음에서 흔한 주제 태그 두 개로 'A, B 계열'. 태그 안에 가운뎃점이 있어(금융·핀테크) 쉼표로 잇는다.
+    태그 하나를 그대로 쓰면 수십 명 묶음에 너무 좁은 이름(예: LLM)이 붙어서 두 개로 넓힌다.
+    초안일 뿐이고 운영진이 행사 전에 고친다. 둘째 자리 이하는 이름표를 달지 않는다."""
     rows = []
-    for depth in (1, 2):
-        groups: dict[tuple, list[int]] = {}
-        for i, c in enumerate(map(tuple, codes[:, :depth])):
-            groups.setdefault(c, []).append(i)
-        for prefix, members in groups.items():
-            if depth == 2 and len(members) < 2:
-                continue
-            cnt = Counter(t for m in members for t in set(tags[m]))
-            label = cnt.most_common(1)[0][0] if cnt else f"궤도 {'-'.join(map(str, prefix))}"
-            rows.append({"codebook_version": version, "prefix": [int(x) for x in prefix], "label": label})
+    for c in sorted(set(codes[:, 0].tolist())):
+        members = np.where(codes[:, 0] == c)[0]
+        cnt = Counter(t for m in members for t in set(tags[m]))
+        top = [t for t, _ in cnt.most_common(2)]
+        label = ", ".join(top) + " 계열" if top else f"궤도 {c}"
+        rows.append({"codebook_version": version, "prefix": [int(c)], "label": label})
     return rows
 
 
@@ -89,8 +87,8 @@ def _write_round(repo, round_: str, P, table, a, A, tags, params) -> int:
                                   for i, t in enumerate(table)])
     meta = []
     for t in sorted(set(table.tolist())):
-        label, prompts = recm.table_meta(list(np.where(table == t)[0]), tags)
-        meta.append({"version": v, "table_no": int(t) + 1, "label": label, "talk_prompts": prompts})
+        prompts = recm.talk_prompts(list(np.where(table == t)[0]), tags)
+        meta.append({"version": v, "table_no": int(t) + 1, "label": None, "talk_prompts": prompts})  # 테이블 이름표는 달지 않는다
     repo.insert("tables_meta", meta)
     n = len(ids)
     repo.insert("pair_scores", [{"version": v, "a": ids[i], "b": ids[j], "score": float(A[i, j]),

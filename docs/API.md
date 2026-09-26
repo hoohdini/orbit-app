@@ -63,12 +63,12 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 | 경로 | 키 | 화면 문구 |
 |---|---|---|
 | /api/tabletalk/satisfaction | gained | 새로 얻은 게 있었다 |
-| | enjoyed | 대화는 즐거웠다 |
+| | different | 좋았지만 내 관심사와는 조금 달랐다 |
 | | unsure | 잘 모르겠다 |
 | | mismatch | 나와는 잘 안 맞았다 |
-| /api/poster/interest | talk_more | 더 이야기 나눠보고 싶다 |
+| /api/poster/interest | learn_more | 더 알아보고 싶다 |
 | | interesting | 흥미로웠다 |
-| | distant | 내 분야와는 거리가 있다 |
+| | not_mine | 내 관심 분야는 아니다 |
 
 ## 계산 서비스 (services/compute, 내부 HTTP)
 

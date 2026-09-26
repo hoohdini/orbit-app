@@ -43,9 +43,9 @@ export function raffleReason(threshold: number): string {
 
 // 퀴즈 뒤 관심도 선택지. 키는 DB poster_interest.choice 에 그대로 저장된다(0004 마이그레이션의 check 와 같아야 한다).
 export const INTEREST_CHOICES = [
-  { key: "talk_more", label: "더 이야기 나눠보고 싶다" },
+  { key: "learn_more", label: "더 알아보고 싶다" },
   { key: "interesting", label: "흥미로웠다" },
-  { key: "distant", label: "내 분야와는 거리가 있다" },
+  { key: "not_mine", label: "내 관심 분야는 아니다" },
 ] as const;
 
 export type InterestChoice = (typeof INTEREST_CHOICES)[number]["key"];

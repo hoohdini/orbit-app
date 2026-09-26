@@ -4,7 +4,7 @@
   A. 사람별 정확도 (주)   같은 테이블 동석자 중 "얻은 게 있었던 분" 으로 누른 사람의 점수가 안 누른 사람보다 높았나.
                          사람마다 재서 평균. 전부 누르거나 아무도 안 누른 사람은 비교할 차이가 없어 빠진다.
                          필요한 표(누른 동석자)가 아직 스키마에 없다 → picks 인자로 받는다
-  B. 만족도 구분 (보조)   "새로 얻은 게 있었다(gained)" 를 고른 사람의 동석자 평균 점수가, "즐거웠다 · 안 맞았다" 를 고른 사람보다
+  B. 만족도 구분 (보조)   "새로 얻은 게 있었다(gained)" 를 고른 사람의 동석자 평균 점수가, "관심사와 조금 달랐다 · 안 맞았다" 를 고른 사람보다
                          높을 확률. "잘 모르겠다" 는 뺀다. satisfaction 표만으로 바로 잴 수 있다.
                          사람당 답 하나라 신호가 약하다. A 가 없을 때만 쓴다
 점수는 세 가지를 나란히 — score(배정에 쓴 결합값) · score_ab 쪽 한 방향 · 두 방향 평균. 어느 쪽이 맞았는지 비교한다.
@@ -72,11 +72,11 @@ def per_person_accuracy(pair_scores, members, picks: set[tuple[str, str]], rater
     return out
 
 
-POS, NEG = {"gained"}, {"enjoyed", "mismatch"}   # unsure 는 어느 쪽도 아니라 뺀다
+POS, NEG = {"gained"}, {"different", "mismatch"}   # unsure 는 어느 쪽도 아니라 뺀다
 
 
 def satisfaction_auc(pair_scores, members, satisfaction: dict[str, str]) -> dict:
-    """satisfaction = {사람: 선택지 키}. gained 인 사람의 동석자 평균 점수가 enjoyed · mismatch 인 사람보다 높을 확률. 보조 지표."""
+    """satisfaction = {사람: 선택지 키}. gained 인 사람의 동석자 평균 점수가 different · mismatch 인 사람보다 높을 확률. 보조 지표."""
     P, mates = _pair_lookup(pair_scores), _tables(members)
     out = {}
     for kind in KINDS:
