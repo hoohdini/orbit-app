@@ -55,7 +55,7 @@ uvicorn main:app --reload --port 8000
 | `pipeline/` | 알고리즘 (아래 표) |
 | `eval/rehearsal_accuracy.py` | 리허설 정확도. 사람별 정확도(누른 동석자 필요) · 만족도 순위상관(보조) |
 | `sim/` | 가상 참가자 CSV 만들기 · 실제 모델로 한 바퀴 |
-| `tests/` | `test_pipeline` 12개 · `test_service` 3개(한 바퀴 · 대체 경로 · 오류) · `test_main` 2개(비밀값 · 409) · `test_eval` 2개 |
+| `tests/` | `test_pipeline` 12개 · `test_service` 4개(한 바퀴 · 다른 행사 섞임 · 대체 경로 · 오류) · `test_main` 2개(비밀값 · 409) · `test_eval` 2개 |
 
 ## 행사 흐름과 호출
 
@@ -70,6 +70,10 @@ uvicorn main:app --reload --port 8000
 - 코드북은 `ops_state` 의 `codebook:<버전>` 에 저장하고 `codebook_active` 로 가리킨다(표를 새로 만들지 않음). 주소는 다시 학습하지 않는다
 - 만족도 응답률이 `min_response_rate`(기본 0.5) 미만이면 만남 반영 없이 텍스트 점수로만 커피챗을 낸다(대체 경로)
 - 요청 본문 선택값: `table_mode`(min · avg · harmonic) · `random_ratio` · `rec_mode`(없으면 `REC_SCORE`) · `beta`
+- 코드북 버전 이름은 `cb-<행사>-<날짜시각>`, 활성 코드북 키는 `codebook_active:<행사>` — 개발 DB 에 행사가 여러 개 섞여도 서로 덮어쓰지 않는다
+- 지난 테이블토크 배정은 이 행사 사람이 들어 있는 버전만 찾는다(assign_versions 에 event_id 가 없어서)
+- 실제 개발 DB 한 바퀴(9/26): 가상 68명(sim-minchan) · 전날 2.1초 · 체크인 마감 1.3초 · 커피챗 1.2초 · 재회 0 · 공개 안 함 · dev 공개 배정 영향 없음
+- 시험 데이터 정리: `python sim/cleanup_event.py sim-minchan` (세기만) → `--yes` (지우기). dev 는 지우지 못하게 막아 둠
 - 한 바퀴 확인: `python sim/make_fake_csv.py sim/fake_70.csv` 다음 `python sim/run_service_sim.py sim/fake_70.csv`
   (맥 CPU, 모델 로드 9초 · 전날 0.9초 · 체크인 마감 0.6초 · 커피챗 0.3초 · 제약 위반 0)
 

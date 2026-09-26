@@ -19,23 +19,25 @@ from pipeline import recs as recm
 from pipeline import scoring, seating
 from pipeline.embed import offer_items, seek_items, unit
 
-ACTIVE_KEY = "codebook_active"
+
+def _active_key(event_id: str) -> str:
+    return f"codebook_active:{event_id}"        # 행사마다 따로. 개발 DB 에 행사가 여러 개 섞여도 서로 덮어쓰지 않게
 
 
 def _cb_key(version: str) -> str:
     return f"codebook:{version}"
 
 
-def _save_codebook(repo, cb: cbm.Codebook) -> None:
+def _save_codebook(repo, cb: cbm.Codebook, event_id: str) -> None:
     """코드북을 ops_state 에 저장한다(새 표 없이). 8 x 3 층 x 384 차원이라 약 100KB."""
     r = lambda a: np.round(a, 6).tolist()
     repo.ops_set(_cb_key(cb.version), {"mu_offer": r(cb.mu_offer), "mu_seek": r(cb.mu_seek),
                                        "centers": [r(c) for c in cb.centers]})
-    repo.ops_set(ACTIVE_KEY, cb.version)
+    repo.ops_set(_active_key(event_id), cb.version)
 
 
-def _load_codebook(repo) -> cbm.Codebook | None:
-    ver = repo.ops_get(ACTIVE_KEY)
+def _load_codebook(repo, event_id: str) -> cbm.Codebook | None:
+    ver = repo.ops_get(_active_key(event_id))
     if not ver:
         return None
     d = repo.ops_get(_cb_key(ver))
@@ -108,14 +110,15 @@ def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = 
     tags = [(prof.get(i) or {}).get("topic_tags") or [] for i in ids]
     O, S, blank = _embed(enc, P, prof)
 
-    cb = _load_codebook(repo) if reuse_codebook else None
+    cb = _load_codebook(repo, event_id) if reuse_codebook else None
     if reuse_codebook and cb is None:
         raise ValueError("저장된 코드북이 없다. 먼저 reuse_codebook=false 로 한 번 돌린다")
     new_cb = cb is None
     if new_cb:
-        ver = codebook_version or datetime.now(timezone.utc).strftime("cb-%Y%m%d-%H%M")
+        # 행사 이름 + 초까지. 같은 분 안에 다른 행사가 돌려도 이름이 겹쳐 서로 덮어쓰지 않게
+        ver = codebook_version or f"cb-{event_id}-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")[:-3]
         cb = cbm.fit(O, S[~blank], ver, K=K, L=L, seed=seed)
-        _save_codebook(repo, cb)
+        _save_codebook(repo, cb, event_id)
     co, cs = cb.address(O, "offer"), cb.address(S, "seek")
 
     have = repo.sids(ids) if reuse_codebook else {}
@@ -174,7 +177,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
 
     forbid = np.zeros((n, n), bool)
     groups: dict[int, list[int]] = {}
-    for m in repo.latest_tables("tabletalk"):
+    for m in repo.latest_tables("tabletalk", ids):
         if m["participant_id"] in idx:
             groups.setdefault(m["table_no"], []).append(idx[m["participant_id"]])
     for g in groups.values():

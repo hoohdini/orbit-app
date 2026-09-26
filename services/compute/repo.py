@@ -52,14 +52,17 @@ class MemoryRepo:
         s = set(ids)
         return sum(1 for r in self.t["satisfaction"] if r["round"] == round_ and r["participant_id"] in s)
 
-    def latest_tables(self, round_: str) -> list[dict]:
-        """라운드별 최신 배정. 공개된 것이 있으면 그것, 없으면 최신 초안."""
-        vs = [v for v in self.t["assign_versions"] if v["round"] == round_ and v["status"] != "retired"]
+    def latest_tables(self, round_: str, ids: list[str]) -> list[dict]:
+        """이 사람들이 들어 있는 라운드별 최신 배정(공개된 것 우선, 없으면 최신 초안).
+        assign_versions 에 event_id 가 없어서, 다른 행사의 배정을 집지 않도록 구성원으로 거른다."""
+        s = set(ids)
+        mine = {m["version"] for m in self.t["table_members"] if m["participant_id"] in s}
+        vs = [v for v in self.t["assign_versions"] if v["round"] == round_ and v["status"] != "retired" and v["version"] in mine]
         if not vs:
             return []
         pub = [v for v in vs if v["status"] == "published"]
         ver = max(pub or vs, key=lambda v: v["version"])["version"]
-        return [m for m in self.t["table_members"] if m["version"] == ver]
+        return [m for m in self.t["table_members"] if m["version"] == ver and m["participant_id"] in s]
 
     def ops_get(self, key: str) -> Any:
         for r in self.t["ops_state"]:
@@ -137,14 +140,18 @@ class SupabaseRepo:
         rows = self._in("satisfaction", "participant_id, round", "participant_id", ids)
         return sum(1 for r in rows if r["round"] == round_)
 
-    def latest_tables(self, round_):
-        vs = self.db.table("assign_versions").select("version, status").eq("round", round_).neq("status", "retired") \
-            .order("version", desc=True).execute().data
+    def latest_tables(self, round_, ids):
+        members = self._in("table_members", "version, table_no, participant_id", "participant_id", ids)
+        mine = sorted({m["version"] for m in members})
+        if not mine:
+            return []
+        vs = self._all(lambda: self.db.table("assign_versions").select("version, status").eq("round", round_)
+                       .neq("status", "retired").in_("version", mine))
         if not vs:
             return []
         pub = [v for v in vs if v["status"] == "published"]
-        ver = (pub or vs)[0]["version"]
-        return self._all(lambda: self.db.table("table_members").select("version, table_no, participant_id").eq("version", ver))
+        ver = max(pub or vs, key=lambda v: v["version"])["version"]
+        return [m for m in members if m["version"] == ver]
 
     def ops_get(self, key):
         r = self.db.table("ops_state").select("value").eq("key", key).execute().data

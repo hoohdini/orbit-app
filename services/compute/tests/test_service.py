@@ -65,7 +65,7 @@ def test_full_loop():
     assert r1["new_codebook"] and r1["issued"] == 70 and r1["n"] == 70
     assert len(repo.t["sids"]) == 70                                    # 운영진은 주소 없음
     assert all(len(s["offer_sid"]) == 3 and len(s["offer_vec"]) == DIM for s in repo.t["sids"])
-    assert repo.ops_get("codebook_active") == r1["codebook_version"]
+    assert repo.ops_get("codebook_active:dev") == r1["codebook_version"]
     assert any(len(l["prefix"]) == 1 for l in repo.t["labels"])
     v1 = r1["version"]
     members = [m for m in repo.t["table_members"] if m["version"] == v1]
@@ -112,6 +112,29 @@ def test_full_loop():
     assert all(t2[r["participant_id"]] != t2[r["target_id"]] for r in recs)   # 이미 만난 사람은 추천 안 함
     assert repo.ops_get("compute_heartbeat")["last"] == "coffeechat"
     print(f"  전날 {r1['tables']}테이블 · 체크인 뒤 {r2['tables']}테이블(워크인 {r2['issued']}명) · 커피챗 {r3['tables']}테이블 · 추천 {len(recs)}행")
+
+
+def test_other_event_does_not_leak():
+    """다른 행사의 공개 배정 · 코드북이 섞여 있어도 이 행사 것만 쓴다."""
+    repo, enc = seed_repo(), FakeEncoder()
+    other = seed_repo(n=12, n_host=2, seed=9)
+    for p in other.t["participants"]:
+        p["event_id"] = "other"
+        p["id"] = "o-" + p["id"]
+    for p in other.t["profiles"]:
+        p["participant_id"] = "o-" + p["participant_id"]
+    repo.t["participants"] += other.t["participants"]
+    repo.t["profiles"] += other.t["profiles"]
+    service.precompute(repo, enc, event_id="other", iters=200)
+    repo.t["assign_versions"][-1]["status"] = "published"               # 다른 행사의 공개 배정
+    r1 = service.precompute(repo, enc, iters=500)                       # 이 행사는 초안만
+    assert repo.ops_get("codebook_active:dev") == r1["codebook_version"]
+    assert repo.ops_get("codebook_active:other") != r1["codebook_version"]
+    ids = [p["id"] for p in repo.participants("dev") if p["role"] != "staff"]
+    got = repo.latest_tables("tabletalk", ids)
+    assert got and {m["version"] for m in got} == {r1["version"]}      # 다른 행사의 공개 배정을 집지 않음
+    r = service.coffeechat(repo, enc, iters=2000)
+    assert r["forbid_hits"] == 0
 
 
 def test_fallback_when_few_responses():
