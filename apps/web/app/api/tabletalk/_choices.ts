@@ -1,4 +1,4 @@
-// 테이블토크가 끝날 때 묻는 선택지. 키는 DB satisfaction.choice 에 그대로 저장된다(0004 마이그레이션의 check 와 같아야 한다).
+// 테이블토크가 끝날 때 묻는 선택지. 키는 DB satisfaction.choice 에 그대로 저장된다(0005 마이그레이션의 check 와 같아야 한다).
 // 화면은 이 목록을 순서대로 보여 준다. 문구를 바꿀 때는 label 만 고친다.
 export const SATISFACTION_CHOICES = [
   { key: "gained", label: "새로 얻은 게 있었다" },
