@@ -1,15 +1,16 @@
-// POST /api/poster/interest { poster_id, score }  스캔 기록이 있는 포스터에만 관심도를 남길 수 있다
+// POST /api/poster/interest { poster_id, choice }  스캔 기록이 있는 포스터에만 관심도를 남길 수 있다
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ok, fail, handle } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 import { logEvent } from "@/lib/log";
+import { INTEREST_KEYS } from "../_lib";
 
 export const dynamic = "force-dynamic";
 
 const Body = z.object({
   poster_id: z.number().int().positive(),
-  score: z.number().int().min(1).max(5),
+  choice: z.enum(INTEREST_KEYS),
 });
 
 export async function POST(req: Request) {
@@ -30,10 +31,10 @@ export async function POST(req: Request) {
 
     const { error } = await db()
       .from("poster_interest")
-      .upsert({ participant_id: s.pid, poster_id: b.poster_id, score: b.score }, { onConflict: "participant_id,poster_id" });
+      .upsert({ participant_id: s.pid, poster_id: b.poster_id, choice: b.choice }, { onConflict: "participant_id,poster_id" });
     if (error) throw error;
 
-    await logEvent("poster_interest", s.pid, { poster_id: b.poster_id, score: b.score });
+    await logEvent("poster_interest", s.pid, { poster_id: b.poster_id, choice: b.choice });
     return ok({ saved: true });
   });
 }

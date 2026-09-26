@@ -101,7 +101,7 @@ def test_full_loop():
                     repo.t["card_exchanges"].append({"scanner_id": a, "scanned_id": b})
     checked = [m["participant_id"] for m in tab]
     for pid in checked[: int(len(checked) * 0.7)]:
-        repo.t["satisfaction"].append({"participant_id": pid, "round": "tabletalk", "score": 4})
+        repo.t["satisfaction"].append({"participant_id": pid, "round": "tabletalk", "choice": "gained"})
 
     # 4. 커피챗
     r3 = service.coffeechat(repo, enc, iters=5000)

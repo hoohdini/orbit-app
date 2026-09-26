@@ -8,7 +8,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from eval.rehearsal_accuracy import per_person_accuracy, satisfaction_correlation  # noqa: E402
+from eval.rehearsal_accuracy import per_person_accuracy, satisfaction_auc  # noqa: E402
 
 
 def fake_round(n=60, size=5, seed=0):
@@ -37,15 +37,19 @@ def test_signal_vs_random():
     print(f"  점수대로 누름 {g['one_way']['정확도']:.2f} · 무작위 {r['one_way']['정확도']:.2f}")
 
 
-def test_satisfaction_corr():
+def test_satisfaction_auc():
     ids, members, pairs, a = fake_round()
     sat = {}
     for i, p in enumerate(ids):
         mates = [j for j in range(len(ids)) if j // 5 == i // 5 and j != i]
         m = np.mean([a[i, j] for j in mates])
-        sat[p] = int(np.clip(np.round(3 + 2 * m), 1, 5))
-    c = satisfaction_correlation(pairs, members, sat)
-    assert c["one_way"]["순위상관"] > 0.5
+        sat[p] = m
+    cut = np.quantile(list(sat.values()), [1 / 3, 2 / 3])
+    keys = ["mismatch", "unsure", "gained"]
+    sat = {p: keys[int(np.searchsorted(cut, m))] for p, m in sat.items()}
+    c = satisfaction_auc(pairs, members, sat)
+    assert c["one_way"]["구분 정확도"] > 0.8
+    assert c["one_way"]["얻음"] > 0 and c["one_way"]["못 얻음"] > 0
 
 
 if __name__ == "__main__":

@@ -53,7 +53,7 @@ uvicorn main:app --reload --port 8000
 | `service.py` | 두 작업의 흐름. precompute(발급 · 테이블토크 배정) · coffeechat(만남 반영 · 커피챗 배정 · 추천) |
 | `repo.py` | DB 입출력. `SupabaseRepo`(실제) · `MemoryRepo`(DB 없이 시험). 칸 이름은 0001_init.sql 그대로 |
 | `pipeline/` | 알고리즘 (아래 표) |
-| `eval/rehearsal_accuracy.py` | 리허설 정확도. 사람별 정확도(누른 동석자 필요) · 만족도 순위상관(보조) |
+| `eval/rehearsal_accuracy.py` | 리허설 정확도. 사람별 정확도(누른 동석자 필요) · 만족도 선택지로 가른 구분 정확도(보조) |
 | `sim/` | 가상 참가자 CSV 만들기 · 실제 모델로 한 바퀴 |
 | `tests/` | `test_pipeline` 12개 · `test_service` 4개(한 바퀴 · 다른 행사 섞임 · 대체 경로 · 오류) · `test_main` 2개(비밀값 · 409) · `test_eval` 2개 |
 

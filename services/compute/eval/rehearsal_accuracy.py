@@ -4,8 +4,9 @@
   A. 사람별 정확도 (주)   같은 테이블 동석자 중 "얻은 게 있었던 분" 으로 누른 사람의 점수가 안 누른 사람보다 높았나.
                          사람마다 재서 평균. 전부 누르거나 아무도 안 누른 사람은 비교할 차이가 없어 빠진다.
                          필요한 표(누른 동석자)가 아직 스키마에 없다 → picks 인자로 받는다
-  B. 만족도 상관 (보조)   사람마다 "동석자와의 평균 점수" 와 만족도(1~5)의 순위상관. satisfaction 표만으로 바로 잴 수 있다.
-                         사람당 숫자 하나라 신호가 약하다. A 가 없을 때만 쓴다
+  B. 만족도 구분 (보조)   "새로 얻은 게 있었다(gained)" 를 고른 사람의 동석자 평균 점수가, "즐거웠다 · 안 맞았다" 를 고른 사람보다
+                         높을 확률. "잘 모르겠다" 는 뺀다. satisfaction 표만으로 바로 잴 수 있다.
+                         사람당 답 하나라 신호가 약하다. A 가 없을 때만 쓴다
 점수는 세 가지를 나란히 — score(배정에 쓴 결합값) · score_ab 쪽 한 방향 · 두 방향 평균. 어느 쪽이 맞았는지 비교한다.
 
 판정 기준은 노션 9/26 제안서 2-7 — 리허설은 0.5 보다 확실히 높은지만 본다(구간 하한 > 0.5).
@@ -71,18 +72,20 @@ def per_person_accuracy(pair_scores, members, picks: set[tuple[str, str]], rater
     return out
 
 
-def satisfaction_correlation(pair_scores, members, satisfaction: dict[str, int]) -> dict:
-    """사람마다 동석자와의 평균 점수 ↔ 만족도 1~5 의 순위상관(스피어만). 보조 지표."""
-    from scipy.stats import spearmanr
+POS, NEG = {"gained"}, {"enjoyed", "mismatch"}   # unsure 는 어느 쪽도 아니라 뺀다
+
+
+def satisfaction_auc(pair_scores, members, satisfaction: dict[str, str]) -> dict:
+    """satisfaction = {사람: 선택지 키}. gained 인 사람의 동석자 평균 점수가 enjoyed · mismatch 인 사람보다 높을 확률. 보조 지표."""
     P, mates = _pair_lookup(pair_scores), _tables(members)
     out = {}
     for kind in KINDS:
-        xs, ys = [], []
-        for p, s in satisfaction.items():
+        pos, neg = [], []
+        for p, c in satisfaction.items():
             ms = [q for q in mates.get(p, []) if (p, q) in P]
-            if ms:
-                xs.append(np.mean([P[(p, q)][kind] for q in ms]))
-                ys.append(s)
-        rho = spearmanr(xs, ys).statistic if len(xs) > 2 else float("nan")
-        out[kind] = {"순위상관": float(rho), "사람": len(xs)}
+            if not ms or (c not in POS and c not in NEG):
+                continue
+            (pos if c in POS else neg).append(np.mean([P[(p, q)][kind] for q in ms]))
+        auc = float(np.mean([(x > y) + 0.5 * (x == y) for x in pos for y in neg])) if pos and neg else float("nan")
+        out[kind] = {"구분 정확도": auc, "얻음": len(pos), "못 얻음": len(neg)}
     return out

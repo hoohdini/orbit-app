@@ -70,7 +70,7 @@ def main(path):
                     repo.t["card_exchanges"].append({"scanner_id": a, "scanned_id": b})
     for m in tab:
         if rng.random() < 0.6:
-            repo.t["satisfaction"].append({"participant_id": m["participant_id"], "round": "tabletalk", "score": 4})
+            repo.t["satisfaction"].append({"participant_id": m["participant_id"], "round": "tabletalk", "choice": "gained"})
 
     t = time.time()
     r3 = service.coffeechat(repo, enc)

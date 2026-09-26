@@ -26,13 +26,13 @@
 | pair_scores | 배정에 쓴 쌍 점수 원본 | 계산 서비스 | 정확도 채점용. 재계산하지 않는다 |
 | recs | 커피챗 개인 추천(순위, 상대, 이유) | 계산 서비스 | 화면은 상대의 현재 테이블을 `current_tables` 에서 붙인다 |
 | card_exchanges | 명함 교환 기록(방향 있음). `source` qr·manual 은 찍은 쪽, auto 는 받은 쪽. `seen_at` 은 받은 쪽 알림 확인 시각 | card 모듈 API | 한 번 찍으면 두 행(양방향, 9/26 확정). 교환 수는 행 수 그대로(교환 1건 = 각자 +1, 전체 +2) |
-| satisfaction | 테이블토크 끝 만족도 1~5 | tabletalk 모듈 API | 라운드당 1건 |
+| satisfaction | 테이블토크 끝 만족도. 문장 선택지 choice(gained, enjoyed, unsure, mismatch)와 한 줄 의견 | tabletalk 모듈 API | 라운드당 1건. 0004 에서 1~5 숫자를 선택지로 바꿨다 |
 | event_log | 화면 이벤트(열람, 스캔 실패 등) | 모든 모듈 API | 패시브 수집 |
 | posters | 포스터 목록과 QR 코드 | 사전 적재 | |
 | poster_quizzes | 포스터별 퀴즈와 정답 | 사전 적재 | 정답은 서버만 본다 |
 | quiz_attempts | 퀴즈 시도 기록 | poster 모듈 API | 오답도 남긴다 |
 | stamps | 정답 시 스탬프 | poster 모듈 API | 포스터당 1개 |
-| poster_interest | 포스터 관심도 1~5 | poster 모듈 API | |
+| poster_interest | 포스터 관심도. 문장 선택지 choice(talk_more, interesting, distant) | poster 모듈 API | 0004 에서 1~5 숫자를 선택지로 바꿨다 |
 | raffle_tickets | 응모권 | poster 모듈 API | 조건(예: 스탬프 5개)은 설정값 |
 | ops_state | 운영 상태(phase, 공개 버전, 계산 서비스 생존 신호) | 운영 콘솔, 계산 서비스 | |
 | chat_logs | 챗봇 질문 기록(횟수 제한) | P2 | |
