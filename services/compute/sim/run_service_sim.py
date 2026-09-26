@@ -44,7 +44,7 @@ def main(path):
     r1 = service.precompute(repo, enc)
     print(f"전날 precompute {time.time()-t:.1f}초 · {r1}")
 
-    ppl = [p for p in repo.t["participants"] if p["role"] != "staff"]
+    ppl = list(repo.t["participants"])
     for p in rng.sample(ppl, 58):
         repo.t["checkins"].append({"participant_id": p["id"]})
     for k in range(2):

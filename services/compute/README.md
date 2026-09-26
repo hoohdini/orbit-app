@@ -66,7 +66,7 @@ uvicorn main:app --reload --port 8000
 테이블토크 뒤   POST /coffeechat {}                       명함 교환 반영 · 테이블토크 동석자 금지 · 커피챗 배정 초안 · 개인 추천
 ```
 
-- 운영진(role=staff)은 주소 · 배정 · 추천에서 뺀다
+- 운영진(role=staff)도 참가자와 똑같이 주소 · 배정 · 추천에 넣는다. 설문을 비워 두면 점수가 0 이라 사실상 아무 자리에나 앉는다
 - 코드북은 `ops_state` 의 `codebook:<버전>` 에 저장하고 `codebook_active` 로 가리킨다(표를 새로 만들지 않음). 주소는 다시 학습하지 않는다
 - 만족도 응답률이 `min_response_rate`(기본 0.5) 미만이면 만남 반영 없이 텍스트 점수로만 커피챗을 낸다(대체 경로)
 - 요청 본문 선택값: `table_mode`(min · avg · harmonic) · `random_ratio` · `rec_mode`(없으면 `REC_SCORE`) · `beta`

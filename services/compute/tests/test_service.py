@@ -58,20 +58,20 @@ def seed_repo(n=70, n_host=8, n_staff=2, seed=0):
 
 def test_full_loop():
     repo, enc = seed_repo(), FakeEncoder()
-    ids = [p["id"] for p in repo.t["participants"] if p["role"] != "staff"]
+    ids = [p["id"] for p in repo.t["participants"]]
 
     # 1. 행사 전날 — 새 코드북, 전원 주소, 테이블토크 배정
     r1 = service.precompute(repo, enc, iters=3000)
-    assert r1["new_codebook"] and r1["issued"] == 70 and r1["n"] == 70
-    assert len(repo.t["sids"]) == 70                                    # 운영진은 주소 없음
+    assert r1["new_codebook"] and r1["issued"] == 72 and r1["n"] == 72   # 참가자 70 + 운영진 2
+    assert len(repo.t["sids"]) == 72                                    # 운영진도 주소 받음
     assert all(len(s["offer_sid"]) == 3 and len(s["offer_vec"]) == DIM for s in repo.t["sids"])
     assert repo.ops_get("codebook_active:dev") == r1["codebook_version"]
     assert repo.t["labels"] and all(len(l["prefix"]) == 1 for l in repo.t["labels"])   # 첫자리 묶음만
     assert all(m["label"] is None for m in repo.t["tables_meta"])                           # 테이블 이름표 없음
     v1 = r1["version"]
     members = [m for m in repo.t["table_members"] if m["version"] == v1]
-    assert len(members) == 70 and len({m["table_no"] for m in members}) == r1["tables"]
-    assert len([p for p in repo.t["pair_scores"] if p["version"] == v1]) == 70 * 69 // 2
+    assert len(members) == 72 and len({m["table_no"] for m in members}) == r1["tables"]
+    assert len([p for p in repo.t["pair_scores"] if p["version"] == v1]) == 72 * 71 // 2
 
     # 2. 체크인 마감 — 60명 체크인 + 현장 등록 2명. 저장된 코드북에 붙이기만
     for pid in ids[:60]:
@@ -131,7 +131,7 @@ def test_other_event_does_not_leak():
     r1 = service.precompute(repo, enc, iters=500)                       # 이 행사는 초안만
     assert repo.ops_get("codebook_active:dev") == r1["codebook_version"]
     assert repo.ops_get("codebook_active:other") != r1["codebook_version"]
-    ids = [p["id"] for p in repo.participants("dev") if p["role"] != "staff"]
+    ids = [p["id"] for p in repo.participants("dev")]
     got = repo.latest_tables("tabletalk", ids)
     assert got and {m["version"] for m in got} == {r1["version"]}      # 다른 행사의 공개 배정을 집지 않음
     r = service.coffeechat(repo, enc, iters=2000)
@@ -146,7 +146,7 @@ def test_fallback_when_few_responses():
 
 
 def test_errors():
-    repo, enc = seed_repo(n=3, n_host=0), FakeEncoder()
+    repo, enc = seed_repo(n=3, n_host=0, n_staff=0), FakeEncoder()   # 3명뿐
     for fn, kw in ((service.precompute, {}), (service.precompute, {"reuse_codebook": True}), (service.coffeechat, {})):
         try:
             fn(repo, enc, **kw)

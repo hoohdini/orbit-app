@@ -5,7 +5,7 @@ precompute  행사 전날 · 체크인 마감
             reuse_codebook=True: 저장된 코드북을 그대로 쓰고 주소가 없는 사람(현장 등록자)만 붙인 뒤 배정을 다시 낸다
 coffeechat  테이블토크 뒤. 저장된 벡터 + 명함 교환 간선 → 만남 반영 → 커피챗 배정 초안 → 개인 추천
 
-운영진(role=staff)은 주소 · 배정 · 추천에서 뺀다. 결과는 전부 draft 이고 운영자가 공개해야 참가자에게 보인다.
+운영진(role=staff)도 참가자와 똑같이 주소 · 배정 · 추천에 넣는다(9/26 민찬 결정). 결과는 전부 draft 이고 운영자가 공개해야 참가자에게 보인다.
 """
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def _heartbeat(repo, what: str) -> None:
 
 
 def _people(repo, event_id: str, only_checked_in: bool) -> list[dict]:
-    P = [p for p in repo.participants(event_id) if p.get("role") != "staff"]
+    P = repo.participants(event_id)
     if only_checked_in:
         ci = repo.checkins([p["id"] for p in P])
         if ci:

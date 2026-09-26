@@ -19,8 +19,8 @@ from test_service import FakeEncoder, seed_repo  # noqa: E402
 H = {"X-Compute-Secret": "test-secret"}
 
 
-def client(n=70):
-    main._repo, main._enc = seed_repo(n=n, n_host=min(8, n)), FakeEncoder()
+def client(n=70, n_staff=2):
+    main._repo, main._enc = seed_repo(n=n, n_host=min(8, n), n_staff=n_staff), FakeEncoder()
     return TestClient(main.app)
 
 
@@ -36,10 +36,10 @@ def test_flow_and_conflict():
     r = c.post("/coffeechat", json={}, headers=H)
     assert r.status_code == 409                                     # 주소가 없는데 커피챗 → 409
     r = c.post("/precompute", json={"table_mode": "avg"}, headers=H)
-    assert r.status_code == 200 and r.json()["issued"] == 70, r.text
+    assert r.status_code == 200 and r.json()["issued"] == 72, r.text   # 참가자 70 + 운영진 2
     r = c.post("/coffeechat", json={"rec_mode": "one_way"}, headers=H)
     assert r.status_code == 200 and r.json()["fallback"], r.text
-    c2 = client(n=3)
+    c2 = client(n=3, n_staff=0)
     assert c2.post("/precompute", json={}, headers=H).status_code == 409
 
 
