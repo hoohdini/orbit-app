@@ -2,8 +2,8 @@
 // 이름과 숫자 4자리를 입력하면 바로 로그인된다. 동명이인이면 소속 선택이 아래에 펼쳐진다.
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/client";
 
 type Candidate = { id: string; display_name: string; affiliation: string | null; role: string; cohort: number | null };
@@ -11,8 +11,23 @@ type LoginData = { participant?: { id: string; display_name: string }; consented
 
 const roleLabel: Record<string, string> = { student: "재학생", alumni: "졸업생", professor: "교수", staff: "운영진", other: "기타" };
 
+// 명함 QR(/card?p=) 등에서 로그인 없이 들어온 사람은 로그인 뒤 제자리로 돌려보낸다. 같은 사이트 경로만 허용한다
+function safeNext(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingForm />
+    </Suspense>
+  );
+}
+
+function OnboardingForm() {
   const router = useRouter();
+  const next = safeNext(useSearchParams().get("next"));
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,7 +49,7 @@ export default function OnboardingPage() {
       setChoose(r.data.choose);
       return;
     }
-    router.replace(r.data.consented ? "/onboarding/table" : "/onboarding/consent");
+    router.replace(r.data.consented ? (next ?? "/onboarding/table") : "/onboarding/consent");
   }
 
   const canSubmit = name.trim().length >= 1 && /^\d{4}$/.test(pin) && !busy;

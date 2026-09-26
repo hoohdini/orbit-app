@@ -14,9 +14,10 @@
 1. 왼쪽 메뉴 SQL Editor → New query.
 2. `supabase/migrations/0001_init.sql` 내용을 붙여 넣고 Run. 오류 없이 끝나야 한다.
 3. 같은 방법으로 `0002_rls.sql` 실행.
-4. 같은 방법으로 `0003_pin_nullable.sql` 실행.
-5. 같은 방법으로 `supabase/seed.sql`, 이어서 `supabase/seed_dev_assign.sql` 실행(개발용만. `orbit-event` 에는 넣지 않는다).
-6. SQL Editor 에서 `select * from current_tables;` 가 12행이면 끝. 로그인 시험용 숫자는 기존 10명 0000, 김민수(연세대) 1111, 김민수(고려대) 2222.
+4. 같은 방법으로 `0003_pin_nullable.sql`, `0004_card_exchange_source.sql` 실행.
+5. 같은 방법으로 `supabase/seed.sql`, 이어서 `supabase/seed_dev_assign.sql`, `supabase/seed_dev_card.sql` 실행(개발용만. `orbit-event` 에는 넣지 않는다).
+6. SQL Editor 에서 `select * from current_tables;` 가 12행이면 끝. 로그인 시험용 숫자는 기존 10명 0000, 김민수(연세대) 1111, 김민수(고려대) 2222, 워크인 J · 학생 K 0000.
+7. 명함 시드 확인: `select count(*) from card_exchanges where scanner_id = '00000000-0000-0000-0000-000000000002';` 가 3이면 된다(학생 A 의 명함함).
 
 ## 3. 키 확인
 

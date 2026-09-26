@@ -6,6 +6,10 @@
 사용법
   python scripts/import_participants.py 명단.csv --event-id orbit-2026 --pin-out D:/DSL/_event_data/pins.csv
   python scripts/import_participants.py 명단.csv --dry-run          # DB 에 쓰지 않고 요약만
+  python scripts/import_participants.py 명단.csv --names-only       # 이름·소속·구분·기수만(명찰 QR 인쇄용 id 발급). 숫자·프로필은 나중에
+
+같은 사람(event_id + 이름 + 소속)이 이미 있으면 새로 만들지 않고 갱신한다(2026-09-26). 명찰에 인쇄한 명함 QR 이 participant id 를 담으므로
+다시 돌려도 id 가 바뀌면 안 된다. 기존 사람의 숫자 4자리는 휴대폰 열이 있을 때만 다시 계산하고, 비어 있으면 그대로 둔다(무작위를 두 번 주지 않는다).
 
 CSV 열 (첫 줄 헤더, UTF-8). 열 이름은 아래와 같거나 --map 으로 바꾼다.
   이름, 소속, 구분, 기수, 휴대폰, 하는일, 찾는사람, 주제태그, 관계태그, 호스트
@@ -53,6 +57,7 @@ def main() -> int:
     ap.add_argument("--pin-out", help="무작위 숫자를 받은 사람의 이름·숫자 목록. 저장소 밖 경로")
     ap.add_argument("--map", action="append", default=[], help="열 이름 바꾸기. 예: --map phone=전화번호")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--names-only", action="store_true", help="이름·소속·구분·기수·호스트만 적재한다. 숫자와 프로필은 넣지 않는다")
     args = ap.parse_args()
 
     cols = dict(DEFAULT_COLS)
@@ -84,10 +89,8 @@ def main() -> int:
             print(f"{i}행: 이름이 비어 건너뛴다", file=sys.stderr)
             continue
         role = ROLE_MAP.get((r.get(cols["role"]) or "").strip(), "other")
-        pin = last4(r.get(cols["phone"], ""))
-        if pin is None:
-            pin = f"{secrets.randbelow(10000):04d}"
-            random_pins.append((name, r.get(cols["affiliation"], ""), pin))
+        pin = None if args.names_only else last4(r.get(cols["phone"], ""))
+        pin_from_phone = pin is not None
         host_raw = (r.get(cols["host"]) or "").strip()
         is_host = host_raw in ("예", "y", "Y", "true", "1") if host_raw else role in ("alumni", "professor")
         cohort_raw = re.sub(r"\D", "", r.get(cols["cohort"], "") or "")
@@ -99,7 +102,9 @@ def main() -> int:
                 "role": role,
                 "cohort": int(cohort_raw) if cohort_raw else None,
                 "is_host": is_host,
-                "login_pin_hash": bcrypt.hashpw(pin.encode(), bcrypt.gensalt(rounds=10)).decode(),
+                # 숫자는 DB 를 본 뒤 정한다(기존 사람이면 유지). 아래 _pin 은 적재 직전에 뺀다
+                "_pin": pin,
+                "_pin_from_phone": pin_from_phone,
             }
         )
         profiles.append(
@@ -114,13 +119,47 @@ def main() -> int:
     roles = {}
     for p in participants:
         roles[p["role"]] = roles.get(p["role"], 0) + 1
-    print(f"읽음 {len(participants)}명 · 구분 {roles} · 호스트 {sum(p['is_host'] for p in participants)}명 · 무작위 숫자 {len(random_pins)}명")
+    print(f"읽음 {len(participants)}명 · 구분 {roles} · 호스트 {sum(p['is_host'] for p in participants)}명")
     dup = {}
     for p in participants:
         dup[p["display_name"]] = dup.get(p["display_name"], 0) + 1
     same = [n for n, c in dup.items() if c > 1]
     if same:
         print(f"동명이인 {len(same)}건: {same} (소속으로 구분된다)")
+    key_of = lambda p: (p["display_name"], p["affiliation"] or "")
+    keys = {}
+    for p in participants:
+        keys[key_of(p)] = keys.get(key_of(p), 0) + 1
+    clash = [k for k, c in keys.items() if c > 1]
+    if clash:
+        print(f"이름과 소속이 모두 같은 사람이 {len(clash)}건 있다: {clash}. 구분할 수 없으니 CSV 에서 소속을 다르게 적고 다시 돌린다", file=sys.stderr)
+        return 2
+
+    # 기존 사람 조회(dry-run 이 아닐 때). id 를 유지하려고 event_id + 이름 + 소속으로 맞춘다
+    existing = {}
+    if not args.dry_run:
+        from supabase import create_client  # pip install supabase
+
+        client = create_client(url.split("/rest/")[0], key)
+        rows_db = client.table("participants").select("id, display_name, affiliation, login_pin_hash").eq("event_id", args.event_id).execute().data or []
+        existing = {(r["display_name"], r["affiliation"] or ""): r for r in rows_db}
+
+    # 숫자 결정. 새 사람: 휴대폰 뒤 4자리, 없으면 무작위. 기존 사람: 휴대폰이 있으면 다시 계산, 없으면 유지
+    for p in participants:
+        old = existing.get(key_of(p))
+        pin = p.pop("_pin")
+        from_phone = p.pop("_pin_from_phone")
+        if args.names_only:
+            continue
+        if pin is None and old and old.get("login_pin_hash"):
+            continue  # 기존 숫자 유지
+        if pin is None:
+            pin = f"{secrets.randbelow(10000):04d}"
+            random_pins.append((p["display_name"], p["affiliation"] or "", pin))
+        p["login_pin_hash"] = bcrypt.hashpw(pin.encode(), bcrypt.gensalt(rounds=10)).decode()
+        del from_phone
+    if not args.names_only:
+        print(f"무작위 숫자 {len(random_pins)}명")
 
     if args.pin_out and random_pins:
         out = Path(args.pin_out)
@@ -139,16 +178,20 @@ def main() -> int:
         print("dry-run: DB 에 쓰지 않았다")
         return 0
 
-    from supabase import create_client  # pip install supabase
-
-    client = create_client(url.split("/rest/")[0], key)
-    inserted = 0
+    inserted = updated = 0
     for p, pr in zip(participants, profiles):
-        res = client.table("participants").insert(p).execute()
-        pid = res.data[0]["id"]
-        client.table("profiles").insert({"participant_id": pid, **pr}).execute()
-        inserted += 1
-    print(f"적재 완료 {inserted}명 (event_id={args.event_id})")
+        old = existing.get(key_of(p))
+        if old:
+            client.table("participants").update(p).eq("id", old["id"]).execute()
+            pid = old["id"]
+            updated += 1
+        else:
+            res = client.table("participants").insert(p).execute()
+            pid = res.data[0]["id"]
+            inserted += 1
+        if not args.names_only:
+            client.table("profiles").upsert({"participant_id": pid, **pr}, on_conflict="participant_id").execute()
+    print(f"적재 완료: 새로 {inserted}명 · 갱신 {updated}명 (event_id={args.event_id}{', 이름만' if args.names_only else ''})")
     return 0
 
 

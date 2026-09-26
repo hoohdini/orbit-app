@@ -25,7 +25,7 @@
 | table_members | 버전별 테이블 구성원 | 계산 서비스 | |
 | pair_scores | 배정에 쓴 쌍 점수 원본 | 계산 서비스 | 정확도 채점용. 재계산하지 않는다 |
 | recs | 커피챗 개인 추천(순위, 상대, 이유) | 계산 서비스 | 화면은 상대의 현재 테이블을 `current_tables` 에서 붙인다 |
-| card_exchanges | 명함 스캔 기록(방향 있음) | card 모듈 API | 양방향 저장 여부는 회의 미정. 지금은 스캔 한 건이 한 행 |
+| card_exchanges | 명함 교환 기록(방향 있음). `source` qr·manual 은 찍은 쪽, auto 는 받은 쪽. `seen_at` 은 받은 쪽 알림 확인 시각 | card 모듈 API | 한 번 찍으면 두 행(양방향, 9/26 확정). 교환 수는 행 수 그대로(교환 1건 = 각자 +1, 전체 +2) |
 | satisfaction | 테이블토크 끝 만족도 1~5 | tabletalk 모듈 API | 라운드당 1건 |
 | event_log | 화면 이벤트(열람, 스캔 실패 등) | 모든 모듈 API | 패시브 수집 |
 | posters | 포스터 목록과 QR 코드 | 사전 적재 | |
@@ -63,5 +63,4 @@
 |---|---|---|
 | SID 두 개의 이름(have/want 대 offer/seek) | offer/seek | 컬럼 rename 마이그레이션 1개 |
 | 각 SID 에 넣을 정보 범위 | offer 는 하는 일 + 주제 태그, seek 는 찾는 사람 + 관계 태그 | 계산 서비스 문장 틀 수정 |
-| 명함 교환 양방향 여부 | 스캔 1건 = 1행 | 양방향이면 API 에서 2행 삽입 |
 | 응모권 조건 | 설정값 미정 | `services/compute` 아님. poster API 설정값 |

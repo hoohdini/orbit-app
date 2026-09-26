@@ -33,9 +33,13 @@
 | onboarding | /api/onboarding/consent | POST | agreed: true | { consent_at } | 있음 |
 | onboarding | /api/onboarding/me | GET | 없음 | { participant, profile, consented, sid: {offer_sid, seek_sid, label, is_temp} 또는 null, table: {table_no, label, version} 또는 null } | 있음 |
 | home | /api/home/orbit | GET | 없음 | { me: {sid_prefix, label}, rings: [{prefix_len, people: [{id, display_name, affiliation}]}] } | 예정 |
-| card | /api/card/me | GET | 없음 | { card: {...}, qr_payload } | 예정 |
-| card | /api/card/scan | POST | qr_payload | { saved_card: {...} } | 예정 |
-| card | /api/card/wallet | GET | 없음 | { cards: [...] } | 예정 |
+| card | /api/card/me | GET | 없음 | { card, visibility, qr_payload, wallet_count, unseen_count } qr_payload 는 명찰과 같은 `<origin>/card?p=<id>` | 있음 |
+| card | /api/card/scan | POST | qr_payload, source?(qr 기본, manual) | { card, already_saved } 한 번 찍으면 양방향 2행(나→상대 source, 상대→나 auto). 본인 400 SELF_SCAN, 다른 행사·형식 오류 404 | 있음 |
+| card | /api/card/wallet | GET | 없음 | { cards: [card…], received_count } 최근 순. card.source 가 auto 면 받은 것 | 있음 |
+| card | /api/card/inbox | GET | 없음 | { new: [{exchange_id, message, card}], count } 아직 안 본 "OO 님에게 명함이 공유되었습니다" | 있음 |
+| card | /api/card/inbox/seen | POST | exchange_ids?(비우면 전부) | { seen: n } | 있음 |
+| card | /api/card/search | GET | q(2자 이상) | { people: [{id, display_name, affiliation}] } 같은 행사·체크인·본인 제외·10명. 카메라 대체 경로 | 있음 |
+| card | /api/card/settings | POST | visibility?(all·scanned), links?({linkedin, github, email, url}) | { visibility, links } | 있음 |
 | tabletalk | /api/tabletalk/table | GET | 없음 | { table_no, label, members: [{id, display_name, affiliation, topic_tags, offer_text}] } | 있음 |
 | tabletalk | /api/tabletalk/satisfaction | POST | score 1~5, comment? | { saved: true } | 있음 |
 | coffeechat | /api/coffeechat/table | GET | 없음 | { table_no, label, talk_prompts, members: [...] } | 있음 |
@@ -49,6 +53,8 @@
 | ops | /api/ops/checkin | POST | participant_id, is_late? | { checked_at } | 예정 |
 | ops | /api/ops/publish | POST | version | { published_at } | 예정 |
 | ops | /api/ops/status | GET | 없음 | { phase, checkins, satisfaction_rate, exchanges, compute_heartbeat } | 예정 |
+
+card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name, affiliation, role, cohort, stage(1 명단만·2 프로필·3 주소), sid, label, theme(0~7 또는 null), offer_text, seek_text, topic_tags, links 또는 null, source?, exchanged_at? }`. 링크는 상대의 visibility 가 all 이거나 내가 그 사람을 직접 찍었을 때만 들어간다.
 
 ## 계산 서비스 (services/compute, 내부 HTTP)
 

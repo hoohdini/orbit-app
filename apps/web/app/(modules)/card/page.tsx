@@ -1,10 +1,13 @@
-// 명함 모듈 (담당: 성하). 이 폴더 안에서만 작업한다. docs/MODULES.md 참고.
-export default function Page() {
-  return (
-    <main className="min-h-screen p-6">
-      <h1 className="text-2xl font-bold">명함</h1>
-      <p className="mt-2 text-gray-600">내 명함, 명함 QR 스캔, 타인 명함 저장, 명함함</p>
-      <p className="mt-6 text-sm text-gray-400">담당 성하. 아직 백지 상태다.</p>
-    </main>
-  );
+// 명함 모듈 (담당: 성하). /card 는 내 명함, /card?p=<id> 는 명찰 QR 을 내장 카메라로 찍었을 때 열리는 교환 결과다.
+import { requireOnboarded } from "./_guard";
+import MyCard from "./MyCard";
+import ExchangeResult from "./ExchangeResult";
+
+export const dynamic = "force-dynamic";
+
+export default async function CardPage({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
+  const { p } = await searchParams;
+  const next = p ? `/card?p=${encodeURIComponent(p)}` : "/card";
+  await requireOnboarded(next);
+  return p ? <ExchangeResult payload={p} /> : <MyCard />;
 }

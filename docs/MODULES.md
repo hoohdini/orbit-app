@@ -30,7 +30,9 @@ Supabase Postgres                          스키마 정본 supabase/migrations
 계산 서비스 (services/compute)              API Route 가 공유 비밀키로 호출하거나 운영자가 직접 실행
 ```
 
-허용되는 import 방향은 한 가지다. 모듈 → `lib/`, `components/`. 모듈끼리는 import 하지 않는다. `lib/` 와 `components/` 는 모듈을 import 하지 않는다.
+허용되는 import 방향은 한 가지다. 모듈 → `lib/`, `components/`. 모듈끼리는 import 하지 않는다. `lib/` 와 `components/` 는 모듈을 import 하지 않는다. 공용 컴포넌트가 모듈 API 가 필요하면 URL 로만 부른다(예: `BottomNav` 가 `/api/card/inbox` 의 수를 배지로 그린다).
+
+라우트 보호는 `home/layout.tsx` 방식이 기본이다. 검색 파라미터를 보고 돌아올 곳(`next`)이 필요한 모듈(명함의 `/card?p=`)은 layout 대신 page 마다 `_guard.ts` 의 `requireOnboarded(next)` 를 부른다.
 
 ## 공용으로 두는 것 (모듈이 아니라 lib·components)
 
@@ -39,7 +41,7 @@ Supabase Postgres                          스키마 정본 supabase/migrations
 | DB 클라이언트 | `apps/web/lib/db.ts` | 서버 전용. 브라우저 번들에 들어가면 안 된다 |
 | 세션(로그인 쿠키) | `apps/web/lib/session.ts` | 모든 API Route 가 같은 방식으로 참가자 id 를 얻는다 |
 | API 응답 형식 | `apps/web/lib/api.ts` | `docs/API.md` 의 ok/error 형식 |
-| QR 스캐너 | `apps/web/components/QrScanner.tsx` | 명함·포스터가 같은 스캐너를 쓴다. QR 문자열 앞자리로 종류를 나눈다(`docs/QR_FORMAT.md`). 공용 여부는 회의 미정이지만 컴포넌트는 하나로 두고 화면만 각자 둔다 |
+| QR 스캐너 | `apps/web/components/QrScanner.tsx` | 명함·포스터가 같은 스캐너를 쓴다. `onDecode(text)` 로 읽은 문자열을 그대로 넘기고, 종류 구분(`docs/QR_FORMAT.md`)은 화면이 한다. `onDenied()` 는 카메라 권한 거부. HTTPS 또는 localhost 에서만 카메라가 열린다 |
 | 하단 메뉴 | `apps/web/components/BottomNav.tsx` | 모든 모듈 화면 아래에 붙는다 |
 | 이벤트 로그 | `apps/web/lib/log.ts` | `event_log` 에 한 줄 쓰는 함수 |
 
