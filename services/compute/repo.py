@@ -21,7 +21,8 @@ class MemoryRepo:
     def __init__(self):
         self.t: dict[str, list[dict]] = {k: [] for k in (
             "participants", "profiles", "sids", "labels", "checkins", "assign_versions", "tables_meta",
-            "table_members", "pair_scores", "recs", "card_exchanges", "satisfaction", "ops_state")}
+            "table_members", "pair_scores", "recs", "card_exchanges", "satisfaction", "ops_state",
+            "posters", "poster_interest")}
         self._version = itertools.count(1)
 
     # ---------- 읽기 ----------
@@ -47,6 +48,14 @@ class MemoryRepo:
             a, b = sorted((r["scanner_id"], r["scanned_id"]))
             seen[(a, b)] = {"a": a, "b": b, "kind": "exchange", "weight": 0.3}
         return list(seen.values())
+
+    def posters(self) -> list[dict]:
+        return [{"id": p["id"], "title": p["title"], "tags": p.get("tags") or []} for p in self.t["posters"]]
+
+    def poster_interest(self, ids: list[str]) -> list[dict]:
+        """[{participant_id, poster_id, choice}]. 키는 0005 마이그레이션의 learn_more · interesting · not_mine."""
+        s = set(ids)
+        return [r for r in self.t["poster_interest"] if r["participant_id"] in s]
 
     def satisfaction(self, round_: str, ids: list[str]) -> dict[str, str]:
         """{사람: 선택지 키}. 키는 0005 마이그레이션의 gained · different · unsure · mismatch."""
@@ -136,6 +145,12 @@ class SupabaseRepo:
 
     def edges(self):
         return self._all(lambda: self.db.table("edges").select("a, b, kind, weight"))
+
+    def posters(self):
+        return self._all(lambda: self.db.table("posters").select("id, title, tags"))
+
+    def poster_interest(self, ids):
+        return self._in("poster_interest", "participant_id, poster_id, choice", "participant_id", ids)
 
     def satisfaction(self, round_, ids):
         rows = self._in("satisfaction", "participant_id, round, choice", "participant_id", ids)

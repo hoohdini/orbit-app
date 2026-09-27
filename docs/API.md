@@ -76,6 +76,6 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 |---|---|---|---|
 | /health | GET | 항상 | 모델·코드북 로드 여부 |
 | /precompute | POST | 행사 전날 | 사전 등록자 전원 임베딩·코드북·주소·라벨 발급, 테이블토크 배정 draft 생성 |
-| /coffeechat | POST | 테이블토크 종료 뒤 | 체크인 명단 + edges + satisfaction 으로 점수 재계산, 커피챗 배정 draft, 추천 목록 생성 |
+| /coffeechat | POST | 테이블토크 종료 뒤(포스터세션 중) | 체크인 명단 + edges + satisfaction + poster_interest 로 점수 재계산, 커피챗 배정 draft, 추천 목록 생성 |
 
 호출자는 헤더 `X-Compute-Secret` 을 보낸다. 결과는 계산 서비스가 DB 에 직접 쓰고 `assign_versions.version` 만 돌려준다.

@@ -55,7 +55,7 @@
 | coffeechat | current_tables(coffeechat), recs, tables_meta | event_log |
 | poster | posters, poster_quizzes(정답 제외), stamps, raffle_tickets | quiz_attempts, stamps, poster_interest, raffle_tickets, event_log |
 | ops(콘솔) | 전부 | checkins, assign_versions.status, ops_state |
-| compute | participants, profiles, checkins, edges, satisfaction | sids, labels, assign_versions, tables_meta, table_members, pair_scores, recs, ops_state |
+| compute | participants, profiles, checkins, edges, satisfaction, posters, poster_interest | sids, labels, assign_versions, tables_meta, table_members, pair_scores, recs, ops_state |
 
 ## 미정이라 보류한 것
 

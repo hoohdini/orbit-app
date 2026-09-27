@@ -105,6 +105,12 @@ def test_full_loop():
     for k, pid in enumerate(checked[: int(len(checked) * 0.7)]):
         repo.t["satisfaction"].append({"participant_id": pid, "round": "tabletalk", "choice": answers[k % 4]})
 
+    # 포스터세션 중 관심도 (커피챗 계산 전까지 들어온 답만 쓴다)
+    repo.t["posters"] = [{"id": 1, "title": "추천 포스터", "tags": ["추천시스템"]}, {"id": 2, "title": "금융 포스터", "tags": ["금융"]}]
+    repo.t["poster_interest"] = [{"participant_id": checked[0], "poster_id": 1, "choice": "learn_more"},
+                                 {"participant_id": checked[0], "poster_id": 2, "choice": "interesting"},
+                                 {"participant_id": checked[1], "poster_id": 2, "choice": "not_mine"}]
+
     # 4. 커피챗
     r3 = service.coffeechat(repo, enc, iters=5000)
     assert r3["forbid_hits"] == 0 and not r3["fallback"]                  # 테이블토크 동석자와 다시 안 앉음
@@ -121,7 +127,10 @@ def test_full_loop():
     assert by_pid[checked[0]]["satisfaction"] == "gained" and "새로 얻은 게 있었다" in by_pid[checked[0]]["text"]
     assert all(r.get("exchanges", 0) >= 1 for r in by_pid.values())                        # 테이블토크 동석자와 전부 교환함
     assert all(m.get("reason") and "from_table" not in m["reason"] for m in tab)          # 테이블토크 배정은 이전 테이블 없음
+    assert by_pid[checked[0]]["posters"] == 2 and "관심 포스터 2개 반영" in by_pid[checked[0]]["text"]
+    assert "posters" not in by_pid[checked[1]]                                             # 관심 분야 아님은 반영 안 함
     v3 = next(v for v in repo.t["assign_versions"] if v["version"] == r3["version"])
+    assert v3["params"]["poster_answers"] == 3 and v3["params"]["poster_people"] == 1
     assert v3["params"]["sat_counts"] == {"gained": 11, "different": 11, "unsure": 11, "mismatch": 10}
     print("  이유 예:", by_pid[checked[0]]["text"])
     print(f"  전날 {r1['tables']}테이블 · 체크인 뒤 {r2['tables']}테이블(워크인 {r2['issued']}명) · 커피챗 {r3['tables']}테이블 · 추천 {len(recs)}행")
