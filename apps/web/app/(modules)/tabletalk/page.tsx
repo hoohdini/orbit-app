@@ -1,6 +1,5 @@
-// 테이블토크 · 커피챗 한 페이지 (담당: 민찬). 9/27 회의 결정.
-// 커피챗 배정이 공개되기 전에는 테이블토크 자리 · 동석자 · 만족도만 보인다.
-// 공개되면 맨 위에 커피챗 자리 · 대화거리 · 추천이 뜨고 테이블토크는 아래로 내려간다. 30초마다 다시 확인한다.
+// 테이블토크 (담당: 민찬). 내 테이블 번호 · 같은 테이블 사람 소개 · 끝날 때 만족도.
+// 배정이 공개되기 전이면 30초마다 다시 확인한다. 커피챗은 독립된 /coffeechat 페이지다(한 페이지로 합칠지는 다음 회의에서).
 // 주소(SID) 숫자는 보여 주지 않는다(9/27 회의).
 "use client";
 
@@ -14,38 +13,26 @@ const POLL_MS = 30_000;
 const SAT_KEY = "orbit:tabletalk-satisfaction";
 
 type Member = { id: string; display_name: string; affiliation: string | null; topic_tags: string[]; offer_text: string };
-type Table = { table_no: number; label: string | null; talk_prompts?: string[]; members: Member[] };
-type Rec = {
-  rank: number;
-  target: { id: string; display_name: string; affiliation: string | null };
-  current_table_no: number | null;
-  reason: { common_topics?: string[]; they_can_give?: string[]; same_orbit?: boolean } | null;
-};
+type Table = { table_no: number; label: string | null; members: Member[] };
 
 export default function TabletalkPage() {
   const [talk, setTalk] = useState<Table | null | undefined>(undefined); // undefined 는 불러오는 중, null 은 미공개
-  const [coffee, setCoffee] = useState<Table | null>(null);
-  const [recs, setRecs] = useState<Rec[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     api<{ participant: { id: string } }>("/api/onboarding/me").then((r) => alive && r.ok && setMeId(r.data.participant.id));
     async function load() {
-      const [t, c] = await Promise.all([api<Table>("/api/tabletalk/table"), api<Table>("/api/coffeechat/table")]);
+      const t = await api<Table>("/api/tabletalk/table");
       if (!alive) return;
       setTalk(t.ok ? t.data : null);
-      if (c.ok) {
-        setCoffee(c.data);
-        const r = await api<{ recs: Rec[] }>("/api/coffeechat/recs");
-        if (alive && r.ok) setRecs(r.data.recs);
-      }
+      if (!t.ok) timer = setTimeout(load, POLL_MS);
     }
     load();
-    const timer = setInterval(load, POLL_MS);
     return () => {
       alive = false;
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
     };
   }, []);
 
@@ -53,28 +40,38 @@ export default function TabletalkPage() {
 
   return (
     <>
-      <TopBar title={coffee ? "커피챗" : "테이블토크"} />
+      <TopBar title="테이블토크" />
       <main className="space-y-4 p-4">
-        {coffee && (
-          <>
-            <TableCard title="커피챗 테이블" table={coffee} meId={meId} />
-            {coffee.talk_prompts && coffee.talk_prompts.length > 0 && (
-              <section className="rounded-2xl border border-gray-200 bg-white p-4">
-                <h2 className="text-sm font-semibold">대화거리</h2>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-700">
-                  {coffee.talk_prompts.map((p) => (
-                    <li key={p}>{p}</li>
-                  ))}
-                </ul>
-              </section>
-            )}
-            <RecList recs={recs} />
-          </>
-        )}
-
         {talk ? (
           <>
-            <TableCard title={coffee ? "지난 테이블토크" : "테이블토크 테이블"} table={talk} meId={meId} muted={!!coffee} />
+            <section className="rounded-2xl border border-gray-200 bg-white p-4">
+              <div className="flex items-baseline justify-between">
+                <h2 className="text-sm font-semibold">내 테이블</h2>
+                <span className="text-xs text-gray-500">{talk.members.length}명</span>
+              </div>
+              <p className="mt-1 text-3xl font-bold">{talk.table_no}번</p>
+              <ul className="mt-3 divide-y divide-gray-100">
+                {talk.members.map((m) => (
+                  <li key={m.id} className="py-2">
+                    <p className="text-sm">
+                      <span className="font-medium">{m.display_name}</span>
+                      {m.id === meId && <span className="ml-1 rounded bg-gray-900 px-1 text-[10px] text-white">나</span>}
+                      {m.affiliation && <span className="ml-2 text-gray-500">{m.affiliation}</span>}
+                    </p>
+                    {m.offer_text && <p className="mt-0.5 whitespace-pre-line text-xs text-gray-600">{m.offer_text}</p>}
+                    {m.topic_tags.length > 0 && (
+                      <p className="mt-1 flex flex-wrap gap-1">
+                        {m.topic_tags.map((t) => (
+                          <span key={t} className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
+                            {t}
+                          </span>
+                        ))}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
             <SatisfactionCard />
           </>
         ) : (
@@ -82,86 +79,9 @@ export default function TabletalkPage() {
             테이블 배정이 아직 공개되지 않았다. 공개되면 이 화면에 저절로 뜬다
           </p>
         )}
-
-        {talk && !coffee && (
-          <p className="text-center text-xs text-gray-400">커피챗 자리와 추천은 포스터세션 뒤 이 화면 위쪽에 뜬다</p>
-        )}
       </main>
     </>
   );
-}
-
-function TableCard({ title, table, meId, muted }: { title: string; table: Table; meId: string | null; muted?: boolean }) {
-  return (
-    <section className={`rounded-2xl border border-gray-200 bg-white p-4 ${muted ? "opacity-70" : ""}`}>
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        <span className="text-xs text-gray-500">{table.members.length}명</span>
-      </div>
-      <p className="mt-1 text-3xl font-bold">{table.table_no}번</p>
-      <ul className="mt-3 divide-y divide-gray-100">
-        {table.members.map((m) => (
-          <li key={m.id} className="py-2">
-            <p className="text-sm">
-              <span className="font-medium">{m.display_name}</span>
-              {m.id === meId && <span className="ml-1 rounded bg-gray-900 px-1 text-[10px] text-white">나</span>}
-              {m.affiliation && <span className="ml-2 text-gray-500">{m.affiliation}</span>}
-            </p>
-            {m.offer_text && <p className="mt-0.5 whitespace-pre-line text-xs text-gray-600">{m.offer_text}</p>}
-            {m.topic_tags.length > 0 && (
-              <p className="mt-1 flex flex-wrap gap-1">
-                {m.topic_tags.map((t) => (
-                  <span key={t} className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
-                    {t}
-                  </span>
-                ))}
-              </p>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function RecList({ recs }: { recs: Rec[] }) {
-  if (recs.length === 0) return null;
-  return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-4">
-      <h2 className="text-sm font-semibold">찾아가 볼 만한 사람</h2>
-      <p className="mt-0.5 text-xs text-gray-500">테이블토크에서 아직 못 만난 사람 중에서 골랐다</p>
-      <ol className="mt-2 divide-y divide-gray-100">
-        {recs.map((r) => (
-          <li key={r.target.id} className="flex items-start gap-3 py-2">
-            <span className="w-5 pt-0.5 text-right text-xs text-gray-400">{r.rank}</span>
-            <div className="flex-1">
-              <p className="text-sm">
-                <span className="font-medium">{r.target.display_name}</span>
-                {r.target.affiliation && <span className="ml-2 text-gray-500">{r.target.affiliation}</span>}
-              </p>
-              <p className="mt-1 flex flex-wrap gap-1">
-                {reasonChips(r.reason).map((c) => (
-                  <span key={c} className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
-                    {c}
-                  </span>
-                ))}
-              </p>
-            </div>
-            <span className="whitespace-nowrap text-xs text-gray-500">{r.current_table_no != null ? `${r.current_table_no}번 테이블` : ""}</span>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-function reasonChips(r: Rec["reason"]): string[] {
-  if (!r) return [];
-  const out: string[] = [];
-  if (r.common_topics?.length) out.push(`같은 관심: ${r.common_topics.join(", ")}`);
-  if (r.they_can_give?.length) out.push(`도움 받을 수 있음: ${r.they_can_give.join(", ")}`);
-  if (r.same_orbit) out.push("비슷한 분야");
-  return out;
 }
 
 function SatisfactionCard() {
