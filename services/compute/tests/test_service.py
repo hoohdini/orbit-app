@@ -101,8 +101,9 @@ def test_full_loop():
                 if a < b:
                     repo.t["card_exchanges"].append({"scanner_id": a, "scanned_id": b})
     checked = [m["participant_id"] for m in tab]
-    for pid in checked[: int(len(checked) * 0.7)]:
-        repo.t["satisfaction"].append({"participant_id": pid, "round": "tabletalk", "choice": "gained"})
+    answers = ["gained", "different", "unsure", "mismatch"]
+    for k, pid in enumerate(checked[: int(len(checked) * 0.7)]):
+        repo.t["satisfaction"].append({"participant_id": pid, "round": "tabletalk", "choice": answers[k % 4]})
 
     # 4. 커피챗
     r3 = service.coffeechat(repo, enc, iters=5000)
@@ -112,6 +113,17 @@ def test_full_loop():
     t2 = {m["participant_id"]: m["table_no"] for m in tab}
     assert all(t2[r["participant_id"]] != t2[r["target_id"]] for r in recs)   # 이미 만난 사람은 추천 안 함
     assert repo.ops_get("compute_heartbeat")["last"] == "coffeechat"
+    # 배정 이유 — 운영진 대시보드용
+    cm = [m for m in repo.t["table_members"] if m["version"] == r3["version"]]
+    assert all(m["reason"]["table_no"] == m["table_no"] and m["reason"]["text"] for m in cm)
+    assert all(m["reason"]["from_table"] == t2[m["participant_id"]] for m in cm)          # 이전 테이블
+    by_pid = {m["participant_id"]: m["reason"] for m in cm}
+    assert by_pid[checked[0]]["satisfaction"] == "gained" and "새로 얻은 게 있었다" in by_pid[checked[0]]["text"]
+    assert all(r.get("exchanges", 0) >= 1 for r in by_pid.values())                        # 테이블토크 동석자와 전부 교환함
+    assert all(m.get("reason") and "from_table" not in m["reason"] for m in tab)          # 테이블토크 배정은 이전 테이블 없음
+    v3 = next(v for v in repo.t["assign_versions"] if v["version"] == r3["version"])
+    assert v3["params"]["sat_counts"] == {"gained": 11, "different": 11, "unsure": 11, "mismatch": 10}
+    print("  이유 예:", by_pid[checked[0]]["text"])
     print(f"  전날 {r1['tables']}테이블 · 체크인 뒤 {r2['tables']}테이블(워크인 {r2['issued']}명) · 커피챗 {r3['tables']}테이블 · 추천 {len(recs)}행")
 
 

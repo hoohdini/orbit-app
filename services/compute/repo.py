@@ -48,9 +48,10 @@ class MemoryRepo:
             seen[(a, b)] = {"a": a, "b": b, "kind": "exchange", "weight": 0.3}
         return list(seen.values())
 
-    def satisfaction_count(self, round_: str, ids: list[str]) -> int:
+    def satisfaction(self, round_: str, ids: list[str]) -> dict[str, str]:
+        """{사람: 선택지 키}. 키는 0005 마이그레이션의 gained · different · unsure · mismatch."""
         s = set(ids)
-        return sum(1 for r in self.t["satisfaction"] if r["round"] == round_ and r["participant_id"] in s)
+        return {r["participant_id"]: r["choice"] for r in self.t["satisfaction"] if r["round"] == round_ and r["participant_id"] in s}
 
     def latest_tables(self, round_: str, ids: list[str]) -> list[dict]:
         """이 사람들이 들어 있는 라운드별 최신 배정(공개된 것 우선, 없으면 최신 초안).
@@ -136,9 +137,9 @@ class SupabaseRepo:
     def edges(self):
         return self._all(lambda: self.db.table("edges").select("a, b, kind, weight"))
 
-    def satisfaction_count(self, round_, ids):
-        rows = self._in("satisfaction", "participant_id, round", "participant_id", ids)
-        return sum(1 for r in rows if r["round"] == round_)
+    def satisfaction(self, round_, ids):
+        rows = self._in("satisfaction", "participant_id, round, choice", "participant_id", ids)
+        return {r["participant_id"]: r["choice"] for r in rows if r["round"] == round_}
 
     def latest_tables(self, round_, ids):
         members = self._in("table_members", "version, table_no, participant_id", "participant_id", ids)

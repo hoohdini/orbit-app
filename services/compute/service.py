@@ -3,7 +3,9 @@
 precompute  행사 전날 · 체크인 마감
             새 코드북: 전원 임베딩 → 코드북 학습 · 저장 → 주소 · 라벨 → 테이블토크 배정 초안
             reuse_codebook=True: 저장된 코드북을 그대로 쓰고 주소가 없는 사람(현장 등록자)만 붙인 뒤 배정을 다시 낸다
-coffeechat  테이블토크 뒤. 저장된 벡터 + 명함 교환 간선 → 만남 반영 → 커피챗 배정 초안 → 개인 추천
+coffeechat  테이블토크 뒤. 저장된 벡터 + 명함 교환 간선 + 만족도 답 → 만남 반영 → 커피챗 배정 초안 → 개인 추천
+
+배정마다 사람별 이유(table_members.reason)를 남긴다. 운영진 대시보드가 이걸로 배정을 확인한다(9/27 회의)
 
 운영진(role=staff)도 참가자와 똑같이 주소 · 배정 · 추천에 넣는다(9/26 민찬 결정). 결과는 전부 draft 이고 운영자가 공개해야 참가자에게 보인다.
 """
@@ -80,10 +82,45 @@ def _labels(codes: np.ndarray, tags: list[list[str]], version: str) -> list[dict
     return rows
 
 
-def _write_round(repo, round_: str, P, table, a, A, tags, params) -> int:
+SAT_TEXT = {"gained": "새로 얻은 게 있었다", "different": "좋았지만 내 관심사와는 조금 달랐다",
+            "unsure": "잘 모르겠다", "mismatch": "나와는 잘 안 맞았다"}
+
+
+def _reasons(P, table, A, random_seat, prev: dict[int, int] | None = None,
+             sat: dict[int, str] | None = None, exchanges: np.ndarray | None = None) -> list[dict]:
+    """사람마다 왜 이 테이블인지. 운영진 대시보드용(참가자 화면에는 안 보냄).
+    best · avg 는 배정에 쓴 쌍 점수(A). prev = 이전 라운드 테이블 번호, sat = 만족도 답, exchanges = 명함 교환 수."""
+    out = []
+    for i, t in enumerate(table):
+        mates = [j for j in np.where(table == t)[0] if j != i]
+        best = max(mates, key=lambda j: A[i, j]) if mates else None
+        r = {"table_no": int(t) + 1, "random": bool(random_seat[i]),
+             "best_mate": P[best]["id"] if best is not None else None,
+             "best_score": round(float(A[i, best]), 3) if best is not None else None,
+             "avg_score": round(float(np.mean([A[i, j] for j in mates])), 3) if mates else None}
+        parts = []
+        if prev is not None and i in prev:
+            r["from_table"] = prev[i]
+            parts.append(f"테이블토크 {prev[i]}번 → {int(t) + 1}번")
+        if r["random"]:
+            parts.append("무작위 자리(새로운 만남용)")
+        elif best is not None:
+            parts.append(f"가장 잘 맞는 사람 {P[best].get('display_name', '')}({r['best_score']:.2f}), 테이블 평균 {r['avg_score']:.2f}")
+        if sat is not None and i in sat:
+            r["satisfaction"] = sat[i]
+            parts.append(f"만족도 '{SAT_TEXT.get(sat[i], sat[i])}' 반영")
+        if exchanges is not None and exchanges[i] > 0:
+            r["exchanges"] = int(exchanges[i])
+            parts.append(f"명함 교환 {int(exchanges[i])}건 반영")
+        r["text"] = ". ".join(parts)
+        out.append(r)
+    return out
+
+
+def _write_round(repo, round_: str, P, table, a, A, tags, params, reasons: list[dict]) -> int:
     v = repo.new_version(round_, params)
     ids = [p["id"] for p in P]
-    repo.insert("table_members", [{"version": v, "table_no": int(t) + 1, "participant_id": ids[i]}
+    repo.insert("table_members", [{"version": v, "table_no": int(t) + 1, "participant_id": ids[i], "reason": reasons[i]}
                                   for i, t in enumerate(table)])
     meta = []
     for t in sorted(set(table.tolist())):
@@ -136,7 +173,7 @@ def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = 
     params = {"kind": "precompute", "table_mode": table_mode, "random_ratio": random_ratio, "iters": r.iters,
               "codebook_version": cb.version, "reuse_codebook": reuse_codebook, "n": len(P),
               "cohort_over": r.cohort_over, "collision_offer": cbm.collision_rate(co)}
-    v = _write_round(repo, "tabletalk", P, r.table, a, A, tags, params)
+    v = _write_round(repo, "tabletalk", P, r.table, a, A, tags, params, _reasons(P, r.table, A, r.random_seat))
     _heartbeat(repo, "precompute")
     return {"version": v, "codebook_version": cb.version, "new_codebook": new_cb, "issued": len(targets),
             "n": len(P), "tables": int(r.table.max()) + 1, "cohort_over": r.cohort_over}
@@ -168,19 +205,29 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
             i, j = idx[e["a"]], idx[e["b"]]
             W[i, j] = W[j, i] = W[i, j] + float(e.get("weight", 0.3))
 
-    rate = repo.satisfaction_count("tabletalk", ids) / n
-    fallback = rate < min_response_rate
-    O2 = O if fallback else scoring.inject(O, W, beta)                 # 대체 경로 = 만남 반영 없이 텍스트만
-    a = scoring.directional(S, O2)
-
     forbid = np.zeros((n, n), bool)
     groups: dict[int, list[int]] = {}
+    prev: dict[int, int] = {}
     for m in repo.latest_tables("tabletalk", ids):
         if m["participant_id"] in idx:
             groups.setdefault(m["table_no"], []).append(idx[m["participant_id"]])
+            prev[idx[m["participant_id"]]] = m["table_no"]
     for g in groups.values():
         forbid[np.ix_(g, g)] = True
     np.fill_diagonal(forbid, False)
+    mates = [[j for j in groups.get(prev[i], []) if j != i] if i in prev else [] for i in range(n)]
+
+    sat_raw = repo.satisfaction("tabletalk", ids)
+    sat = {idx[pid]: c for pid, c in sat_raw.items() if pid in idx}
+    rate = len(sat) / n
+    fallback = rate < min_response_rate
+    sw = scoring.sat_weights()
+    if fallback:                                                         # 대체 경로 = 만남 반영 없이 텍스트만
+        O2, S2 = O, S
+    else:
+        O2 = scoring.inject(O, W, beta)                                  # 명함 교환 → Offer
+        S2 = scoring.seek_shift(S, O, mates, np.array([sw.get(sat.get(i), 0.0) for i in range(n)]), beta)  # 만족도 → Seek
+    a = scoring.directional(S2, O2)
 
     is_host = np.array([bool(p.get("is_host")) for p in P])
     cohort = np.array([p["cohort"] if p.get("cohort") is not None else -1 for p in P])
@@ -189,8 +236,11 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     rec_scores = scoring.rec_matrix(a, rec_mode)
     params = {"kind": "coffeechat", "table_mode": table_mode, "rec_mode": rec_mode or "env", "beta": beta,
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2),
+              "sat_weights": sw, "sat_counts": dict(Counter(sat.values())),
               "forbid_hits": r.forbid_hits, "cohort_over": r.cohort_over, "n": n}
-    v = _write_round(repo, "coffeechat", P, r.table, a, A, tags, params)
+    reasons = _reasons(P, r.table, A, r.random_seat, prev=prev, sat=None if fallback else sat,
+                       exchanges=None if fallback else (W > 0).sum(1))
+    v = _write_round(repo, "coffeechat", P, r.table, a, A, tags, params, reasons)
 
     met = forbid | seating.same_table_pairs(r.table) | (W > 0)
     np.fill_diagonal(met, True)

@@ -169,6 +169,22 @@ def test_incremental_state_matches_full_recount():
     assert st.forbid_hits == fresh.forbid_hits and st.cohort_over == fresh.cohort_over
 
 
+
+def test_seek_shift():
+    """만족도 답에 따라 Seek 가 그 테이블 사람들 쪽으로 옮겨지는 폭이 다른가."""
+    rng = np.random.default_rng(3)
+    O = rng.normal(size=(8, 16)); S = rng.normal(size=(8, 16))
+    mates = [[1, 2], [0, 2], [0, 1], [4], [3], [], [], []]
+    w = np.array([1.0, 0.3, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0])
+    Z = scoring.seek_shift(S, scoring.unit(O), mates, w, beta=0.5)
+    Su, Ou = scoring.unit(S), scoring.unit(O)
+    toward = lambda i: float(Z[i] @ Ou[mates[i]].mean(0) - Su[i] @ Ou[mates[i]].mean(0))
+    assert toward(0) > toward(1) > 0                            # 얻었다(1.0) 가 조금 달랐다(0.3) 보다 많이 옮김
+    assert np.allclose(Z[2], Su[2]) and np.allclose(Z[4], Su[4])  # 가중치 0 은 그대로
+    assert np.allclose(Z[5], Su[5])                              # 동석자가 없으면 그대로
+    w2 = scoring.sat_weights("gained=0.8, mismatch=0.1")
+    assert w2 == {"gained": 0.8, "different": 0.3, "unsure": 0.0, "mismatch": 0.1}
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

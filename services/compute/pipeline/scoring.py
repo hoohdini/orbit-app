@@ -12,6 +12,8 @@ a[i, j] = cos(seek_i, offer_j)   i 가 j 에게서 얻는 것 (한 방향)
 """
 from __future__ import annotations
 
+import os
+
 import numpy as np
 
 from .embed import unit
@@ -49,7 +51,6 @@ def combine(a: np.ndarray, mode: str = "min") -> np.ndarray:
 
 def rec_matrix(a: np.ndarray, mode: str | None = None) -> np.ndarray:
     """개인 추천용 점수. mode: min | avg | harmonic | one_way (기본은 환경변수 REC_SCORE, 없으면 min)."""
-    import os
     mode = mode or os.environ.get("REC_SCORE", "min")
     if mode == "one_way":
         r = a.copy()
@@ -85,4 +86,36 @@ def inject(O: np.ndarray, W: np.ndarray, beta: float = 0.5) -> np.ndarray:
         nr = np.linalg.norm(r)
         if nr > 1e-12:
             Z[i] = O[i] + beta * r / nr
+    return unit(Z)
+
+
+# 테이블토크 만족도 답 → 만남 반영 세기. 질문 하나에 답마다 가중치(9/27 회의: 백엔드가 정함, 민찬 결정).
+# 안 맞았다를 음수로 두지 않는 이유 — 한 번의 어색한 자리로 비슷한 사람 전체가 추천에서 밀려날 수 있다
+SAT_WEIGHTS_DEFAULT = {"gained": 1.0, "different": 0.3, "unsure": 0.0, "mismatch": 0.0}
+
+
+def sat_weights(raw: str | None = None) -> dict[str, float]:
+    """환경변수 SAT_WEIGHTS 예: 'gained=1,different=0.3,unsure=0,mismatch=0'. 빠진 답은 기본값."""
+    w = dict(SAT_WEIGHTS_DEFAULT)
+    for part in (raw if raw is not None else os.environ.get("SAT_WEIGHTS", "")).split(","):
+        k, _, v = part.partition("=")
+        if k.strip() in w and v.strip():
+            w[k.strip()] = float(v)
+    return w
+
+
+def seek_shift(S: np.ndarray, O: np.ndarray, mates: list[list[int]], w: np.ndarray, beta: float = 0.5) -> np.ndarray:
+    """만족도 반영. i 가 테이블토크에서 얻은 게 있었다면 i 의 Seek 를 그 테이블 사람들의 Offer 쪽으로 옮긴다.
+    → 커피챗 추천에서 i 에게 그 사람들과 비슷한 새 사람이 더 올라온다. 옮기는 폭 = beta × w[i] (답별 가중치).
+    inject 와 같은 방식(내 방향과 직교하는 성분만)이라 원래 찾던 것은 유지된다. w 가 0 이면 그대로 둔다."""
+    S = unit(S)
+    Z = S.copy()
+    for i, ms in enumerate(mates):
+        if w[i] <= 0 or not ms:
+            continue
+        m = O[ms].mean(0)
+        r = m - (m @ S[i]) * S[i]
+        nr = np.linalg.norm(r)
+        if nr > 1e-12:
+            Z[i] = S[i] + beta * w[i] * r / nr
     return unit(Z)
