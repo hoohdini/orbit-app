@@ -1,10 +1,12 @@
-// 포스터세션 모듈 (담당: 민찬). 이 폴더 안에서만 작업한다. docs/MODULES.md 참고.
-export default function Page() {
-  return (
-    <main className="min-h-screen p-6">
-      <h1 className="text-2xl font-bold">포스터세션</h1>
-      <p className="mt-2 text-gray-600">포스터 QR, 퀴즈, 스탬프, 관심도, 응모권</p>
-      <p className="mt-6 text-sm text-gray-400">담당 민찬. 아직 백지 상태다.</p>
-    </main>
-  );
+// 포스터세션 스탬프 투어 (담당: 민찬). /poster 는 스탬프판, /poster?c=<code> 는 포스터 QR 을 찍었을 때 열리는 퀴즈다.
+// 앱 스캐너(명함 스캔 화면 · 이 화면)와 폰 기본 카메라 모두 /poster?c= 로 들어온다(docs/QR_FORMAT.md).
+import { requireOnboarded } from "./_guard";
+import PosterClient from "./PosterClient";
+
+export const dynamic = "force-dynamic";
+
+export default async function PosterPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+  const { c } = await searchParams;
+  await requireOnboarded(c ? `/poster?c=${encodeURIComponent(c)}` : "/poster");
+  return <PosterClient key={c ?? "board"} code={c ?? null} />;
 }

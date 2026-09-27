@@ -9,8 +9,8 @@
 | onboarding | `apps/web/app/(modules)/onboarding` | `apps/web/app/api/onboarding` | 성하 | QR 입장 → 이름·비밀번호 로그인 → 개인정보 동의 → 테이블 번호 안내 |
 | home | `apps/web/app/(modules)/home` | `apps/web/app/api/home` | 성하 | 궤도 시각화, 내 간단 소개, 하단 메뉴, 사용설명서 |
 | card | `apps/web/app/(modules)/card` | `apps/web/app/api/card` | 성하 | 내 명함, 명함 QR 스캔, 타인 명함 저장, 명함함 |
-| tabletalk | `apps/web/app/(modules)/tabletalk` | `apps/web/app/api/tabletalk` | 민찬 | 테이블 구성원 소개·관심분야, 끝날 때 만족도 팝업 |
-| coffeechat | `apps/web/app/(modules)/coffeechat` | `apps/web/app/api/coffeechat` | 민찬 | 1차 배정 테이블 + 추천 인원 목록(현재 테이블 표시) + 테이블별 소개·대화거리 |
+| tabletalk | `apps/web/app/(modules)/tabletalk` | `apps/web/app/api/tabletalk` | 민찬 | 테이블토크 · 커피챗 한 페이지(9/27 회의). 테이블 구성원 소개·관심분야, 만족도. 커피챗이 공개되면 같은 페이지 위쪽에 커피챗 자리 · 대화거리 · 추천 |
+| coffeechat | `apps/web/app/(modules)/coffeechat` | `apps/web/app/api/coffeechat` | 민찬 | 화면은 /tabletalk 에 합쳤다. /coffeechat 은 /tabletalk 로 보낸다. API 는 그대로 |
 | poster | `apps/web/app/(modules)/poster` | `apps/web/app/api/poster` | 민찬 | 포스터 QR → 퀴즈 → 정답 시 스탬프 → 관심도 → 스탬프 현황 → 응모권 |
 | ops | `apps/web/app/(modules)/ops` | `apps/web/app/api/ops` | 성하 | 운영 콘솔. 체크인, 배정 버전 공개, 응답률 |
 | compute | `services/compute` | HTTP(내부) | 민찬 | 전날 배치(임베딩·주소·테이블토크 배정), 커피챗 재계산(점수·배정·추천) |
