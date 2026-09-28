@@ -12,6 +12,9 @@ pip install -r requirements.txt
 copy .env.example .env          # 값 채우기
 uvicorn main:app --reload --port 8000
 ```
+- Intel 맥(x86_64)은 `pip install -r requirements-mac-intel.txt` 를 쓴다. 최신 torch 가 Intel 맥을 지원하지 않아 torch 2.2.2 · transformers 4.4x · numpy 1.x 로 고정한 목록이다(9/29 확인). 결과는 같다
+- 서버는 .env 를 스스로 읽지 않는다. `set -a; source .env; set +a` 뒤에 uvicorn 을 띄운다(운영자 노트북)
+
 
 `http://localhost:8000/health` 가 열리면 된다. Windows 에서 anaconda 와 torch 가 충돌하면 `set KMP_DUPLICATE_LIB_OK=TRUE`.
 
