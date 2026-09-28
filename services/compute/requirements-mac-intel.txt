@@ -1,0 +1,12 @@
+# Intel 맥(x86_64)용. 최신 torch 가 Intel 맥을 지원하지 않아(마지막 2.2.2) transformers · numpy 를 같이 고정한다 (2026-09-29 확인).
+# Apple Silicon · Linux 는 requirements.txt 를 쓴다. 알고리즘 · 결과는 같다.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+numpy>=1.26,<2
+scikit-learn>=1.5
+torch==2.2.2
+transformers>=4.40,<4.50
+sentence-transformers>=3.0,<4
+supabase>=2.6
+python-dotenv>=1.0
