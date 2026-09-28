@@ -1,10 +1,12 @@
 // 개인정보 동의 화면. 첫 로그인 직후 한 번만 지나간다.
+// 명함 · 포스터 QR 로 들어온 사람은 next 로 돌아갈 곳이 넘어오므로 동의 뒤 그곳으로 보낸다(없으면 테이블 안내).
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api, type Me } from "@/lib/client";
 import Loading from "@/components/Loading";
+import { safeNext } from "../_next";
 
 const notices = [
   { title: "수집·이용 목적", body: "행사 참가자 간 네트워킹(테이블 배정, 명함 교환, 추천, 스탬프 운영)" },
@@ -14,7 +16,17 @@ const notices = [
 ];
 
 export default function ConsentPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <ConsentForm />
+    </Suspense>
+  );
+}
+
+function ConsentForm() {
   const router = useRouter();
+  const next = safeNext(useSearchParams().get("next"));
+  const after = next ?? "/onboarding/table";
   const [me, setMe] = useState<Me | null>(null);
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -23,18 +35,21 @@ export default function ConsentPage() {
   useEffect(() => {
     api<Me>("/api/onboarding/me").then((r) => {
       if (!r.ok) return router.replace("/onboarding");
-      if (r.data.consented) return router.replace("/onboarding/table");
+      if (r.data.consented) return router.replace(after);
       setMe(r.data);
     });
-  }, [router]);
+  }, [router, after]);
 
   async function submit() {
     setBusy(true);
     setError(null);
-    const r = await api("/api/onboarding/consent", { json: { agreed: true } });
-    setBusy(false);
-    if (!r.ok) return setError(r.message);
-    router.replace("/onboarding/table");
+    try {
+      const r = await api("/api/onboarding/consent", { json: { agreed: true } });
+      if (!r.ok) return setError(r.message);
+      router.replace(after);
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (!me) return <Loading />;

@@ -5,17 +5,12 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/client";
+import { safeNext, withNext } from "./_next";
 
 type Candidate = { id: string; display_name: string; affiliation: string | null; role: string; cohort: number | null };
 type LoginData = { participant?: { id: string; display_name: string }; consented?: boolean; choose?: Candidate[] };
 
 const roleLabel: Record<string, string> = { student: "재학생", alumni: "졸업생", professor: "교수", staff: "운영진", other: "기타" };
-
-// 명함 QR(/card?p=) 등에서 로그인 없이 들어온 사람은 로그인 뒤 제자리로 돌려보낸다. 같은 사이트 경로만 허용한다
-function safeNext(raw: string | null): string | null {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
-  return raw;
-}
 
 export default function OnboardingPage() {
   return (
@@ -49,7 +44,8 @@ function OnboardingForm() {
       setChoose(r.data.choose);
       return;
     }
-    router.replace(r.data.consented ? (next ?? "/onboarding/table") : "/onboarding/consent");
+    // 명함 · 포스터 QR 로 들어온 사람(next)은 로그인 뒤 제자리로. 첫 로그인이면 동의 화면을 거치되 next 를 이어 준다
+    router.replace(r.data.consented ? (next ?? "/onboarding/table") : withNext("/onboarding/consent", next));
   }
 
   const canSubmit = name.trim().length >= 1 && /^\d{4}$/.test(pin) && !busy;
