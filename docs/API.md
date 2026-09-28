@@ -53,7 +53,9 @@
 | ops | /api/ops/compute | GET | 없음 | { reachable, model_loaded?, version? } 계산 서비스 상태. 운영자만 | 있음 |
 | ops | /api/ops/compute | POST | job: precompute(전날) · checkin(체크인 마감) · coffeechat(포스터세션 중) | { job, ms, result } result 는 계산 서비스 응답(초안 version 등). 거절이면 409 COMPUTE_REFUSED. 운영자만 | 있음 |
 | ops | /api/ops/checkin | POST | participant_id, is_late? | { checked_at } | 예정 |
-| ops | /api/ops/publish | POST | version | { published_at } | 예정 |
+| ops | /api/ops/publish | POST | version | { published_at } 같은 행사 · 라운드의 이전 공개 버전은 retired. 운영자만 | 있음 |
+| ops | /api/ops/versions | GET | 없음 | { versions: [{version, round, status, created_at, published_at, summary}] } 이 행사 최신 20개. 운영자만 | 있음 |
+| ops | /api/ops/versions/<version> | GET | 없음 | { version, round, status, tables: [{table_no, members: [{id, display_name, affiliation, role, random, reason}]}] } 배정 확인용. 운영자만 | 있음 |
 | ops | /api/ops/status | GET | 없음 | { phase, checkins, satisfaction_rate, exchanges, compute_heartbeat } | 예정 |
 
 card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name, affiliation, role, cohort, stage(1 명단만·2 프로필·3 주소), sid, label, theme(0~7 또는 null), offer_text, seek_text, topic_tags, links 또는 null, source?, exchanged_at? }`. 링크는 상대의 visibility 가 all 이거나 내가 그 사람을 직접 찍었을 때만 들어간다.

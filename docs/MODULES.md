@@ -12,7 +12,7 @@
 | tabletalk | `apps/web/app/(modules)/tabletalk` | `apps/web/app/api/tabletalk` | 민찬 | 테이블 구성원 소개·관심분야, 끝날 때 만족도 팝업 |
 | coffeechat | `apps/web/app/(modules)/coffeechat` | `apps/web/app/api/coffeechat` | 민찬 | 1차 배정 테이블 + 추천 인원 목록(현재 테이블 표시) + 테이블별 소개·대화거리 |
 | poster | `apps/web/app/(modules)/poster` | `apps/web/app/api/poster` | 민찬 | 포스터 QR → 퀴즈 → 정답 시 스탬프 → 관심도 → 스탬프 현황 → 응모권 |
-| ops | `apps/web/app/(modules)/ops` | `apps/web/app/api/ops` | 성하 · 민찬(계산 버튼) | 운영 콘솔. 체크인, 배정 버전 공개, 응답률. 계산 서비스 버튼과 /api/ops/compute 는 민찬 |
+| ops | `apps/web/app/(modules)/ops` | `apps/web/app/api/ops` | 성하 · 민찬(계산 · 배정 공개) | 운영 콘솔. 체크인, 배정 버전 공개, 응답률. 계산 서비스 버튼 · 배정 버전 확인 · 공개(/api/ops/compute · versions · publish)는 민찬 |
 | compute | `services/compute` | HTTP(내부) | 민찬 | 전날 배치(임베딩·주소·테이블토크 배정), 커피챗 재계산(점수·배정·추천) |
 
 ## 의존 방향

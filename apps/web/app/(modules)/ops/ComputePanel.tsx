@@ -1,6 +1,6 @@
 "use client";
 // 계산 서비스 버튼 세 개. 누르기 전에 한 번 더 묻고, 끝나면 만든 초안 버전과 요약을 보여 준다.
-// 결과는 초안이라 참가자에게는 아직 안 보인다. 공개는 배정 공개 기능이 생기면 거기서 한다.
+// 결과는 초안이라 참가자에게는 아직 안 보인다. 공개는 아래 배정 버전(VersionsPanel)에서 한다.
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 
@@ -42,8 +42,10 @@ export default function ComputePanel() {
     setDone(null);
     const r = await api<Done>("/api/ops/compute", { json: { job } });
     setRunning(null);
-    if (r.ok) setDone(r.data);
-    else setError(r.message);
+    if (r.ok) {
+      setDone(r.data);
+      window.dispatchEvent(new Event("orbit:versions-changed")); // 배정 버전 목록을 다시 읽게 한다
+    } else setError(r.message);
   }
 
   return (
@@ -95,7 +97,7 @@ export default function ComputePanel() {
               </div>
             ))}
           </dl>
-          <p className="mt-2 text-xs text-gray-600">초안이다. 참가자에게 보이려면 이 버전을 공개해야 한다</p>
+          <p className="mt-2 text-xs text-gray-600">초안이다. 아래 배정 버전에서 확인하고 공개해야 참가자에게 보인다</p>
         </section>
       )}
     </>
