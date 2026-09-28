@@ -41,12 +41,12 @@
 | card | /api/card/search | GET | q(2자 이상) | { people: [{id, display_name, affiliation}] } 같은 행사·체크인·본인 제외·10명. 카메라 대체 경로 | 있음 |
 | card | /api/card/settings | POST | visibility?(all·scanned), links?({linkedin, github, email, url}) | { visibility, links } | 있음 |
 | tabletalk | /api/tabletalk/table | GET | 없음 | { table_no, label, members: [{id, display_name, affiliation, topic_tags, offer_text}] } | 있음 |
-| tabletalk | /api/tabletalk/satisfaction | POST | score 1~5, comment? | { saved: true } | 있음 |
+| tabletalk | /api/tabletalk/satisfaction | POST | choice(아래 선택지), comment? | { saved: true } | 있음 |
 | coffeechat | /api/coffeechat/table | GET | 없음 | { table_no, label, talk_prompts, members: [...] } | 있음 |
 | coffeechat | /api/coffeechat/recs | GET | 없음 | { recs: [{rank, target: {id, display_name, affiliation}, current_table_no, reason}] } | 있음 |
 | poster | /api/poster/scan | POST | qr_payload | { poster: {id, title}, quiz: {id, question, choices} } | 있음 |
 | poster | /api/poster/answer | POST | quiz_id, choice_index | { correct: bool, stamp_count, ticket_issued: bool } | 있음 |
-| poster | /api/poster/interest | POST | poster_id, score 1~5 | { saved: true } | 있음 |
+| poster | /api/poster/interest | POST | poster_id, choice(아래 선택지) | { saved: true } | 있음 |
 | poster | /api/poster/stamps | GET | 없음 | { stamps: [...], total, tickets: [...] } | 있음 |
 | ops | /api/ops/reset-pin | POST | participant_id | { pin } 새 무작위 4자리를 한 번만 돌려준다 | 있음 |
 | ops | /api/ops/add-participant | POST | display_name, affiliation?, role, cohort?, is_host?, pin?, offer_text?, seek_text?, topic_tags? | { participant, pin } 워크인 추가 | 있음 |
@@ -55,6 +55,20 @@
 | ops | /api/ops/status | GET | 없음 | { phase, checkins, satisfaction_rate, exchanges, compute_heartbeat } | 예정 |
 
 card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name, affiliation, role, cohort, stage(1 명단만·2 프로필·3 주소), sid, label, theme(0~7 또는 null), offer_text, seek_text, topic_tags, links 또는 null, source?, exchanged_at? }`. 링크는 상대의 visibility 가 all 이거나 내가 그 사람을 직접 찍었을 때만 들어간다.
+
+## 선택지 (만족도, 관심도)
+
+숫자 점수 대신 문장을 고르게 한다. 요청에는 키를 보내고 화면에는 문구를 보여 준다. 목록의 정본은 코드다(tabletalk `app/api/tabletalk/_choices.ts`, poster `app/api/poster/_lib.ts`). 화면은 이 목록을 import 해서 순서대로 그린다.
+
+| 경로 | 키 | 화면 문구 |
+|---|---|---|
+| /api/tabletalk/satisfaction | gained | 새로 얻은 게 있었다 |
+| | different | 좋았지만 내 관심사와는 조금 달랐다 |
+| | unsure | 잘 모르겠다 |
+| | mismatch | 나와는 잘 안 맞았다 |
+| /api/poster/interest | learn_more | 더 알아보고 싶다 |
+| | interesting | 흥미로웠다 |
+| | not_mine | 내 관심 분야는 아니다 |
 
 ## 계산 서비스 (services/compute, 내부 HTTP)
 

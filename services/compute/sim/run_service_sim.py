@@ -44,7 +44,7 @@ def main(path):
     r1 = service.precompute(repo, enc)
     print(f"전날 precompute {time.time()-t:.1f}초 · {r1}")
 
-    ppl = [p for p in repo.t["participants"] if p["role"] != "staff"]
+    ppl = list(repo.t["participants"])
     for p in rng.sample(ppl, 58):
         repo.t["checkins"].append({"participant_id": p["id"]})
     for k in range(2):
@@ -70,7 +70,7 @@ def main(path):
                     repo.t["card_exchanges"].append({"scanner_id": a, "scanned_id": b})
     for m in tab:
         if rng.random() < 0.6:
-            repo.t["satisfaction"].append({"participant_id": m["participant_id"], "round": "tabletalk", "score": 4})
+            repo.t["satisfaction"].append({"participant_id": m["participant_id"], "round": "tabletalk", "choice": "gained"})
 
     t = time.time()
     r3 = service.coffeechat(repo, enc)

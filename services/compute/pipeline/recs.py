@@ -52,12 +52,11 @@ def reasons(i: int, j: int, topic_tags: list[list[str]], seek_intents: list[list
     return r
 
 
-def table_meta(members: list[int], topic_tags: list[list[str]], max_prompts: int = 3) -> tuple[str | None, list[str]]:
-    """테이블 라벨(가장 많이 겹치는 주제)과 대화거리."""
+def talk_prompts(members: list[int], topic_tags: list[list[str]], max_prompts: int = 3) -> list[str]:
+    """테이블 대화거리. 두 명 이상 겹치는 주제를 많은 순으로. 테이블 이름표는 달지 않는다(너무 좁은 이름이 붙어서)."""
     cnt = Counter(t for m in members for t in set(topic_tags[m]))
     shared = [t for t, c in cnt.most_common() if c >= 2]
-    label = shared[0] if shared else None
     prompts = [f"{t} 에 관심 있는 분이 {cnt[t]}명 있다. 요즘 보고 있는 것을 하나씩 나눠 본다" for t in shared[:max_prompts]]
     if not prompts:
         prompts = ["지금 하고 있는 일을 한 문장으로 소개하고, 오늘 찾는 사람을 말해 본다"]
-    return label, prompts
+    return prompts

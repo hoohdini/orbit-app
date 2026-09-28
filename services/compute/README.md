@@ -25,7 +25,7 @@ uvicorn main:app --reload --port 8000
 | `codebook.py` | 공유 코드북(출처별 평균 제거), 주소 발급, 고정 코드북에 늦게 온 사람 붙이기, 구분 번호 |
 | `scoring.py` | 한 방향 점수 a, 테이블용 결합(min · 평균 · 조화평균), 호스트 단방향, 만남 반영(G★ 주입) |
 | `seating.py` | 호스트 먼저 → 한 명씩 → 담금질. 바뀐 두 테이블만 다시 세는 증분 계산으로 70명 2만 번 0.3초(원본 38초) |
-| `recs.py` | 커피챗 개인 추천(정확 10 + 탐색 2, 이미 만난 사람 제외, 노출 상한), 이유 칩, 테이블 라벨과 대화거리 |
+| `recs.py` | 커피챗 개인 추천(정확 10 + 탐색 2, 이미 만난 사람 제외, 노출 상한), 이유 칩, 테이블 대화거리 (테이블 이름표는 달지 않음) |
 
 시험은 `python tests/test_pipeline.py` (pytest 가 있으면 `python -m pytest tests -q`). 모델 없이 가짜 벡터 70명으로 돈다.
 
@@ -53,20 +53,20 @@ uvicorn main:app --reload --port 8000
 | `service.py` | 두 작업의 흐름. precompute(발급 · 테이블토크 배정) · coffeechat(만남 반영 · 커피챗 배정 · 추천) |
 | `repo.py` | DB 입출력. `SupabaseRepo`(실제) · `MemoryRepo`(DB 없이 시험). 칸 이름은 0001_init.sql 그대로 |
 | `pipeline/` | 알고리즘 (아래 표) |
-| `eval/rehearsal_accuracy.py` | 리허설 정확도. 사람별 정확도(누른 동석자 필요) · 만족도 순위상관(보조) |
+| `eval/rehearsal_accuracy.py` | 리허설 정확도. 사람별 정확도(누른 동석자 필요) · 만족도 선택지로 가른 구분 정확도(보조) |
 | `sim/` | 가상 참가자 CSV 만들기 · 실제 모델로 한 바퀴 |
 | `tests/` | `test_pipeline` 12개 · `test_service` 4개(한 바퀴 · 다른 행사 섞임 · 대체 경로 · 오류) · `test_main` 2개(비밀값 · 409) · `test_eval` 2개 |
 
 ## 행사 흐름과 호출
 
 ```
-행사 전날      POST /precompute {}                      새 코드북 · 전원 주소 · 라벨 · 테이블토크 배정 초안
+행사 전날      POST /precompute {}                      새 코드북 · 전원 주소 · 첫자리 묶음 이름표 초안(운영진 검수) · 테이블토크 배정 초안
 체크인 마감    POST /precompute {"reuse_codebook": true}  저장된 코드북에 현장 등록자만 붙이고, 체크인한 사람으로 배정을 다시 냄
                운영 콘솔에서 공개
 테이블토크 뒤   POST /coffeechat {}                       명함 교환 반영 · 테이블토크 동석자 금지 · 커피챗 배정 초안 · 개인 추천
 ```
 
-- 운영진(role=staff)은 주소 · 배정 · 추천에서 뺀다
+- 운영진(role=staff)도 참가자와 똑같이 주소 · 배정 · 추천에 넣는다. 설문을 비워 두면 점수가 0 이라 사실상 아무 자리에나 앉는다
 - 코드북은 `ops_state` 의 `codebook:<버전>` 에 저장하고 `codebook_active` 로 가리킨다(표를 새로 만들지 않음). 주소는 다시 학습하지 않는다
 - 만족도 응답률이 `min_response_rate`(기본 0.5) 미만이면 만남 반영 없이 텍스트 점수로만 커피챗을 낸다(대체 경로)
 - 요청 본문 선택값: `table_mode`(min · avg · harmonic) · `random_ratio` · `rec_mode`(없으면 `REC_SCORE`) · `beta`

@@ -40,3 +40,13 @@ export function reachedThresholds(total: number, thresholds: number[]): number[]
 export function raffleReason(threshold: number): string {
   return `stamps_${threshold}`;
 }
+
+// 퀴즈 뒤 관심도 선택지. 키는 DB poster_interest.choice 에 그대로 저장된다(0005 마이그레이션의 check 와 같아야 한다).
+export const INTEREST_CHOICES = [
+  { key: "learn_more", label: "더 알아보고 싶다" },
+  { key: "interesting", label: "흥미로웠다" },
+  { key: "not_mine", label: "내 관심 분야는 아니다" },
+] as const;
+
+export type InterestChoice = (typeof INTEREST_CHOICES)[number]["key"];
+export const INTEREST_KEYS = INTEREST_CHOICES.map((c) => c.key) as [InterestChoice, ...InterestChoice[]];

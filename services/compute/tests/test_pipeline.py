@@ -145,7 +145,7 @@ def test_recs():
         assert not met[i, js].any()                            # 이미 만난 사람은 없음
         assert [k for _, k in lst].count("explore") == 2
     assert exposure.max() <= 15
-    label, prompts = recs.table_meta(list(np.where(r1.table == 0)[0]), tags)
+    prompts = recs.talk_prompts(list(np.where(r1.table == 0)[0]), tags)
     assert prompts
 
 
