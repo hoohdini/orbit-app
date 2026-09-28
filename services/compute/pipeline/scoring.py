@@ -131,11 +131,13 @@ def seek_shift(S: np.ndarray, O: np.ndarray, mates: list[list[int]], w: np.ndarr
 
 
 # 포스터 관심도 답 → 추천 방향. 관심 있게 본 포스터의 주제 쪽으로 Seek 를 옮긴다(9/28 민찬 결정). 값은 임시, 리허설 뒤 정함
-POSTER_WEIGHTS_DEFAULT = {"learn_more": 1.0, "interesting": 0.5, "not_mine": 0.0}
+# 9/29 민찬 결정 — 테이블 만족도(C안)와 같은 규칙: 중간 0.33 은 지수 gain, 관심 분야 아님 −0.2 는 Rocchio 부정 비율.
+# 포스터는 주제 하나라 방향이 뚜렷해서 Rocchio 의 문서 한 건 부정 판정과 구조가 같다
+POSTER_WEIGHTS_DEFAULT = {"learn_more": 1.0, "interesting": 0.33, "not_mine": -0.2}
 
 
 def poster_weights(raw: str | None = None) -> dict[str, float]:
-    """환경변수 POSTER_WEIGHTS 예: 'learn_more=1,interesting=0.5,not_mine=0'. 빠진 답은 기본값."""
+    """환경변수 POSTER_WEIGHTS 예: 'learn_more=1,interesting=0.33,not_mine=-0.2'. 빠진 답은 기본값."""
     w = dict(POSTER_WEIGHTS_DEFAULT)
     for part in (raw if raw is not None else os.environ.get("POSTER_WEIGHTS", "")).split(","):
         k, _, v = part.partition("=")
@@ -144,14 +146,18 @@ def poster_weights(raw: str | None = None) -> dict[str, float]:
     return w
 
 
-def poster_targets(n: int, interest: list[tuple[int, int, float]], V: dict[int, np.ndarray], dim: int) -> tuple[np.ndarray, np.ndarray]:
-    """interest = [(사람, 포스터, 가중치)], V = 포스터 벡터. 사람마다 목표 = 가중 평균 포스터 벡터, 폭 = 가장 큰 가중치.
-    예: 더 알아보고 싶다(1.0) 1개 + 흥미로웠다(0.5) 1개 → 목표는 두 포스터를 2:1 로 섞은 것, 폭 1.0"""
+def poster_targets(n: int, interest: list[tuple[int, int, float]], V: dict[int, np.ndarray], dim: int,
+                   negative: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    """interest = [(사람, 포스터, 가중치)], V = 포스터 벡터. negative=False 면 양수 답만(당김), True 면 음수 답만(밀어냄).
+    사람마다 목표 = 절댓값으로 가중 평균한 포스터 벡터, 폭 = 절댓값이 가장 큰 가중치(부호 포함). 당김 · 밀어냄을 따로 한 번씩 적용한다.
+    예: 더 알아보고 싶다(1.0) 1개 + 흥미로웠다(0.33) 1개 → 목표는 두 포스터를 1 : 0.33 으로 섞은 것, 폭 1.0"""
     T, s, w = np.zeros((n, dim)), np.zeros(n), np.zeros(n)
     for i, p, wt in interest:
-        if wt > 0 and p in V:
-            T[i] += wt * V[p]
-            s[i] += wt
-            w[i] = max(w[i], wt)
+        if wt == 0 or p not in V or (wt < 0) != negative:
+            continue
+        T[i] += abs(wt) * V[p]
+        s[i] += abs(wt)
+        if abs(wt) > abs(w[i]):
+            w[i] = wt
     T[s > 0] /= s[s > 0, None]
     return T, w
