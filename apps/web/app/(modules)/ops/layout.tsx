@@ -25,7 +25,12 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
       <header className="border-b border-gray-200 bg-white px-6 py-3">
         <div className="mx-auto flex max-w-4xl items-baseline justify-between">
           <h1 className="text-lg font-bold">ORBIT 운영 콘솔</h1>
-          <span className="text-xs text-gray-500">{p.display_name}</span>
+          <span className="text-xs text-gray-500">
+            {p.display_name} ·{" "}
+            <a href="/logout" className="underline">
+              로그아웃
+            </a>
+          </span>
         </div>
       </header>
       <div className="mx-auto max-w-4xl p-6">{children}</div>

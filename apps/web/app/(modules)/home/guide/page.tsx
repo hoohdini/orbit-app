@@ -3,7 +3,7 @@ import TopBar from "@/components/TopBar";
 
 const sections = [
   { title: "이 앱은 무엇인가", body: "행사 참가자끼리 만남을 돕는 웹앱이다. 테이블 배정, 명함 교환, 포스터 스탬프, 커피챗 추천을 한 곳에서 본다." },
-  { title: "내 주소(SID)", body: "관심사와 하는 일을 숫자 세 자리 주소로 나타낸 것이다. 앞자리가 같을수록 비슷한 사람이다. 명함에도 같은 자리에 찍힌다." },
+  { title: "내 분야 이름표", body: "관심사와 하는 일을 묶어 붙인 이름표다. 같은 이름표를 가진 사람은 비슷한 관심사를 가진 사람이고, 명함에도 같은 자리에 찍힌다." },
   { title: "궤도", body: "나를 중심에 두고, 앞 3자리·2자리·1자리가 같은 사람을 안쪽부터 바깥쪽 링에 놓는다. 지금 입장한 사람만 보이고 15초마다 갱신된다." },
   { title: "테이블토크", body: "안내된 테이블에 앉아 같은 테이블 사람들과 이야기한다. 끝날 때 짧은 만족도 질문이 뜬다." },
   { title: "명함", body: "내 명함의 QR 을 상대가 찍으면 명함이 교환된다. 카메라 권한이 없으면 이름으로 찾을 수 있다." },
@@ -24,6 +24,9 @@ export default function GuidePage() {
           </section>
         ))}
         <p className="pt-2 text-xs text-gray-400">본문은 운영진 확정 문구로 바뀐다.</p>
+        <a href="/logout" className="block rounded-xl border border-gray-300 bg-white py-2 text-center text-sm text-gray-600">
+          로그아웃 (다른 사람이 이 폰으로 로그인할 때)
+        </a>
       </main>
     </>
   );
