@@ -20,7 +20,8 @@
 | sids | 주소 두 개와 벡터 두 개, 코드북 버전 | 계산 서비스(전날 배치) | 당일 재발급 없음 |
 | labels | 주소 앞자리별 사람이 읽는 라벨 | 전날 배치, 운영 검수 | |
 | checkins | 체크인 시각, 지연 여부 | 첫 로그인이 자동 기록, 운영 콘솔은 지연 표시·수동 추가 | 배정과 궤도는 체크인 명단만 쓴다 |
-| assign_versions | 배정 버전(라운드, 상태, 파라미터) | 계산 서비스 생성, 운영자 publish | |
+| assign_versions | 배정 버전(라운드, 상태, 파라미터, 행사 번호 event_id) | 계산 서비스 생성, 운영자 publish | event_id 는 0007. 행사가 섞인 개발 DB 에서도 자기 행사 배정만 본다 |
+| codebooks | 주소(SID)를 정하는 기준표. 버전, 행사, 평균 벡터, 층별 대표 지점, 활성 여부 | 계산 서비스(전날 배치) | 0007. 행사마다 활성 하나. 체크인 마감 때 같은 기준으로 현장 등록자를 붙인다 |
 | tables_meta | 테이블 라벨과 대화거리 | 계산 서비스 | 커피챗 화면의 테이블별 소개 |
 | table_members | 버전별 테이블 구성원과 사람별 배정 이유(reason) | 계산 서비스 | reason 은 운영진 대시보드용. 참가자 화면에는 보내지 않는다(0006) |
 | pair_scores | 배정에 쓴 쌍 점수 원본 | 계산 서비스 | 정확도 채점용. 재계산하지 않는다 |
@@ -42,7 +43,7 @@
 | 뷰 | 내용 |
 |---|---|
 | edges | 명함 교환을 무방향 간선(가중치 0.3)으로 묶은 것. 같은 테이블 이력은 간선이 아니다 |
-| current_tables | 라운드별 최신 published 배정. 화면은 이 뷰만 본다 |
+| current_tables | 라운드 · 행사별 최신 published 배정. 화면은 이 뷰만 본다(0007 에서 event_id 칸 추가) |
 
 ## 모듈별로 쓰는 테이블
 
@@ -55,7 +56,7 @@
 | coffeechat | current_tables(coffeechat), recs, tables_meta | event_log |
 | poster | posters, poster_quizzes(정답 제외), stamps, raffle_tickets | quiz_attempts, stamps, poster_interest, raffle_tickets, event_log |
 | ops(콘솔) | 전부 | checkins, assign_versions.status, ops_state |
-| compute | participants, profiles, checkins, edges, satisfaction, posters, poster_interest | sids, labels, assign_versions, tables_meta, table_members, pair_scores, recs, ops_state |
+| compute | participants, profiles, checkins, edges, satisfaction, posters, poster_interest | sids, labels, codebooks, assign_versions, tables_meta, table_members, pair_scores, recs, ops_state |
 
 ## 미정이라 보류한 것
 

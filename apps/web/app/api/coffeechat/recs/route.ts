@@ -1,5 +1,5 @@
-// GET /api/coffeechat/recs  published 된 최신 coffeechat 배정 버전의 내 추천 목록
-import { ok, handle } from "@/lib/api";
+// GET /api/coffeechat/recs  이 행사(EVENT_ID)에서 published 된 최신 coffeechat 배정 버전의 내 추천 목록
+import { ok, handle, eventId } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { logEvent } from "@/lib/log";
@@ -14,6 +14,7 @@ export async function GET() {
       .from("assign_versions")
       .select("version")
       .eq("round", "coffeechat")
+      .eq("event_id", eventId())
       .eq("status", "published")
       .order("version", { ascending: false })
       .limit(1)

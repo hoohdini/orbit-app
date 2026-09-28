@@ -23,30 +23,18 @@ from pipeline import scoring, seating
 from pipeline.embed import offer_items, seek_items, unit
 
 
-def _active_key(event_id: str) -> str:
-    return f"codebook_active:{event_id}"        # 행사마다 따로. 개발 DB 에 행사가 여러 개 섞여도 서로 덮어쓰지 않게
-
-
-def _cb_key(version: str) -> str:
-    return f"codebook:{version}"
-
-
 def _save_codebook(repo, cb: cbm.Codebook, event_id: str) -> None:
-    """코드북을 ops_state 에 저장한다(새 표 없이). 8 x 3 층 x 384 차원이라 약 100KB."""
+    """코드북을 codebooks 표에 저장하고 이 행사의 활성 코드북으로 둔다(0007). 8 x 3 층 x 384 차원이라 약 100KB."""
     r = lambda a: np.round(a, 6).tolist()
-    repo.ops_set(_cb_key(cb.version), {"mu_offer": r(cb.mu_offer), "mu_seek": r(cb.mu_seek),
-                                       "centers": [r(c) for c in cb.centers]})
-    repo.ops_set(_active_key(event_id), cb.version)
+    repo.save_codebook({"version": cb.version, "event_id": event_id, "mu_offer": r(cb.mu_offer), "mu_seek": r(cb.mu_seek),
+                        "centers": [r(c) for c in cb.centers]})
 
 
 def _load_codebook(repo, event_id: str) -> cbm.Codebook | None:
-    ver = repo.ops_get(_active_key(event_id))
-    if not ver:
-        return None
-    d = repo.ops_get(_cb_key(ver))
+    d = repo.active_codebook(event_id)
     if not d:
         return None
-    return cbm.Codebook(np.array(d["mu_offer"]), np.array(d["mu_seek"]), [np.array(c) for c in d["centers"]], ver)
+    return cbm.Codebook(np.array(d["mu_offer"]), np.array(d["mu_seek"]), [np.array(c) for c in d["centers"]], d["version"])
 
 
 def _heartbeat(repo, what: str) -> None:
@@ -123,8 +111,8 @@ def _reasons(P, table, A, random_seat, prev: dict[int, int] | None = None,
     return out
 
 
-def _write_round(repo, round_: str, P, table, a, A, tags, params, reasons: list[dict]) -> int:
-    v = repo.new_version(round_, params)
+def _write_round(repo, round_: str, P, table, a, A, tags, params, reasons: list[dict], event_id: str) -> int:
+    v = repo.new_version(round_, params, event_id)
     ids = [p["id"] for p in P]
     repo.insert("table_members", [{"version": v, "table_no": int(t) + 1, "participant_id": ids[i], "reason": reasons[i]}
                                   for i, t in enumerate(table)])
@@ -179,7 +167,7 @@ def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = 
     params = {"kind": "precompute", "table_mode": table_mode, "random_ratio": random_ratio, "iters": r.iters,
               "codebook_version": cb.version, "reuse_codebook": reuse_codebook, "n": len(P),
               "cohort_over": r.cohort_over, "collision_offer": cbm.collision_rate(co)}
-    v = _write_round(repo, "tabletalk", P, r.table, a, A, tags, params, _reasons(P, r.table, A, r.random_seat))
+    v = _write_round(repo, "tabletalk", P, r.table, a, A, tags, params, _reasons(P, r.table, A, r.random_seat), event_id)
     _heartbeat(repo, "precompute")
     return {"version": v, "codebook_version": cb.version, "new_codebook": new_cb, "issued": len(targets),
             "n": len(P), "tables": int(r.table.max()) + 1, "cohort_over": r.cohort_over}
@@ -214,7 +202,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     forbid = np.zeros((n, n), bool)
     groups: dict[int, list[int]] = {}
     prev: dict[int, int] = {}
-    for m in repo.latest_tables("tabletalk", ids):
+    for m in repo.latest_tables("tabletalk", ids, event_id):
         if m["participant_id"] in idx:
             groups.setdefault(m["table_no"], []).append(idx[m["participant_id"]])
             prev[idx[m["participant_id"]]] = m["table_no"]
@@ -259,7 +247,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
               "forbid_hits": r.forbid_hits, "cohort_over": r.cohort_over, "n": n}
     reasons = _reasons(P, r.table, A, r.random_seat, prev=prev, sat=None if fallback else sat,
                        exchanges=None if fallback else (W > 0).sum(1), posters=poster_n)
-    v = _write_round(repo, "coffeechat", P, r.table, a, A, tags, params, reasons)
+    v = _write_round(repo, "coffeechat", P, r.table, a, A, tags, params, reasons, event_id)
 
     met = forbid | seating.same_table_pairs(r.table) | (W > 0)
     np.fill_diagonal(met, True)

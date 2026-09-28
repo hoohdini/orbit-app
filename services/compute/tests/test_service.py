@@ -65,7 +65,8 @@ def test_full_loop():
     assert r1["new_codebook"] and r1["issued"] == 72 and r1["n"] == 72   # 참가자 70 + 운영진 2
     assert len(repo.t["sids"]) == 72                                    # 운영진도 주소 받음
     assert all(len(s["offer_sid"]) == 3 and len(s["offer_vec"]) == DIM for s in repo.t["sids"])
-    assert repo.ops_get("codebook_active:dev") == r1["codebook_version"]
+    assert repo.active_codebook("dev")["version"] == r1["codebook_version"]   # 코드북 전용 표(0007)
+    assert all(v["event_id"] == "dev" for v in repo.t["assign_versions"])   # 배정 버전에 행사 번호
     assert repo.t["labels"] and all(len(l["prefix"]) == 1 for l in repo.t["labels"])   # 첫자리 묶음만
     assert all(m["label"] is None for m in repo.t["tables_meta"])                           # 테이블 이름표 없음
     v1 = r1["version"]
@@ -150,8 +151,9 @@ def test_other_event_does_not_leak():
     service.precompute(repo, enc, event_id="other", iters=200)
     repo.t["assign_versions"][-1]["status"] = "published"               # 다른 행사의 공개 배정
     r1 = service.precompute(repo, enc, iters=500)                       # 이 행사는 초안만
-    assert repo.ops_get("codebook_active:dev") == r1["codebook_version"]
-    assert repo.ops_get("codebook_active:other") != r1["codebook_version"]
+    assert repo.active_codebook("dev")["version"] == r1["codebook_version"]
+    assert repo.active_codebook("other")["version"] != r1["codebook_version"]
+    assert {v["event_id"] for v in repo.t["assign_versions"]} == {"dev", "other"}
     ids = [p["id"] for p in repo.participants("dev")]
     got = repo.latest_tables("tabletalk", ids)
     assert got and {m["version"] for m in got} == {r1["version"]}      # 다른 행사의 공개 배정을 집지 않음

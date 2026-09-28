@@ -1,10 +1,9 @@
 """시험용 행사(event_id) 데이터를 개발 DB 에서 지운다. 기본은 무엇을 지울지 세기만 한다.
 
 지우는 것
-  그 행사 참가자가 들어 있는 배정 버전 (assign_versions → tables_meta · table_members · pair_scores · recs 가 같이 지워짐)
+  그 행사의 배정 버전 (assign_versions.event_id → tables_meta · table_members · pair_scores · recs 가 같이 지워짐)
   그 행사 참가자 (profiles · sids · checkins · card_exchanges · satisfaction · 스탬프 등이 같이 지워짐)
-  그 행사 코드북의 라벨 · ops_state 의 codebook_active:<행사> 와 codebook:<버전>
-다른 행사(dev 등)가 같이 쓴 배정 버전은 건드리지 않는다 — 구성원이 전부 이 행사 사람인 버전만 지운다.
+  그 행사 코드북(codebooks)과 라벨. 0007 전에 ops_state 에 넣었던 codebook_active:<행사> · codebook:<버전> 도 남아 있으면 지운다
 
 실행  python sim/cleanup_event.py sim-minchan            세기만
       python sim/cleanup_event.py sim-minchan --yes      실제로 지우기
@@ -37,25 +36,23 @@ def main():
     load_env()
     r = SupabaseRepo()
     ids = [p["id"] for p in r.participants(event)]
-    members = r._in("table_members", "version, participant_id", "participant_id", ids) if ids else []
-    versions = sorted({m["version"] for m in members})
-    only_mine = []
-    for v in versions:
-        allm = r._all(lambda: r.db.table("table_members").select("participant_id").eq("version", v))
-        if all(m["participant_id"] in set(ids) for m in allm):
-            only_mine.append(v)
-    active = r.ops_get(f"codebook_active:{event}")
-    print(f"행사 {event}: 참가자 {len(ids)}명 · 배정 버전 {only_mine} · 코드북 {active}")
+    versions = [v["version"] for v in r._all(lambda: r.db.table("assign_versions").select("version").eq("event_id", event))]
+    books = [c["version"] for c in r._all(lambda: r.db.table("codebooks").select("version").eq("event_id", event))]
+    legacy = r.ops_get(f"codebook_active:{event}")
+    if legacy and legacy not in books:
+        books.append(legacy)
+    print(f"행사 {event}: 참가자 {len(ids)}명 · 배정 버전 {versions} · 코드북 {books}")
     if not yes:
         print("세기만 했다. 지우려면 --yes")
         return
-    if only_mine:
-        r.db.table("assign_versions").delete().in_("version", only_mine).execute()
+    if versions:
+        r.db.table("assign_versions").delete().in_("version", versions).execute()
     for i in range(0, len(ids), 200):
         r.db.table("participants").delete().in_("id", ids[i:i + 200]).execute()
-    if active:
-        r.db.table("labels").delete().eq("codebook_version", active).execute()
-        r.db.table("ops_state").delete().in_("key", [f"codebook_active:{event}", f"codebook:{active}"]).execute()
+    for b in books:
+        r.db.table("labels").delete().eq("codebook_version", b).execute()
+    r.db.table("codebooks").delete().eq("event_id", event).execute()
+    r.db.table("ops_state").delete().in_("key", [f"codebook_active:{event}"] + [f"codebook:{b}" for b in books]).execute()
     print("지웠다")
 
 
