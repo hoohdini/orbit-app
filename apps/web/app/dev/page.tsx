@@ -9,6 +9,7 @@ const modules = [
   ["/coffeechat", "커피챗", "민찬"],
   ["/poster", "포스터세션", "민찬"],
   ["/ops", "운영 콘솔", "성하"],
+  ["/logout", "로그아웃 (계정 바꿀 때)", "공용"],
 ] as const;
 
 export default function DevIndex() {
