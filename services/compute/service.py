@@ -79,7 +79,7 @@ def _reasons(P, table, A, random_seat, prev: dict[int, int] | None = None,
              sat: dict[int, str] | None = None, exchanges: np.ndarray | None = None,
              posters: dict[int, int] | None = None) -> list[dict]:
     """사람마다 왜 이 테이블인지. 운영진 대시보드용(참가자 화면에는 안 보냄).
-    best · avg 는 배정에 쓴 쌍 점수(A). prev = 이전 라운드 테이블 번호, sat = 만족도 답, exchanges = 명함 교환 수,
+    best · avg 는 배정에 쓴 쌍 점수(A). prev = 이전 라운드 테이블 번호, sat = 만족도 답, exchanges = 명함을 교환한 상대 수,
     posters = 반영한 관심 포스터 수."""
     out = []
     for i, t in enumerate(table):
@@ -102,7 +102,7 @@ def _reasons(P, table, A, random_seat, prev: dict[int, int] | None = None,
             parts.append(f"만족도 '{SAT_TEXT.get(sat[i], sat[i])}' 반영")
         if exchanges is not None and exchanges[i] > 0:
             r["exchanges"] = int(exchanges[i])
-            parts.append(f"명함 교환 {int(exchanges[i])}건 반영")
+            parts.append(f"명함 교환한 사람 {int(exchanges[i])}명 반영")
         if posters is not None and posters.get(i, 0) > 0:
             r["posters"] = posters[i]
             parts.append(f"관심 포스터 {posters[i]}개 반영")
@@ -141,7 +141,7 @@ def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = 
 
     cb = _load_codebook(repo, event_id) if reuse_codebook else None
     if reuse_codebook and cb is None:
-        raise ValueError("저장된 코드북이 없다. 먼저 reuse_codebook=false 로 한 번 돌린다")
+        raise ValueError("저장된 코드북이 없다. 전날 계산(reuse_codebook=false)을 먼저 돌린다")
     new_cb = cb is None
     if new_cb:
         # 행사 이름 + 초까지. 같은 분 안에 다른 행사가 돌려도 이름이 겹쳐 서로 덮어쓰지 않게
@@ -188,7 +188,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     sid = repo.sids(ids)
     missing = [i for i, pid in enumerate(ids) if pid not in sid]
     if missing:
-        raise ValueError(f"주소가 없는 사람 {len(missing)}명. 체크인 마감 때 precompute(reuse_codebook=true) 를 먼저 돌린다")
+        raise ValueError(f"주소가 없는 사람 {len(missing)}명. 체크인 마감 계산(precompute reuse_codebook=true)을 먼저 돌린다")
     O = unit(np.array([sid[pid]["offer_vec"] for pid in ids], dtype=float))
     S = unit(np.array([sid[pid]["seek_vec"] for pid in ids], dtype=float))
 
