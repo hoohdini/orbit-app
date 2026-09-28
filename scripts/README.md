@@ -28,3 +28,17 @@ python scripts/export_badge_qr.py --event-id orbit-2026 --app-url https://<배�
 
 - 결과 폴더의 `index.csv`(이름, 소속, 구분, id, 파일명)를 명찰 디자인 쪽에 넘긴다. 저장소에 올리지 않는다.
 - 운영진은 기본으로 빼고, `--include-staff` 로 넣는다.
+
+## export_poster_qr.py
+
+포스터 앞에 붙일 포스터 QR PNG 를 포스터마다 낸다. 문자열은 `docs/QR_FORMAT.md` 의 `https://<앱주소>/poster?c=<poster_code>` 다. 포스터 목록은 DB 의 posters 표에서 읽는다.
+
+```bash
+pip install qrcode[pil] supabase
+python scripts/export_poster_qr.py --app-url https://orbit-app-dusky-theta.vercel.app --out D:/DSL/_event_data/posters --label
+python scripts/export_poster_qr.py --app-url http://localhost:3000 --out /tmp/posters --codes P01,P02   # DB 없이 코드만으로
+```
+
+- 결과 폴더에 포스터별 `<code>.png`, 전부 이어 붙인 `sheet.png`(화면에 띄우고 폰으로 찍어 보는 데모용), `index.csv`(코드, 제목, 발표자, 부스, 파일명)가 생긴다. 저장소에 올리지 않는다.
+- `--label` 을 주면 QR 아래에 코드 · 제목 · 부스를 같이 그린다. 인쇄용은 이 옵션이 편하다.
+- 개발 서버로 폰 테스트를 할 때는 `--app-url http://<맥 IP>:3000` 처럼 같은 와이파이 주소를 준다. 폰 기본 카메라로 찍으면 링크가 열린다(앱 안 카메라는 https 에서만 열린다).

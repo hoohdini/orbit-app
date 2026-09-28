@@ -6,7 +6,7 @@ QR 은 세 종류다. 공용 스캐너가 앞자리로 구분한다. 내장 카�
 |---|---|---|---|---|
 | 입장 | 운영진이 입구에 인쇄(공용 1개) | `https://<앱주소>/onboarding` | 앱이 열리고 이름과 숫자 4자리 입력 화면. 입력하면 바로 로그인된다 | 쓰지 않음 |
 | 명함 | 명찰에 인쇄(`scripts/export_badge_qr.py`). 앱의 내 명함 화면에도 같은 것이 뜬다 | `https://<앱주소>/card?p=<participant_id>` | 앱이 열리고 교환 결과 화면(로그인 필요. 로그인 뒤 제자리로 돌아온다) | `/api/card/scan` 호출 |
-| 포스터 | 운영진이 포스터마다 인쇄 | `https://<앱주소>/poster?c=<poster_code>` | 앱이 열리고 퀴즈 화면(로그인 필요) | `/api/poster/scan` 호출 |
+| 포스터 | 운영진이 포스터마다 인쇄(`scripts/export_poster_qr.py`) | `https://<앱주소>/poster?c=<poster_code>` | 앱이 열리고 퀴즈 화면(로그인 필요) | `/api/poster/scan` 호출 |
 
 ## 규칙
 
