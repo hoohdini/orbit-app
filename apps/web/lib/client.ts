@@ -3,16 +3,23 @@
 
 export type ApiResult<T> = { ok: true; data: T; status: number } | { ok: false; code: string; message: string; status: number };
 
+// 이 함수는 예외를 던지지 않는다. 네트워크가 끊겨 fetch 자체가 실패하면 code NETWORK 로 돌려준다.
+// 화면은 ok 여부와 code 만 보고 분기하면 되고, try/catch 없이 폴링 · 버튼 잠금을 안전하게 풀 수 있다.
 export async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<ApiResult<T>> {
   const { json, ...rest } = init ?? {};
-  const res = await fetch(path, {
-    ...rest,
-    method: rest.method ?? (json !== undefined ? "POST" : "GET"),
-    headers: { ...(json !== undefined ? { "Content-Type": "application/json" } : {}), ...(rest.headers ?? {}) },
-    body: json !== undefined ? JSON.stringify(json) : rest.body,
-    credentials: "same-origin",
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      ...rest,
+      method: rest.method ?? (json !== undefined ? "POST" : "GET"),
+      headers: { ...(json !== undefined ? { "Content-Type": "application/json" } : {}), ...(rest.headers ?? {}) },
+      body: json !== undefined ? JSON.stringify(json) : rest.body,
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+  } catch {
+    return { ok: false, code: "NETWORK", message: "연결이 끊겼다. 네트워크를 확인하고 다시 시도한다", status: 0 };
+  }
   let body: { ok: boolean; data?: T; error?: { code: string; message: string } } | null = null;
   try {
     body = await res.json();
