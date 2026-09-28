@@ -97,7 +97,7 @@ export default function VersionsPanel() {
                   <button type="button" disabled={busy !== null} onClick={() => show(v.version)} className="rounded-lg border border-gray-300 px-2 py-1 text-xs">
                     {open?.version === v.version ? "닫기" : "배정 보기"}
                   </button>
-                  {v.status !== "published" && (
+                  {v.status === "draft" && (
                     <button type="button" disabled={busy !== null} onClick={() => publish(v)} className="rounded-lg bg-black px-2 py-1 text-xs font-semibold text-white disabled:bg-gray-300">
                       공개
                     </button>
