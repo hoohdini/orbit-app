@@ -183,7 +183,10 @@ def test_seek_shift():
     assert np.allclose(Z[2], Su[2]) and np.allclose(Z[4], Su[4])  # 가중치 0 은 그대로
     assert np.allclose(Z[5], Su[5])                              # 동석자가 없으면 그대로
     w2 = scoring.sat_weights("gained=0.8, mismatch=0.1")
-    assert w2 == {"gained": 0.8, "different": 0.3, "unsure": 0.0, "mismatch": 0.1}
+    assert w2 == {"gained": 0.8, "different": 0.33, "unsure": 0.0, "mismatch": 0.1}
+    assert scoring.sat_weights("") == {"gained": 1.0, "different": 0.33, "unsure": 0.0, "mismatch": -0.2}  # C안 기본값
+    Zn = scoring.seek_shift(S, scoring.unit(O), mates, np.array([-0.2, 0, 0, 0, 0, 0, 0, 0]), beta=0.5)
+    assert float(Zn[0] @ Ou[mates[0]].mean(0) - Su[0] @ Ou[mates[0]].mean(0)) < 0          # 안 맞았다는 반대로 밀어냄
 
 
 def test_poster_targets():
