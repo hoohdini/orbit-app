@@ -169,6 +169,35 @@ def test_incremental_state_matches_full_recount():
     assert st.forbid_hits == fresh.forbid_hits and st.cohort_over == fresh.cohort_over
 
 
+
+def test_seek_shift():
+    """만족도 답에 따라 Seek 가 그 테이블 사람들 쪽으로 옮겨지는 폭이 다른가."""
+    rng = np.random.default_rng(3)
+    O = rng.normal(size=(8, 16)); S = rng.normal(size=(8, 16))
+    mates = [[1, 2], [0, 2], [0, 1], [4], [3], [], [], []]
+    w = np.array([1.0, 0.3, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0])
+    Z = scoring.seek_shift(S, scoring.unit(O), mates, w, beta=0.5)
+    Su, Ou = scoring.unit(S), scoring.unit(O)
+    toward = lambda i: float(Z[i] @ Ou[mates[i]].mean(0) - Su[i] @ Ou[mates[i]].mean(0))
+    assert toward(0) > toward(1) > 0                            # 얻었다(1.0) 가 조금 달랐다(0.3) 보다 많이 옮김
+    assert np.allclose(Z[2], Su[2]) and np.allclose(Z[4], Su[4])  # 가중치 0 은 그대로
+    assert np.allclose(Z[5], Su[5])                              # 동석자가 없으면 그대로
+    w2 = scoring.sat_weights("gained=0.8, mismatch=0.1")
+    assert w2 == {"gained": 0.8, "different": 0.3, "unsure": 0.0, "mismatch": 0.1}
+
+
+def test_poster_targets():
+    """관심 포스터 답 → 목표 벡터(가중 평균)와 옮기는 폭(가장 큰 가중치)."""
+    e1, e2 = np.eye(4)[0], np.eye(4)[1]
+    rows = [(0, 1, 1.0), (0, 2, 0.5), (1, 2, 0.0)]                # 0 번: 알아보고 싶다 + 흥미로웠다, 1 번: 관심 분야 아님
+    T, w = scoring.poster_targets(3, rows, {1: e1, 2: e2}, 4)
+    assert np.allclose(T[0], (e1 + 0.5 * e2) / 1.5) and w[0] == 1.0
+    assert not T[1].any() and w[1] == 0 and w[2] == 0
+    S = scoring.unit(np.array([[0, 0, 1.0, 0], [0, 0, 1.0, 0], [0, 0, 0, 1.0]]))
+    Z = scoring.seek_toward(S, T, w, beta=0.5)
+    assert Z[0] @ e1 > 0 and np.allclose(Z[1], S[1]) and np.allclose(Z[2], S[2])
+    assert scoring.poster_weights("interesting=0.2") == {"learn_more": 1.0, "interesting": 0.2, "not_mine": 0.0}
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

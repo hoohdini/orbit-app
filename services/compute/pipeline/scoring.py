@@ -12,6 +12,8 @@ a[i, j] = cos(seek_i, offer_j)   i 가 j 에게서 얻는 것 (한 방향)
 """
 from __future__ import annotations
 
+import os
+
 import numpy as np
 
 from .embed import unit
@@ -49,7 +51,6 @@ def combine(a: np.ndarray, mode: str = "min") -> np.ndarray:
 
 def rec_matrix(a: np.ndarray, mode: str | None = None) -> np.ndarray:
     """개인 추천용 점수. mode: min | avg | harmonic | one_way (기본은 환경변수 REC_SCORE, 없으면 min)."""
-    import os
     mode = mode or os.environ.get("REC_SCORE", "min")
     if mode == "one_way":
         r = a.copy()
@@ -86,3 +87,65 @@ def inject(O: np.ndarray, W: np.ndarray, beta: float = 0.5) -> np.ndarray:
         if nr > 1e-12:
             Z[i] = O[i] + beta * r / nr
     return unit(Z)
+
+
+# 테이블토크 만족도 답 → 만남 반영 세기. 질문 하나에 답마다 가중치(9/27 회의: 백엔드가 정함, 민찬 결정).
+# 안 맞았다를 음수로 두지 않는 이유 — 한 번의 어색한 자리로 비슷한 사람 전체가 추천에서 밀려날 수 있다
+SAT_WEIGHTS_DEFAULT = {"gained": 1.0, "different": 0.3, "unsure": 0.0, "mismatch": 0.0}
+
+
+def sat_weights(raw: str | None = None) -> dict[str, float]:
+    """환경변수 SAT_WEIGHTS 예: 'gained=1,different=0.3,unsure=0,mismatch=0'. 빠진 답은 기본값."""
+    w = dict(SAT_WEIGHTS_DEFAULT)
+    for part in (raw if raw is not None else os.environ.get("SAT_WEIGHTS", "")).split(","):
+        k, _, v = part.partition("=")
+        if k.strip() in w and v.strip():
+            w[k.strip()] = float(v)
+    return w
+
+
+def seek_toward(S: np.ndarray, T: np.ndarray, w: np.ndarray, beta: float = 0.5) -> np.ndarray:
+    """i 의 Seek 를 목표 벡터 T[i] 쪽으로 beta × w[i] 만큼 옮긴다. inject 와 같은 방식(내 방향과 직교하는 성분만)이라
+    원래 찾던 것은 유지된다. w 가 0 이거나 T[i] 가 0 이면 그대로 둔다."""
+    S = unit(S)
+    Z = S.copy()
+    for i in np.where(w > 0)[0]:
+        r = T[i] - (T[i] @ S[i]) * S[i]
+        nr = np.linalg.norm(r)
+        if nr > 1e-12:
+            Z[i] = S[i] + beta * w[i] * r / nr
+    return unit(Z)
+
+
+def seek_shift(S: np.ndarray, O: np.ndarray, mates: list[list[int]], w: np.ndarray, beta: float = 0.5) -> np.ndarray:
+    """만족도 반영. i 가 테이블토크에서 얻은 게 있었다면 i 의 Seek 를 그 테이블 사람들의 Offer 평균 쪽으로 옮긴다.
+    → 커피챗 추천에서 i 에게 그 사람들과 비슷한 새 사람이 더 올라온다. 옮기는 폭 = beta × w[i] (답별 가중치)."""
+    T = np.array([O[ms].mean(0) if ms else np.zeros(O.shape[1]) for ms in mates])
+    return seek_toward(S, T, np.array([w[i] if mates[i] else 0.0 for i in range(len(mates))]), beta)
+
+
+# 포스터 관심도 답 → 추천 방향. 관심 있게 본 포스터의 주제 쪽으로 Seek 를 옮긴다(9/28 민찬 결정). 값은 임시, 리허설 뒤 정함
+POSTER_WEIGHTS_DEFAULT = {"learn_more": 1.0, "interesting": 0.5, "not_mine": 0.0}
+
+
+def poster_weights(raw: str | None = None) -> dict[str, float]:
+    """환경변수 POSTER_WEIGHTS 예: 'learn_more=1,interesting=0.5,not_mine=0'. 빠진 답은 기본값."""
+    w = dict(POSTER_WEIGHTS_DEFAULT)
+    for part in (raw if raw is not None else os.environ.get("POSTER_WEIGHTS", "")).split(","):
+        k, _, v = part.partition("=")
+        if k.strip() in w and v.strip():
+            w[k.strip()] = float(v)
+    return w
+
+
+def poster_targets(n: int, interest: list[tuple[int, int, float]], V: dict[int, np.ndarray], dim: int) -> tuple[np.ndarray, np.ndarray]:
+    """interest = [(사람, 포스터, 가중치)], V = 포스터 벡터. 사람마다 목표 = 가중 평균 포스터 벡터, 폭 = 가장 큰 가중치.
+    예: 더 알아보고 싶다(1.0) 1개 + 흥미로웠다(0.5) 1개 → 목표는 두 포스터를 2:1 로 섞은 것, 폭 1.0"""
+    T, s, w = np.zeros((n, dim)), np.zeros(n), np.zeros(n)
+    for i, p, wt in interest:
+        if wt > 0 and p in V:
+            T[i] += wt * V[p]
+            s[i] += wt
+            w[i] = max(w[i], wt)
+    T[s > 0] /= s[s > 0, None]
+    return T, w
