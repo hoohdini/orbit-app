@@ -50,10 +50,13 @@
 | poster | /api/poster/stamps | GET | 없음 | { stamps: [...], total, tickets: [...] } | 있음 |
 | ops | /api/ops/reset-pin | POST | participant_id | { pin } 새 무작위 4자리를 한 번만 돌려준다 | 있음 |
 | ops | /api/ops/add-participant | POST | display_name, affiliation?, role, cohort?, is_host?, pin?, offer_text?, seek_text?, topic_tags? | { participant, pin } 워크인 추가 | 있음 |
+| ops | /api/ops/compute | GET | 없음 | { reachable, model_loaded?, version? } 계산 서비스 상태. 운영자만 | 있음 |
+| ops | /api/ops/compute | POST | job: precompute(전날) · checkin(체크인 마감) · coffeechat(포스터세션 중) | { job, ms, result } result 는 계산 서비스 응답(초안 version 등). 거절이면 409 COMPUTE_REFUSED. 운영자만 | 있음 |
 | ops | /api/ops/checkin | POST | participant_id, is_late? | { checked_at } | 예정 |
-| ops | /api/ops/publish | POST | version | { published_at, round, retired: [version] } 초안을 공개하고 같은 라운드의 이전 공개 버전은 retired 로. 이미 공개 409 ALREADY_PUBLISHED, 철회본 409 RETIRED | 있음 |
-| ops | /api/ops/status | GET | 없음 | { event_id, phase, participants, checkins, satisfaction: {answered, rate}, exchanges, compute_heartbeat: {at, last} 또는 null, published: {tabletalk, coffeechat: {version, published_at} 또는 null}, now } | 있음 |
-| ops | /api/ops/versions | GET | 없음 | { versions: [{version, round, status, params, created_at, published_at}] } 이 행사 배정 버전 최신 순 | 있음 |
+| ops | /api/ops/publish | POST | version | { published_at, round, retired: [version] } 초안을 공개하고 같은 행사 · 라운드의 이전 공개 버전은 retired 로. 이미 공개 409 ALREADY_PUBLISHED, 철회본 409 RETIRED. 운영자만 | 있음 |
+| ops | /api/ops/versions | GET | 없음 | { versions: [{version, round, status, created_at, published_at, summary}] } 이 행사 최신 20개. 운영자만 | 있음 |
+| ops | /api/ops/versions/<version> | GET | 없음 | { version, round, status, tables: [{table_no, members: [{id, display_name, affiliation, role, random, reason}]}] } 배정 확인용. 운영자만 | 있음 |
+| ops | /api/ops/status | GET | 없음 | { event_id, phase, participants, checkins, satisfaction: {answered, rate}, exchanges, compute_heartbeat: {at, last} 또는 null, published: {tabletalk, coffeechat: {version, published_at} 또는 null}, now } 상태판. 운영자만 | 있음 |
 
 card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name, affiliation, role, cohort, stage(1 명단만·2 프로필·3 주소), sid, label, theme(0~7 또는 null), offer_text, seek_text, topic_tags, links 또는 null, source?, exchanged_at? }`. 링크는 상대의 visibility 가 all 이거나 내가 그 사람을 직접 찍었을 때만 들어간다.
 

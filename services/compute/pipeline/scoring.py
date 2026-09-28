@@ -89,13 +89,18 @@ def inject(O: np.ndarray, W: np.ndarray, beta: float = 0.5) -> np.ndarray:
     return unit(Z)
 
 
-# 테이블토크 만족도 답 → 만남 반영 세기. 질문 하나에 답마다 가중치(9/27 회의: 백엔드가 정함, 민찬 결정).
-# 안 맞았다를 음수로 두지 않는 이유 — 한 번의 어색한 자리로 비슷한 사람 전체가 추천에서 밀려날 수 있다
-SAT_WEIGHTS_DEFAULT = {"gained": 1.0, "different": 0.3, "unsure": 0.0, "mismatch": 0.0}
+# 테이블토크 만족도 답 → 만남 반영 세기. 질문 하나에 답마다 가중치(9/27 회의: 백엔드가 정함, 9/29 민찬 결정 C안).
+# 근거(연구 저장소 docs/34)
+#   조금 달랐다 0.33 — 3단계 등급을 지수 gain(2^r − 1)으로 바꿔 최고값 1 로 나눈 값 0 · 0.33 · 1 (Järvelin & Kekäläinen 2002)
+#   잘 모르겠다 0    — 설문에서 '모름' 은 의견이 아니라 결측으로 다룬다 (Krosnick 외 2002)
+#   안 맞았다 −0.2   — Rocchio 관련성 피드백의 부정/긍정 비율 γ/β = 0.15/0.75 (Manning 외 2008). 부정을 아예 안 쓰면
+#                      성능이 떨어졌다(Salton & Buckley 1990). 테이블 평균이라 방향이 흐려 보수적인 0.2 쪽을 씀
+# 정확한 값은 문헌으로 못 정한다. 리허설 답 분포와 추천 변화를 보고 다시 정한다
+SAT_WEIGHTS_DEFAULT = {"gained": 1.0, "different": 0.33, "unsure": 0.0, "mismatch": -0.2}
 
 
 def sat_weights(raw: str | None = None) -> dict[str, float]:
-    """환경변수 SAT_WEIGHTS 예: 'gained=1,different=0.3,unsure=0,mismatch=0'. 빠진 답은 기본값."""
+    """환경변수 SAT_WEIGHTS 예: 'gained=1,different=0.33,unsure=0,mismatch=-0.2'. 빠진 답은 기본값."""
     w = dict(SAT_WEIGHTS_DEFAULT)
     for part in (raw if raw is not None else os.environ.get("SAT_WEIGHTS", "")).split(","):
         k, _, v = part.partition("=")
@@ -105,11 +110,11 @@ def sat_weights(raw: str | None = None) -> dict[str, float]:
 
 
 def seek_toward(S: np.ndarray, T: np.ndarray, w: np.ndarray, beta: float = 0.5) -> np.ndarray:
-    """i 의 Seek 를 목표 벡터 T[i] 쪽으로 beta × w[i] 만큼 옮긴다. inject 와 같은 방식(내 방향과 직교하는 성분만)이라
-    원래 찾던 것은 유지된다. w 가 0 이거나 T[i] 가 0 이면 그대로 둔다."""
+    """i 의 Seek 를 목표 벡터 T[i] 쪽으로 beta × w[i] 만큼 옮긴다. w 가 음수면 반대로 밀어낸다(Rocchio 의 부정 피드백).
+    inject 와 같은 방식(내 방향과 직교하는 성분만)이라 원래 찾던 것은 유지된다. w 가 0 이거나 T[i] 가 0 이면 그대로 둔다."""
     S = unit(S)
     Z = S.copy()
-    for i in np.where(w > 0)[0]:
+    for i in np.nonzero(w)[0]:
         r = T[i] - (T[i] @ S[i]) * S[i]
         nr = np.linalg.norm(r)
         if nr > 1e-12:
@@ -119,17 +124,20 @@ def seek_toward(S: np.ndarray, T: np.ndarray, w: np.ndarray, beta: float = 0.5) 
 
 def seek_shift(S: np.ndarray, O: np.ndarray, mates: list[list[int]], w: np.ndarray, beta: float = 0.5) -> np.ndarray:
     """만족도 반영. i 가 테이블토크에서 얻은 게 있었다면 i 의 Seek 를 그 테이블 사람들의 Offer 평균 쪽으로 옮긴다.
-    → 커피챗 추천에서 i 에게 그 사람들과 비슷한 새 사람이 더 올라온다. 옮기는 폭 = beta × w[i] (답별 가중치)."""
+    → 커피챗 추천에서 i 에게 그 사람들과 비슷한 새 사람이 더 올라온다. 옮기는 폭 = beta × w[i] (답별 가중치).
+    안 맞았다(w < 0)면 그 쪽에서 조금 밀어낸다."""
     T = np.array([O[ms].mean(0) if ms else np.zeros(O.shape[1]) for ms in mates])
     return seek_toward(S, T, np.array([w[i] if mates[i] else 0.0 for i in range(len(mates))]), beta)
 
 
 # 포스터 관심도 답 → 추천 방향. 관심 있게 본 포스터의 주제 쪽으로 Seek 를 옮긴다(9/28 민찬 결정). 값은 임시, 리허설 뒤 정함
-POSTER_WEIGHTS_DEFAULT = {"learn_more": 1.0, "interesting": 0.5, "not_mine": 0.0}
+# 9/29 민찬 결정 — 테이블 만족도(C안)와 같은 규칙: 중간 0.33 은 지수 gain, 관심 분야 아님 −0.2 는 Rocchio 부정 비율.
+# 포스터는 주제 하나라 방향이 뚜렷해서 Rocchio 의 문서 한 건 부정 판정과 구조가 같다
+POSTER_WEIGHTS_DEFAULT = {"learn_more": 1.0, "interesting": 0.33, "not_mine": -0.2}
 
 
 def poster_weights(raw: str | None = None) -> dict[str, float]:
-    """환경변수 POSTER_WEIGHTS 예: 'learn_more=1,interesting=0.5,not_mine=0'. 빠진 답은 기본값."""
+    """환경변수 POSTER_WEIGHTS 예: 'learn_more=1,interesting=0.33,not_mine=-0.2'. 빠진 답은 기본값."""
     w = dict(POSTER_WEIGHTS_DEFAULT)
     for part in (raw if raw is not None else os.environ.get("POSTER_WEIGHTS", "")).split(","):
         k, _, v = part.partition("=")
@@ -138,14 +146,18 @@ def poster_weights(raw: str | None = None) -> dict[str, float]:
     return w
 
 
-def poster_targets(n: int, interest: list[tuple[int, int, float]], V: dict[int, np.ndarray], dim: int) -> tuple[np.ndarray, np.ndarray]:
-    """interest = [(사람, 포스터, 가중치)], V = 포스터 벡터. 사람마다 목표 = 가중 평균 포스터 벡터, 폭 = 가장 큰 가중치.
-    예: 더 알아보고 싶다(1.0) 1개 + 흥미로웠다(0.5) 1개 → 목표는 두 포스터를 2:1 로 섞은 것, 폭 1.0"""
+def poster_targets(n: int, interest: list[tuple[int, int, float]], V: dict[int, np.ndarray], dim: int,
+                   negative: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    """interest = [(사람, 포스터, 가중치)], V = 포스터 벡터. negative=False 면 양수 답만(당김), True 면 음수 답만(밀어냄).
+    사람마다 목표 = 절댓값으로 가중 평균한 포스터 벡터, 폭 = 절댓값이 가장 큰 가중치(부호 포함). 당김 · 밀어냄을 따로 한 번씩 적용한다.
+    예: 더 알아보고 싶다(1.0) 1개 + 흥미로웠다(0.33) 1개 → 목표는 두 포스터를 1 : 0.33 으로 섞은 것, 폭 1.0"""
     T, s, w = np.zeros((n, dim)), np.zeros(n), np.zeros(n)
     for i, p, wt in interest:
-        if wt > 0 and p in V:
-            T[i] += wt * V[p]
-            s[i] += wt
-            w[i] = max(w[i], wt)
+        if wt == 0 or p not in V or (wt < 0) != negative:
+            continue
+        T[i] += abs(wt) * V[p]
+        s[i] += abs(wt)
+        if abs(wt) > abs(w[i]):
+            w[i] = wt
     T[s > 0] /= s[s > 0, None]
     return T, w

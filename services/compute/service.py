@@ -77,10 +77,10 @@ SAT_TEXT = {"gained": "새로 얻은 게 있었다", "different": "좋았지만 
 
 def _reasons(P, table, A, random_seat, prev: dict[int, int] | None = None,
              sat: dict[int, str] | None = None, exchanges: np.ndarray | None = None,
-             posters: dict[int, int] | None = None) -> list[dict]:
+             posters: dict[int, int] | None = None, posters_not: dict[int, int] | None = None) -> list[dict]:
     """사람마다 왜 이 테이블인지. 운영진 대시보드용(참가자 화면에는 안 보냄).
-    best · avg 는 배정에 쓴 쌍 점수(A). prev = 이전 라운드 테이블 번호, sat = 만족도 답, exchanges = 명함 교환 수,
-    posters = 반영한 관심 포스터 수."""
+    best · avg 는 배정에 쓴 쌍 점수(A). prev = 이전 라운드 테이블 번호, sat = 만족도 답, exchanges = 명함을 교환한 상대 수,
+    posters = 반영한 관심 포스터 수, posters_not = 관심 분야 아니라고 한 포스터 수."""
     out = []
     for i, t in enumerate(table):
         mates = [j for j in np.where(table == t)[0] if j != i]
@@ -102,10 +102,13 @@ def _reasons(P, table, A, random_seat, prev: dict[int, int] | None = None,
             parts.append(f"만족도 '{SAT_TEXT.get(sat[i], sat[i])}' 반영")
         if exchanges is not None and exchanges[i] > 0:
             r["exchanges"] = int(exchanges[i])
-            parts.append(f"명함 교환 {int(exchanges[i])}건 반영")
+            parts.append(f"명함 교환한 사람 {int(exchanges[i])}명 반영")
         if posters is not None and posters.get(i, 0) > 0:
             r["posters"] = posters[i]
             parts.append(f"관심 포스터 {posters[i]}개 반영")
+        if posters_not is not None and posters_not.get(i, 0) > 0:
+            r["posters_not"] = posters_not[i]
+            parts.append(f"관심 없다고 한 포스터 {posters_not[i]}개 반영")
         r["text"] = ". ".join(parts)
         out.append(r)
     return out
@@ -141,7 +144,7 @@ def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = 
 
     cb = _load_codebook(repo, event_id) if reuse_codebook else None
     if reuse_codebook and cb is None:
-        raise ValueError("저장된 코드북이 없다. 먼저 reuse_codebook=false 로 한 번 돌린다")
+        raise ValueError("저장된 코드북이 없다. 전날 계산(reuse_codebook=false)을 먼저 돌린다")
     new_cb = cb is None
     if new_cb:
         # 행사 이름 + 초까지. 같은 분 안에 다른 행사가 돌려도 이름이 겹쳐 서로 덮어쓰지 않게
@@ -188,7 +191,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     sid = repo.sids(ids)
     missing = [i for i, pid in enumerate(ids) if pid not in sid]
     if missing:
-        raise ValueError(f"주소가 없는 사람 {len(missing)}명. 체크인 마감 때 precompute(reuse_codebook=true) 를 먼저 돌린다")
+        raise ValueError(f"주소가 없는 사람 {len(missing)}명. 체크인 마감 계산(precompute reuse_codebook=true)을 먼저 돌린다")
     O = unit(np.array([sid[pid]["offer_vec"] for pid in ids], dtype=float))
     S = unit(np.array([sid[pid]["seek_vec"] for pid in ids], dtype=float))
 
@@ -222,17 +225,21 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
         O2 = scoring.inject(O, W, beta)                                  # 명함 교환 → Offer
         S2 = scoring.seek_shift(S, O, mates, np.array([sw.get(sat.get(i), 0.0) for i in range(n)]), beta)  # 만족도 → Seek
 
-    # 포스터 관심도 → Seek 를 관심 있게 본 포스터 주제 쪽으로. 만족도 응답률과 상관없이 답한 사람마다 반영한다
+    # 포스터 관심도 → Seek 를 관심 있게 본 포스터 주제 쪽으로 당기고, 관심 없다고 한 주제에서는 조금 밀어낸다.
+    # 만족도 응답률과 상관없이 답한 사람마다 반영한다
     pw = scoring.poster_weights()
     rows = [(idx[r["participant_id"]], r["poster_id"], pw.get(r["choice"], 0.0))
             for r in repo.poster_interest(ids) if r["participant_id"] in idx]
-    liked_ids = {pid for _, pid, wt in rows if wt > 0}
-    liked = [p for p in repo.posters() if p["id"] in liked_ids]
+    used_ids = {pid for _, pid, wt in rows if wt != 0}
+    used = [p for p in repo.posters() if p["id"] in used_ids]
     poster_n = dict(Counter(i for i, _, wt in rows if wt > 0))
-    if liked:
-        PV, _ = enc.people([[p["title"]] + (["관심 주제: " + ", ".join(p["tags"])] if p["tags"] else []) for p in liked])
-        T, pwv = scoring.poster_targets(n, rows, {p["id"]: PV[k] for k, p in enumerate(liked)}, S2.shape[1])
-        S2 = scoring.seek_toward(S2, T, pwv, beta)
+    poster_not = dict(Counter(i for i, _, wt in rows if wt < 0))
+    if used:
+        PV, _ = enc.people([[p["title"]] + (["관심 주제: " + ", ".join(p["tags"])] if p["tags"] else []) for p in used])
+        V = {p["id"]: PV[k] for k, p in enumerate(used)}
+        for negative in (False, True):
+            T, pwv = scoring.poster_targets(n, rows, V, S2.shape[1], negative=negative)
+            S2 = scoring.seek_toward(S2, T, pwv, beta)
     a = scoring.directional(S2, O2)
 
     is_host = np.array([bool(p.get("is_host")) for p in P])
@@ -243,10 +250,11 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     params = {"kind": "coffeechat", "table_mode": table_mode, "rec_mode": rec_mode or "env", "beta": beta,
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2),
               "sat_weights": sw, "sat_counts": dict(Counter(sat.values())),
-              "poster_weights": pw, "poster_answers": len(rows), "poster_people": len(poster_n),
+              "poster_weights": pw, "poster_answers": len(rows), "poster_people": len(set(poster_n) | set(poster_not)),
               "forbid_hits": r.forbid_hits, "cohort_over": r.cohort_over, "n": n}
     reasons = _reasons(P, r.table, A, r.random_seat, prev=prev, sat=None if fallback else sat,
-                       exchanges=None if fallback else (W > 0).sum(1), posters=poster_n)
+                       exchanges=None if fallback else (W > 0).sum(1), posters=poster_n,
+                       posters_not=poster_not)
     v = _write_round(repo, "coffeechat", P, r.table, a, A, tags, params, reasons, event_id)
 
     met = forbid | seating.same_table_pairs(r.table) | (W > 0)
