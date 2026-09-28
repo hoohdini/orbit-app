@@ -183,20 +183,28 @@ def test_seek_shift():
     assert np.allclose(Z[2], Su[2]) and np.allclose(Z[4], Su[4])  # 가중치 0 은 그대로
     assert np.allclose(Z[5], Su[5])                              # 동석자가 없으면 그대로
     w2 = scoring.sat_weights("gained=0.8, mismatch=0.1")
-    assert w2 == {"gained": 0.8, "different": 0.3, "unsure": 0.0, "mismatch": 0.1}
+    assert w2 == {"gained": 0.8, "different": 0.33, "unsure": 0.0, "mismatch": 0.1}
+    assert scoring.sat_weights("") == {"gained": 1.0, "different": 0.33, "unsure": 0.0, "mismatch": -0.2}  # C안 기본값
+    Zn = scoring.seek_shift(S, scoring.unit(O), mates, np.array([-0.2, 0, 0, 0, 0, 0, 0, 0]), beta=0.5)
+    assert float(Zn[0] @ Ou[mates[0]].mean(0) - Su[0] @ Ou[mates[0]].mean(0)) < 0          # 안 맞았다는 반대로 밀어냄
 
 
 def test_poster_targets():
     """관심 포스터 답 → 목표 벡터(가중 평균)와 옮기는 폭(가장 큰 가중치)."""
     e1, e2 = np.eye(4)[0], np.eye(4)[1]
-    rows = [(0, 1, 1.0), (0, 2, 0.5), (1, 2, 0.0)]                # 0 번: 알아보고 싶다 + 흥미로웠다, 1 번: 관심 분야 아님
+    rows = [(0, 1, 1.0), (0, 2, 0.5), (1, 2, 0.0), (2, 1, -0.2)]  # 0 번: 알아보고 싶다 + 흥미로웠다, 1 번: 0, 2 번: 관심 분야 아님
     T, w = scoring.poster_targets(3, rows, {1: e1, 2: e2}, 4)
     assert np.allclose(T[0], (e1 + 0.5 * e2) / 1.5) and w[0] == 1.0
-    assert not T[1].any() and w[1] == 0 and w[2] == 0
+    assert not T[1].any() and w[1] == 0 and w[2] == 0                # 당김 쪽에는 음수 답이 안 들어감
+    Tn, wn = scoring.poster_targets(3, rows, {1: e1, 2: e2}, 4, negative=True)
+    assert np.allclose(Tn[2], e1) and wn[2] == -0.2 and wn[0] == 0 and wn[1] == 0
     S = scoring.unit(np.array([[0, 0, 1.0, 0], [0, 0, 1.0, 0], [0, 0, 0, 1.0]]))
     Z = scoring.seek_toward(S, T, w, beta=0.5)
     assert Z[0] @ e1 > 0 and np.allclose(Z[1], S[1]) and np.allclose(Z[2], S[2])
-    assert scoring.poster_weights("interesting=0.2") == {"learn_more": 1.0, "interesting": 0.2, "not_mine": 0.0}
+    Zn = scoring.seek_toward(S, Tn, wn, beta=0.5)
+    assert Zn[2] @ e1 < 0 and np.allclose(Zn[0], S[0])                # 관심 분야 아님은 그 주제에서 밀어냄
+    assert scoring.poster_weights("interesting=0.2") == {"learn_more": 1.0, "interesting": 0.2, "not_mine": -0.2}
+    assert scoring.poster_weights("") == {"learn_more": 1.0, "interesting": 0.33, "not_mine": -0.2}  # 9/29 기본값
 
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
