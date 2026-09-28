@@ -68,6 +68,17 @@ export default function VersionsPanel() {
     window.dispatchEvent(new Event("orbit:versions-changed"));
   }
 
+  // 공개 철회(비상용). 철회하면 그 라운드는 공개 버전이 없는 상태가 되어 참가자 화면에 배정이 안 보인다
+  async function unpublish(v: Version) {
+    const label = ROUND[v.round] ?? v.round;
+    if (!window.confirm(`${label} 버전 ${v.version} 의 공개를 철회한다. 참가자 화면에서 배정이 사라진다. 계속할까?`)) return;
+    setBusy(v.version);
+    const r = await api<{ retired: number }>("/api/ops/unpublish", { json: { version: v.version } });
+    setBusy(null);
+    if (!r.ok) return setError(r.message);
+    window.dispatchEvent(new Event("orbit:versions-changed"));
+  }
+
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-4">
       <h2 className="text-sm font-semibold">배정 버전</h2>
@@ -100,6 +111,11 @@ export default function VersionsPanel() {
                   {v.status === "draft" && (
                     <button type="button" disabled={busy !== null} onClick={() => publish(v)} className="rounded-lg bg-black px-2 py-1 text-xs font-semibold text-white disabled:bg-gray-300">
                       공개
+                    </button>
+                  )}
+                  {v.status === "published" && (
+                    <button type="button" disabled={busy !== null} onClick={() => unpublish(v)} className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-700 disabled:opacity-40">
+                      철회
                     </button>
                   )}
                 </div>

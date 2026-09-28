@@ -52,7 +52,13 @@
 | ops | /api/ops/add-participant | POST | display_name, affiliation?, role, cohort?, is_host?, pin?, offer_text?, seek_text?, topic_tags? | { participant, pin } 워크인 추가 | 있음 |
 | ops | /api/ops/compute | GET | 없음 | { reachable, model_loaded?, version? } 계산 서비스 상태. 운영자만 | 있음 |
 | ops | /api/ops/compute | POST | job: precompute(전날) · checkin(체크인 마감) · coffeechat(포스터세션 중) | { job, ms, result } result 는 계산 서비스 응답(초안 version 등). 거절이면 409 COMPUTE_REFUSED. 운영자만 | 있음 |
-| ops | /api/ops/checkin | POST | participant_id, is_late? | { checked_at } | 예정 |
+| ops | /api/ops/participants | GET | 없음 | { participants: [{id, display_name, affiliation, role, cohort, is_host, is_admin, consented, has_sid, checked_at, is_late}] } 이 행사 전원. 운영자만 | 있음 |
+| ops | /api/ops/checkin | POST | participant_id, is_late? | { checked_at, is_late, already } 수동 체크인. 이미 돼 있으면 already true. 운영자만 | 있음 |
+| ops | /api/ops/labels | GET | 없음 | { codebook_version, labels: [{prefix, label, members}] } 활성 코드북의 이름표. 운영자만 | 있음 |
+| ops | /api/ops/labels | POST | codebook_version, prefix, label | { saved: true } 이름표 한 줄 수정. 활성 코드북이 아니면 409 NOT_ACTIVE. 운영자만 | 있음 |
+| ops | /api/ops/poster | GET | 없음 | { posters: [{id, code, title, presenter, booth, stamps, interest}], stamps_total, people_with_stamps, tickets_total, people_with_tickets, raffle } 포스터세션 현황. 운영자만 | 있음 |
+| ops | /api/ops/raffle | POST | n | { at, n, winners: [{id, display_name, affiliation, tickets}] } 응모권 1장 1표, 한 사람 한 번. 응모권 없으면 409 NO_TICKETS. 운영자만 | 있음 |
+| ops | /api/ops/unpublish | POST | version | { retired, round } 공개 철회(비상용). 공개 중이 아니면 409 NOT_PUBLISHED. 운영자만 | 있음 |
 | ops | /api/ops/publish | POST | version | { published_at, round, retired: [version] } 초안을 공개하고 같은 행사 · 라운드의 이전 공개 버전은 retired 로. 이미 공개 409 ALREADY_PUBLISHED, 철회본 409 RETIRED. 운영자만 | 있음 |
 | ops | /api/ops/versions | GET | 없음 | { versions: [{version, round, status, created_at, published_at, summary}] } 이 행사 최신 20개. 운영자만 | 있음 |
 | ops | /api/ops/versions/<version> | GET | 없음 | { version, round, status, tables: [{table_no, members: [{id, display_name, affiliation, role, random, reason}]}] } 배정 확인용. 운영자만 | 있음 |
