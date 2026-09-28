@@ -22,7 +22,7 @@ class MemoryRepo:
         self.t: dict[str, list[dict]] = {k: [] for k in (
             "participants", "profiles", "sids", "labels", "checkins", "assign_versions", "tables_meta",
             "table_members", "pair_scores", "recs", "card_exchanges", "satisfaction", "ops_state",
-            "posters", "poster_interest")}
+            "posters", "poster_interest", "codebooks")}
         self._version = itertools.count(1)
 
     # ---------- 읽기 ----------
@@ -62,17 +62,19 @@ class MemoryRepo:
         s = set(ids)
         return {r["participant_id"]: r["choice"] for r in self.t["satisfaction"] if r["round"] == round_ and r["participant_id"] in s}
 
-    def latest_tables(self, round_: str, ids: list[str]) -> list[dict]:
-        """이 사람들이 들어 있는 라운드별 최신 배정(공개된 것 우선, 없으면 최신 초안).
-        assign_versions 에 event_id 가 없어서, 다른 행사의 배정을 집지 않도록 구성원으로 거른다."""
+    def latest_tables(self, round_: str, ids: list[str], event_id: str = "dev") -> list[dict]:
+        """이 행사의 라운드별 최신 배정(공개된 것 우선, 없으면 최신 초안)에서 이 사람들의 자리."""
         s = set(ids)
-        mine = {m["version"] for m in self.t["table_members"] if m["participant_id"] in s}
-        vs = [v for v in self.t["assign_versions"] if v["round"] == round_ and v["status"] != "retired" and v["version"] in mine]
+        vs = [v for v in self.t["assign_versions"]
+              if v["round"] == round_ and v["status"] != "retired" and v.get("event_id", "dev") == event_id]
         if not vs:
             return []
         pub = [v for v in vs if v["status"] == "published"]
         ver = max(pub or vs, key=lambda v: v["version"])["version"]
         return [m for m in self.t["table_members"] if m["version"] == ver and m["participant_id"] in s]
+
+    def active_codebook(self, event_id: str) -> dict | None:
+        return next((c for c in self.t["codebooks"] if c["event_id"] == event_id and c["active"]), None)
 
     def ops_get(self, key: str) -> Any:
         for r in self.t["ops_state"]:
@@ -89,10 +91,17 @@ class MemoryRepo:
         keys = {(r["codebook_version"], tuple(r["prefix"])) for r in rows}
         self.t["labels"] = [r for r in self.t["labels"] if (r["codebook_version"], tuple(r["prefix"])) not in keys] + rows
 
-    def new_version(self, round_: str, params: dict) -> int:
+    def save_codebook(self, row: dict) -> None:
+        """행사마다 활성 코드북은 하나. 새로 저장하면 그 행사의 이전 코드북은 active=false."""
+        for c in self.t["codebooks"]:
+            if c["event_id"] == row["event_id"]:
+                c["active"] = False
+        self.t["codebooks"].append({**row, "active": True, "created_at": now()})
+
+    def new_version(self, round_: str, params: dict, event_id: str = "dev") -> int:
         v = next(self._version)
         self.t["assign_versions"].append({"version": v, "round": round_, "status": "draft", "params": params,
-                                          "created_at": now(), "published_at": None})
+                                          "event_id": event_id, "created_at": now(), "published_at": None})
         return v
 
     def insert(self, table: str, rows: list[dict]) -> None:
@@ -156,18 +165,20 @@ class SupabaseRepo:
         rows = self._in("satisfaction", "participant_id, round, choice", "participant_id", ids)
         return {r["participant_id"]: r["choice"] for r in rows if r["round"] == round_}
 
-    def latest_tables(self, round_, ids):
-        members = self._in("table_members", "version, table_no, participant_id", "participant_id", ids)
-        mine = sorted({m["version"] for m in members})
-        if not mine:
-            return []
+    def latest_tables(self, round_, ids, event_id="dev"):
         vs = self._all(lambda: self.db.table("assign_versions").select("version, status").eq("round", round_)
-                       .neq("status", "retired").in_("version", mine))
+                       .eq("event_id", event_id).neq("status", "retired"))
         if not vs:
             return []
         pub = [v for v in vs if v["status"] == "published"]
         ver = max(pub or vs, key=lambda v: v["version"])["version"]
-        return [m for m in members if m["version"] == ver]
+        s = set(ids)
+        rows = self._all(lambda: self.db.table("table_members").select("version, table_no, participant_id").eq("version", ver))
+        return [m for m in rows if m["participant_id"] in s]
+
+    def active_codebook(self, event_id):
+        r = self.db.table("codebooks").select("*").eq("event_id", event_id).eq("active", True).limit(1).execute().data
+        return r[0] if r else None
 
     def ops_get(self, key):
         r = self.db.table("ops_state").select("value").eq("key", key).execute().data
@@ -181,8 +192,13 @@ class SupabaseRepo:
         for i in range(0, len(rows), CHUNK):
             self.db.table("labels").upsert(rows[i:i + CHUNK], on_conflict="codebook_version,prefix").execute()
 
-    def new_version(self, round_, params):
-        r = self.db.table("assign_versions").insert({"round": round_, "status": "draft", "params": params}).execute().data
+    def save_codebook(self, row):
+        self.db.table("codebooks").update({"active": False}).eq("event_id", row["event_id"]).eq("active", True).execute()
+        self.db.table("codebooks").insert({**row, "active": True}).execute()
+
+    def new_version(self, round_, params, event_id="dev"):
+        r = self.db.table("assign_versions").insert({"round": round_, "status": "draft", "params": params,
+                                                     "event_id": event_id}).execute().data
         return r[0]["version"]
 
     def insert(self, table, rows):

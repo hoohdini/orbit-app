@@ -68,7 +68,7 @@ uvicorn main:app --reload --port 8000
 ```
 
 - 운영진(role=staff)도 참가자와 똑같이 주소 · 배정 · 추천에 넣는다. 설문을 비워 두면 점수가 0 이라 사실상 아무 자리에나 앉는다
-- 코드북은 `ops_state` 의 `codebook:<버전>` 에 저장하고 `codebook_active` 로 가리킨다(표를 새로 만들지 않음). 주소는 다시 학습하지 않는다
+- 코드북은 `codebooks` 표에 저장하고 행사마다 활성 하나를 둔다(0007). 주소는 다시 학습하지 않는다
 - 만족도 반영(질문 하나, 답별 가중치 `SAT_WEIGHTS`): 새로 얻은 게 있었다 1.0 · 조금 달랐다 0.3 · 잘 모르겠다 0 · 안 맞았다 0.
   답한 사람의 Seek 를 그 테이블 사람들의 Offer 쪽으로 beta × 가중치만큼 옮긴다 → 커피챗 추천에 그 사람들과 비슷한 새 사람이 더 올라온다.
   안 맞았다를 음수로 두지 않는 이유: 한 번의 어색한 자리로 비슷한 사람 전체가 추천에서 밀려날 수 있다. 명함 교환은 지금처럼 Offer 쪽(inject)
@@ -80,8 +80,7 @@ uvicorn main:app --reload --port 8000
   커피챗이면 이전 테이블 · 만족도 · 명함 교환 수 · 반영한 관심 포스터 수, 한 줄 설명 text). 운영진 대시보드용이고 참가자 화면에는 안 보낸다
 - 만족도 응답률이 `min_response_rate`(기본 0.5) 미만이면 만남 반영 없이 텍스트 점수로만 커피챗을 낸다(대체 경로)
 - 요청 본문 선택값: `table_mode`(min · avg · harmonic) · `random_ratio` · `rec_mode`(없으면 `REC_SCORE`) · `beta`
-- 코드북 버전 이름은 `cb-<행사>-<날짜시각>`, 활성 코드북 키는 `codebook_active:<행사>` — 개발 DB 에 행사가 여러 개 섞여도 서로 덮어쓰지 않는다
-- 지난 테이블토크 배정은 이 행사 사람이 들어 있는 버전만 찾는다(assign_versions 에 event_id 가 없어서)
+- 코드북 버전 이름은 `cb-<행사>-<날짜시각>`. 배정 버전에 행사 번호(`assign_versions.event_id`)를 남겨 개발 DB 에 행사가 여러 개 섞여도 서로 집지 않는다(0007)
 - 실제 개발 DB 한 바퀴(9/26): 가상 68명(sim-minchan) · 전날 2.1초 · 체크인 마감 1.3초 · 커피챗 1.2초 · 재회 0 · 공개 안 함 · dev 공개 배정 영향 없음
 - 시험 데이터 정리: `python sim/cleanup_event.py sim-minchan` (세기만) → `--yes` (지우기). dev 는 지우지 못하게 막아 둠
 - 한 바퀴 확인: `python sim/make_fake_csv.py sim/fake_70.csv` 다음 `python sim/run_service_sim.py sim/fake_70.csv`
