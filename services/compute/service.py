@@ -222,8 +222,9 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     if fallback:                                                         # 대체 경로 = 만남 반영 없이 텍스트만
         O2, S2 = O, S
     else:
-        O2 = scoring.inject(O, W, beta)                                  # 명함 교환 → Offer
+        O2 = O
         S2 = scoring.seek_shift(S, O, mates, np.array([sw.get(sat.get(i), 0.0) for i in range(n)]), beta)  # 만족도 → Seek
+        S2 = scoring.card_shift(S2, O, W, beta)                          # 명함 교환 → Seek (9/29, 예전엔 Offer)
 
     # 포스터 관심도 → Seek 를 관심 있게 본 포스터 주제 쪽으로 당기고, 관심 없다고 한 주제에서는 조금 밀어낸다.
     # 만족도 응답률과 상관없이 답한 사람마다 반영한다

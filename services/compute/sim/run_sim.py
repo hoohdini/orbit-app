@@ -75,8 +75,8 @@ def main():
             j = int(rng.integers(n))
             if j != i:
                 W[i, j] = W[j, i] = 0.3
-    O2 = scoring.inject(O, W, beta=0.5)
-    a2 = scoring.directional(S, O2)
+    S2 = scoring.card_shift(S, O, W, beta=0.5)
+    a2 = scoring.directional(S2, O)
 
     t = time.time()
     r2 = seating.assign(scoring.table_matrix(a2, is_host, "min"), is_host, cohort, forbid=same, iters=20000, seed=2)

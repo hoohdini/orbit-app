@@ -121,15 +121,16 @@ def test_codebook_frozen_assign():
     assert len({(tuple(c), x) for c, x in zip(co, d)}) == N    # 주소 + 구분 번호는 모두 다름
 
 
-def test_inject():
-    O, *_ = fake_people()
+def test_card_shift():
+    O, S, *_ = fake_people()
     W = np.zeros((N, N))
-    Z = scoring.inject(O, W)
-    assert np.allclose(Z, unit(O))                             # 간선이 없으면 그대로
-    W[10, 20] = W[20, 10] = 1.0
-    Z = scoring.inject(O, W, beta=0.5)
-    assert Z[10] @ unit(O)[20] > unit(O)[10] @ unit(O)[20]     # 만난 사람 쪽으로 움직인다
-    assert np.allclose(Z[11], unit(O)[11])
+    Z = scoring.card_shift(S, O, W)
+    assert np.allclose(Z, unit(S))                             # 간선이 없으면 그대로
+    W[10, 20] = W[20, 10] = 0.3
+    Z = scoring.card_shift(S, O, W, beta=0.5)
+    assert Z[10] @ unit(O)[20] > unit(S)[10] @ unit(O)[20]     # 내 Seek 가 명함 상대의 Offer 쪽으로 움직인다
+    assert Z[20] @ unit(O)[10] > unit(S)[20] @ unit(O)[10]     # 상대도 마찬가지(무방향)
+    assert np.allclose(Z[11], unit(S)[11])
 
 
 def test_recs():
