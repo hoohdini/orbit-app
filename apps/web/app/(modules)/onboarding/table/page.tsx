@@ -64,7 +64,7 @@ export default function TablePage() {
       <div className="mt-6">
         <SidBadge sid={me.sid?.offer_sid ?? null} label={me.sid?.label} temp={me.sid?.is_temp} />
       </div>
-      <p className="mt-4 text-sm text-gray-600">주소 앞자리가 같은 사람은 비슷한 관심사를 가진 사람이다. 홈의 궤도에서 확인할 수 있다.</p>
+      <p className="mt-4 text-sm text-gray-600">같은 분야 이름표를 가진 사람은 비슷한 관심사를 가진 사람이다. 홈의 궤도에서 확인할 수 있다.</p>
       <button onClick={() => router.replace("/home")} className="mt-8 w-full rounded-xl bg-black py-3 text-lg font-semibold text-white">
         홈으로
       </button>

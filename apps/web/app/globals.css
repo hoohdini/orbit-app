@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
+/* 앱은 밝은 테마 하나만 쓴다. 화면이 전부 흰 카드 위 검은 글자로 설계되어 있어,
+   폰이 다크 모드여도 배경과 글자색을 바꾸지 않는다(다크 모드에서 글자가 안 보이던 문제, 9/28). */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -10,13 +13,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {

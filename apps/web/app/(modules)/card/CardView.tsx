@@ -33,11 +33,9 @@ export default function CardView({ card, mine = false, compact = false }: { card
             {card.cohort ? ` · ${card.cohort}기` : ""}
           </p>
         </div>
-        <div className="shrink-0 text-right">
-          <p className="font-mono text-lg tracking-widest">{card.sid ? card.sid.join("-") : "-·-·-"}</p>
-          <p className="text-[11px]" style={{ color: t.sub }}>
-            {card.label ?? (card.sid ? "라벨 없음" : "주소 발급 전")}
-          </p>
+        {/* 주소(SID) 숫자는 보여 주지 않는다(9/27 회의). 분야 이름표만 보여 준다 */}
+        <div className="max-w-[45%] shrink-0 text-right">
+          <p className="text-sm font-semibold leading-tight">{card.label ?? (card.sid ? "이름표 준비 중" : "발급 전")}</p>
         </div>
       </div>
 
