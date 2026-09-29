@@ -16,7 +16,7 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
       <main className="mx-auto max-w-md p-6">
         <h1 className="text-xl font-bold">운영 콘솔</h1>
         <p className="mt-3 text-sm text-gray-700">운영자만 쓸 수 있다. {p.display_name} 님의 계정은 운영자가 아니다.</p>
-        <p className="mt-1 text-xs text-gray-500">운영자로 쓰려면 DB 의 participants.is_admin 을 켠다.</p>
+        <p className="mt-1 text-xs text-gray-500">운영자 명단은 docs/OPERATORS.md 에 있다. DB 의 participants.is_admin 이 켜져야 들어온다.</p>
       </main>
     );
   }

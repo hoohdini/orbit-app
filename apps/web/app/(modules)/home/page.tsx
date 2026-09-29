@@ -34,7 +34,10 @@ export default function HomePage() {
 
   return (
     <>
-      <TopBar title="The ORBIT" right={[{ href: "/home/guide", label: "사용설명서" }]} />
+      <TopBar
+        title="The ORBIT"
+        right={[...(me.participant.is_admin ? [{ href: "/ops", label: "운영 콘솔" }] : []), { href: "/home/guide", label: "사용설명서" }]}
+      />
       <main className="space-y-4 p-4">
         <p className="text-sm text-gray-600">
           {me.participant.display_name} 님{me.participant.affiliation ? ` · ${me.participant.affiliation}` : ""}
