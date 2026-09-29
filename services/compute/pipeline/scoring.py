@@ -71,24 +71,6 @@ def table_matrix(a: np.ndarray, is_host: np.ndarray, mode: str = "min") -> np.nd
     return A
 
 
-def inject(O: np.ndarray, W: np.ndarray, beta: float = 0.5) -> np.ndarray:
-    """만남 반영 (G★ 직교 주입). W[i, j] = i 와 j 사이 간선 가중치(대칭).
-
-    이웃 평균에서 내 방향과 직교하는 성분만 내 크기에 비례해 더한다. 주소는 바꾸지 않고 점수용 벡터만 바꾼다.
-    구인구직 자료에서 beta 0.5 가 최적이었다(Beauty 는 1.0). 간선이 없는 사람은 그대로 둔다.
-    """
-    O = unit(O)
-    Z = O.copy()
-    deg = W.sum(1)
-    for i in np.where(deg > 0)[0]:
-        m = (W[i][:, None] * O).sum(0) / deg[i]
-        r = m - (m @ O[i]) * O[i]
-        nr = np.linalg.norm(r)
-        if nr > 1e-12:
-            Z[i] = O[i] + beta * r / nr
-    return unit(Z)
-
-
 # 테이블토크 만족도 답 → 만남 반영 세기. 질문 하나에 답마다 가중치(9/27 회의: 백엔드가 정함, 9/29 민찬 결정 C안).
 # 근거(연구 저장소 docs/34)
 #   조금 달랐다 0.33 — 3단계 등급을 지수 gain(2^r − 1)으로 바꿔 최고값 1 로 나눈 값 0 · 0.33 · 1 (Järvelin & Kekäläinen 2002)
@@ -111,7 +93,8 @@ def sat_weights(raw: str | None = None) -> dict[str, float]:
 
 def seek_toward(S: np.ndarray, T: np.ndarray, w: np.ndarray, beta: float = 0.5) -> np.ndarray:
     """i 의 Seek 를 목표 벡터 T[i] 쪽으로 beta × w[i] 만큼 옮긴다. w 가 음수면 반대로 밀어낸다(Rocchio 의 부정 피드백).
-    inject 와 같은 방식(내 방향과 직교하는 성분만)이라 원래 찾던 것은 유지된다. w 가 0 이거나 T[i] 가 0 이면 그대로 둔다."""
+    G★ 직교 주입과 같은 방식(내 방향과 직교하는 성분만)이라 원래 찾던 것은 유지된다. w 가 0 이거나 T[i] 가 0 이면 그대로 둔다.
+    beta 0.5 는 구인구직 자료에서 최적이었다(Beauty 는 1.0). 주소는 바꾸지 않고 점수용 벡터만 바꾼다."""
     S = unit(S)
     Z = S.copy()
     for i in np.nonzero(w)[0]:
@@ -128,6 +111,17 @@ def seek_shift(S: np.ndarray, O: np.ndarray, mates: list[list[int]], w: np.ndarr
     안 맞았다(w < 0)면 그 쪽에서 조금 밀어낸다."""
     T = np.array([O[ms].mean(0) if ms else np.zeros(O.shape[1]) for ms in mates])
     return seek_toward(S, T, np.array([w[i] if mates[i] else 0.0 for i in range(len(mates))]), beta)
+
+
+def card_shift(S: np.ndarray, O: np.ndarray, W: np.ndarray, beta: float = 0.5) -> np.ndarray:
+    """명함 교환 반영. W[i, j] = i 와 j 사이 명함 간선 가중치(대칭). i 의 Seek 를 명함을 교환한 사람들의 Offer
+    가중 평균 쪽으로 beta 만큼 옮긴다 → 커피챗 추천에서 i 에게 그 사람들과 비슷한 새 사람이 더 올라온다.
+    9/29 민찬 결정: 예전엔 i 의 Offer 를 옮겼다(1차 G★ 를 그대로 옮긴 모양). 그러면 명함 한 장으로 i 의 소개가 바뀌고
+    i 자신의 추천은 거의 안 바뀐다. 명함 교환은 i 가 무엇에 관심 있는지를 더 잘 보여 주므로 만족도 · 포스터처럼 Seek 쪽에 넣는다.
+    간선이 없는 사람은 그대로 둔다."""
+    deg = W.sum(1)
+    T = np.where(deg[:, None] > 0, W @ unit(O) / np.maximum(deg, 1e-12)[:, None], 0.0)
+    return seek_toward(S, T, (deg > 0).astype(float), beta)
 
 
 # 포스터 관심도 답 → 추천 방향. 관심 있게 본 포스터의 주제 쪽으로 Seek 를 옮긴다(9/28 민찬 결정). 값은 임시, 리허설 뒤 정함
