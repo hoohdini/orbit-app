@@ -16,6 +16,9 @@ CSV 열 (첫 줄 헤더, UTF-8). 열 이름은 아래와 같거나 --map 으로 
   구분: 재학생 | 졸업생 | 교수 | 운영진 | 기타          태그: 세미콜론(;) 또는 쉼표로 구분
   호스트: 예/아니오 (비면 졸업생·교수는 예)
 
+운영자(is_admin)는 아래 OPERATORS 명단으로 정한다(2026-09-29). 명단에 있는 이름은 is_admin 을 켜고, 없는 이름은 끈다.
+명단은 docs/OPERATORS.md 와 같이 고치고, 고치는 사람은 성하다.
+
 환경변수 SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (apps/web/.env.local 을 자동으로 읽는다).
 """
 from __future__ import annotations
@@ -29,6 +32,7 @@ import sys
 from pathlib import Path
 
 ROLE_MAP = {"재학생": "student", "학생": "student", "졸업생": "alumni", "알럼나이": "alumni", "교수": "professor", "교수·연구자": "professor", "운영진": "staff", "기타": "other"}
+OPERATORS = ("박성하", "황수민", "김민찬", "김나혜", "김현희")
 DEFAULT_COLS = {"name": "이름", "affiliation": "소속", "role": "구분", "cohort": "기수", "phone": "휴대폰", "offer": "하는일", "seek": "찾는사람", "topic": "주제태그", "intent": "관계태그", "host": "호스트"}
 
 
@@ -102,6 +106,7 @@ def main() -> int:
                 "role": role,
                 "cohort": int(cohort_raw) if cohort_raw else None,
                 "is_host": is_host,
+                "is_admin": name in OPERATORS,
                 # 숫자는 DB 를 본 뒤 정한다(기존 사람이면 유지). 아래 _pin 은 적재 직전에 뺀다
                 "_pin": pin,
                 "_pin_from_phone": pin_from_phone,
@@ -119,7 +124,10 @@ def main() -> int:
     roles = {}
     for p in participants:
         roles[p["role"]] = roles.get(p["role"], 0) + 1
-    print(f"읽음 {len(participants)}명 · 구분 {roles} · 호스트 {sum(p['is_host'] for p in participants)}명")
+    print(f"읽음 {len(participants)}명 · 구분 {roles} · 호스트 {sum(p['is_host'] for p in participants)}명 · 운영자 {sum(p['is_admin'] for p in participants)}명")
+    absent = [n for n in OPERATORS if n not in {p["display_name"] for p in participants}]
+    if absent:
+        print(f"운영자 명단에 있는데 CSV 에 없는 사람: {absent}. 콘솔을 쓰려면 CSV 에 넣고 다시 돌린다", file=sys.stderr)
     dup = {}
     for p in participants:
         dup[p["display_name"]] = dup.get(p["display_name"], 0) + 1

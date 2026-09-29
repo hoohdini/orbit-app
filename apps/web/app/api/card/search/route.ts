@@ -1,4 +1,4 @@
-// GET /api/card/search?q=  카메라를 못 쓸 때 이름으로 상대를 찾는다. 같은 행사 · 체크인된 사람 · 본인 제외 · 최대 10명
+// GET /api/card/search?q=  카메라를 못 쓸 때 이름으로 상대를 찾는다. 같은 행사 · 체크인된 사람 · 본인 제외 · 최대 10명. 운영진도 참가자와 같이 찾힌다
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ok, handle, eventId } from "@/lib/api";
@@ -21,7 +21,6 @@ export async function GET(req: Request) {
       .select("id, display_name, affiliation")
       .eq("event_id", eventId())
       .neq("id", s.pid)
-      .neq("role", "staff")
       .ilike("display_name", `%${safe}%`)
       .order("display_name")
       .limit(50);
