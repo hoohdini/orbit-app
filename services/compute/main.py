@@ -23,7 +23,7 @@ import service
 APP_VERSION = "0.1.0"
 @asynccontextmanager
 async def lifespan(_app):
-    """WARM_MODEL=1 이면 켜자마자 모델을 뒤에서 올린다(약 10초). 첫 계산이 모델 올리는 시간 때문에 늦지 않게."""
+    """WARM_MODEL=1 이면 켜자마자 모델을 뒤에서 올린다(약 10초). 첫 계산 · 검색이 모델 올리는 시간 때문에 늦지 않게."""
     if os.environ.get("WARM_MODEL") == "1":
         threading.Thread(target=encoder, daemon=True).start()
     yield
@@ -72,6 +72,14 @@ class PrecomputeRequest(BaseModel):
     n_tables: int = Field(8, ge=4, le=12)  # 테이블토크 알고리즘 테이블 수(교수 · 운영진석 1번 제외). 개발 지시서 v0.2 결정 9
 
 
+class SearchRequest(BaseModel):
+    event_id: str = "dev"
+    q: str = Field(min_length=2, max_length=30)
+    viewer_id: str | None = None          # 본인은 결과에서 뺀다
+    aliases: list[str] = Field(default_factory=list, max_length=20)   # 웹 줄임말 사전이 찾은 같은 뜻 다른 표기
+    pool: list[str] | None = Field(default=None, max_length=2000)   # 웹에서 검색할 수 있는 사람(체크인 · 동의). 없으면 체크인한 사람 전부
+
+
 class CoffeechatRequest(BaseModel):
     event_id: str = "dev"
     min_response_rate: float = 0.5        # 미만이면 대체 경로(텍스트 유사도 + 재회 금지)
@@ -104,5 +112,14 @@ def precompute(req: PrecomputeRequest) -> dict:
 def coffeechat(req: CoffeechatRequest) -> dict:
     try:
         return service.coffeechat(get_repo(), encoder(), **req.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@app.post("/search", dependencies=[Depends(require_secret)])
+def search(req: SearchRequest) -> dict:
+    """뜻 검색(시제품, 10/5). 웹이 0.5초만 기다리고 늦으면 글자 검색만 쓰므로 모델은 미리 올려 두는 게 좋다(WARM_MODEL=1)."""
+    try:
+        return service.search(get_repo(), encoder(), **req.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))

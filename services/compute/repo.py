@@ -22,7 +22,7 @@ class MemoryRepo:
         self.t: dict[str, list[dict]] = {k: [] for k in (
             "participants", "profiles", "sids", "labels", "checkins", "assign_versions", "tables_meta",
             "table_members", "pair_scores", "recs", "card_exchanges", "satisfaction", "ops_state",
-            "posters", "poster_interest", "codebooks", "poster_responses", "group_reasons")}
+            "posters", "poster_interest", "codebooks", "poster_responses", "group_reasons", "event_log")}
         self._version = itertools.count(1)
 
     # ---------- 읽기 ----------
@@ -57,6 +57,11 @@ class MemoryRepo:
         """[{participant_id, poster_id, reason, latency_ms, seq_no, quiz_attempted, created_at}] (0009)."""
         s = set(ids)
         return [r for r in self.t["poster_responses"] if r["participant_id"] in s]
+
+    def search_logs(self, ids: list[str]) -> list[dict]:
+        """사람 찾기 검색 기록(keyword_search · keyword_open). [{participant_id, kind, payload, created_at}]"""
+        s = set(ids)
+        return [r for r in self.t["event_log"] if r.get("participant_id") in s and r.get("kind") in ("keyword_search", "keyword_open")]
 
     def card_exchanges(self) -> list[dict]:
         """명함 교환 원본 행. 첫 대화 체크(first_meet) · 확인 상태(status) 칸은 생기기 전이면 없다(H-05-BE2)."""
@@ -174,6 +179,14 @@ class SupabaseRepo:
     def poster_responses(self, ids):
         return self._in("poster_responses", "participant_id, poster_id, reason, latency_ms, seq_no, quiz_attempted, created_at",
                         "participant_id", ids)
+
+    def search_logs(self, ids):
+        out = []
+        for i in range(0, len(ids), 200):
+            part = ids[i:i + 200]
+            out += self._all(lambda: self.db.table("event_log").select("participant_id, kind, payload, created_at")
+                             .in_("kind", ["keyword_search", "keyword_open"]).in_("participant_id", part))
+        return out
 
     def card_exchanges(self):
         return self._all(lambda: self.db.table("card_exchanges").select("*"))     # 칸이 늘어도(first_meet · status) 그대로 받으려고 *

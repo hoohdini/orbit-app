@@ -65,7 +65,7 @@ create index on card_exchanges (scanner_id, seen_at) where source = 'auto';
 
 `card` 객체 하나의 모양(모든 응답이 같다): `{ id, display_name, affiliation, role, cohort, stage, sid: number[] | null, label, theme: 0~7 | null, offer_text, seek_text, topic_tags, links: {…} | null, source?, exchanged_at? }`.
 
-공개 범위와 파싱은 `api/card/_lib.ts` 의 순수 함수로 둔다. `visibleLinks(targetVisibility, iScannedThem, links)`, `parseCardId(raw)`, `themeOf(sid)`, `stageOf(profile, sid)`. event_log: `open_card`, `card_scan`(source, target_id), `scan_fail`(reason invalid_qr | self | unknown | repeat), `open_wallet`, `card_seen`, `card_settings`.
+공개 범위와 파싱은 `api/card/_lib.ts` 의 순수 함수로 둔다. `visibleLinks(targetVisibility, iScannedThem, links)`, `parseCardId(raw)`, `themeOf(sid)`, `stageOf(profile, sid)`. event_log: `open_card`, `card_scan`(source, target_id), `scan_fail`(reason invalid_qr | self | unknown | repeat), `open_wallet`, `card_seen`, `card_settings`. 시제품(10/5 민찬 제안): `keyword_search`(q, hits, semantic, aliases = 줄임말 사전으로 함께 찾은 표기 수).
 
 ## 3. 화면 (apps/web/app/(modules)/card)
 
