@@ -8,6 +8,12 @@
                          높을 확률. "잘 모르겠다" 는 뺀다. satisfaction 표만으로 바로 잴 수 있다.
                          사람당 답 하나라 신호가 약하다. A 가 없을 때만 쓴다
 점수는 세 가지를 나란히 — score(배정에 쓴 결합값) · score_ab 쪽 한 방향 · 두 방향 평균. 어느 쪽이 맞았는지 비교한다.
+커피챗 버전에 score_no_poster(포스터 반영 없이 낸 점수, 0009)가 있으면 no_poster 도 나란히 → 포스터 반영이 맞히는 데 도왔는지(v0.2 B-05 · B-13).
+
+v0.2 B-13 에서 더한 것
+  picks_from_exchanges  동석자와 명함을 교환했으면 '얻은 게 있었던 분' 대신 쓸 수 있는 양성 쌍. 첫 대화 체크(first_meet)가 생기면 그것만
+  concentration         쏠림 지표. 받은 명함 수의 지니 계수(0 = 고르게, 1 = 한 사람에게 몰림)와 한 장도 못 받은 사람 수
+  추천 수락률을 미션 ② 완료 전후로 나눠 보는 것은 추천 노출 기록(rec_impressions, B-10)이 생긴 뒤에 더한다
 
 판정 기준은 노션 9/26 제안서 2-7 — 리허설은 0.5 보다 확실히 높은지만 본다(구간 하한 > 0.5).
 """
@@ -17,7 +23,7 @@ from collections import defaultdict
 
 import numpy as np
 
-KINDS = ("score", "one_way", "avg")
+KINDS = ("score", "one_way", "avg", "no_poster")
 
 
 def _pair_lookup(pair_scores: list[dict]) -> dict[tuple[str, str], dict[str, float]]:
@@ -27,9 +33,16 @@ def _pair_lookup(pair_scores: list[dict]) -> dict[tuple[str, str], dict[str, flo
         a, b = r["a"], r["b"]
         ab, ba = r.get("score_ab"), r.get("score_ba")
         both = {"score": r["score"], "avg": (ab + ba) / 2 if ab is not None and ba is not None else r["score"]}
+        if r.get("score_no_poster") is not None:
+            both["no_poster"] = r["score_no_poster"]
         d[(a, b)] = {**both, "one_way": ab if ab is not None else r["score"]}
         d[(b, a)] = {**both, "one_way": ba if ba is not None else r["score"]}
     return d
+
+
+def _kinds(P) -> tuple[str, ...]:
+    """이 버전에 있는 점수 종류만(no_poster 는 커피챗 버전에만 있다)."""
+    return tuple(k for k in KINDS if not P or k in next(iter(P.values())))
 
 
 def _tables(members: list[dict]) -> dict[str, list[str]]:
@@ -56,7 +69,7 @@ def per_person_accuracy(pair_scores, members, picks: set[tuple[str, str]], rater
     P, mates = _pair_lookup(pair_scores), _tables(members)
     raters = raters if raters is not None else {a for a, _ in picks}
     out = {}
-    for kind in KINDS:
+    for kind in _kinds(P):
         accs = []
         for p in raters:
             ms = [q for q in mates.get(p, []) if (p, q) in P]
@@ -79,7 +92,7 @@ def satisfaction_auc(pair_scores, members, satisfaction: dict[str, str]) -> dict
     """satisfaction = {사람: 선택지 키}. gained 인 사람의 동석자 평균 점수가 different · mismatch 인 사람보다 높을 확률. 보조 지표."""
     P, mates = _pair_lookup(pair_scores), _tables(members)
     out = {}
-    for kind in KINDS:
+    for kind in _kinds(P):
         pos, neg = [], []
         for p, c in satisfaction.items():
             ms = [q for q in mates.get(p, []) if (p, q) in P]
@@ -89,3 +102,38 @@ def satisfaction_auc(pair_scores, members, satisfaction: dict[str, str]) -> dict
         auc = float(np.mean([(x > y) + 0.5 * (x == y) for x in pos for y in neg])) if pos and neg else float("nan")
         out[kind] = {"구분 정확도": auc, "얻음": len(pos), "못 얻음": len(neg)}
     return out
+
+
+def picks_from_exchanges(card_rows: list[dict], members: list[dict]) -> set[tuple[str, str]]:
+    """같은 테이블 동석자와 명함을 교환한 쌍 → {(사람, 동석자)} 양방향. first_meet 칸이 있는 행이 하나라도 있으면
+    첫 대화로 체크된 교환만 쓴다(명찰 QR 을 찍기만 해도 교환이 늘어서). 확인 대기(status=pending)는 뺀다."""
+    mates = _tables(members)
+    rows = [r for r in card_rows if (r.get("status") or "confirmed") != "pending"]
+    if any("first_meet" in r for r in rows):
+        rows = [r for r in rows if r.get("first_meet")]
+    out = set()
+    for r in rows:
+        a, b = r["scanner_id"], r["scanned_id"]
+        if b in mates.get(a, []):
+            out.add((a, b))
+            out.add((b, a))
+    return out
+
+
+def gini(x) -> float:
+    """지니 계수. 0 = 모두 같음, 1 에 가까울수록 몇 명에게 몰림."""
+    v = np.sort(np.asarray(x, dtype=float))
+    if len(v) == 0 or v.sum() == 0:
+        return 0.0
+    n = len(v)
+    return float((2 * np.arange(1, n + 1) - n - 1) @ v / (n * v.sum()))
+
+
+def concentration(card_rows: list[dict], ids: list[str]) -> dict:
+    """받은 명함 수(받은 쪽 = scanned_id, 확인 대기 제외)의 쏠림. v0.2 A-01 운영 지표와 같은 정의."""
+    got = {p: 0 for p in ids}
+    for r in card_rows:
+        if (r.get("status") or "confirmed") != "pending" and r.get("scanned_id") in got:
+            got[r["scanned_id"]] += 1
+    vals = list(got.values())
+    return {"지니": round(gini(vals), 3), "못 받은 사람": sum(1 for v in vals if v == 0), "사람": len(vals)}

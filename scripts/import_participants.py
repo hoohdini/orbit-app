@@ -12,9 +12,11 @@
 다시 돌려도 id 가 바뀌면 안 된다. 기존 사람의 숫자 4자리는 휴대폰 열이 있을 때만 다시 계산하고, 비어 있으면 그대로 둔다(무작위를 두 번 주지 않는다).
 
 CSV 열 (첫 줄 헤더, UTF-8). 열 이름은 아래와 같거나 --map 으로 바꾼다.
-  이름, 소속, 구분, 기수, 휴대폰, 하는일, 찾는사람, 주제태그, 관계태그, 호스트
+  이름, 소속, 구분, 기수, 휴대폰, 하는일, 찾는사람, 주제태그, 관계태그, 호스트, 고정테이블, 활동팀
   구분: 재학생 | 졸업생 | 교수 | 운영진 | 기타          태그: 세미콜론(;) 또는 쉼표로 구분
   호스트: 예/아니오 (비면 졸업생·교수는 예)
+  활동팀: 같이 한 프로젝트 · 스터디 팀 이름(; 로 구분, 예: 25-2 추천시스템;26-1 LLM 스터디). 같은 팀이었으면 추천에서 뒤로 미룬다. 열이 없으면 기존 값을 지우지 않는다
+  고정테이블: 1(교수 · 운영진석) 또는 빈칸. 비우면 계산 서비스가 배정한다. 열이 없는 CSV 로 다시 적재해도 기존 값을 지우지 않는다(2026-10-05, 0008)
 
 운영자(is_admin)는 아래 OPERATORS 명단으로 정한다(2026-09-29). 명단에 있는 이름은 is_admin 을 켜고, 없는 이름은 끈다.
 명단은 docs/OPERATORS.md 와 같이 고치고, 고치는 사람은 성하다.
@@ -33,7 +35,7 @@ from pathlib import Path
 
 ROLE_MAP = {"재학생": "student", "학생": "student", "졸업생": "alumni", "알럼나이": "alumni", "교수": "professor", "교수·연구자": "professor", "운영진": "staff", "기타": "other"}
 OPERATORS = ("박성하", "황수민", "김민찬", "김나혜", "김현희")
-DEFAULT_COLS = {"name": "이름", "affiliation": "소속", "role": "구분", "cohort": "기수", "phone": "휴대폰", "offer": "하는일", "seek": "찾는사람", "topic": "주제태그", "intent": "관계태그", "host": "호스트"}
+DEFAULT_COLS = {"name": "이름", "affiliation": "소속", "role": "구분", "cohort": "기수", "phone": "휴대폰", "offer": "하는일", "seek": "찾는사람", "topic": "주제태그", "intent": "관계태그", "host": "호스트", "fixed": "고정테이블", "teams": "활동팀"}
 
 
 def load_env() -> None:
@@ -98,6 +100,10 @@ def main() -> int:
         host_raw = (r.get(cols["host"]) or "").strip()
         is_host = host_raw in ("예", "y", "Y", "true", "1") if host_raw else role in ("alumni", "professor")
         cohort_raw = re.sub(r"\D", "", r.get(cols["cohort"], "") or "")
+        fixed_raw = (r.get(cols["fixed"]) or "").strip()
+        if fixed_raw and fixed_raw != "1":                # 계산 서비스가 1번(교수 · 운영진석)만 고정한다. DB 에 쓰기 전에 거른다
+            print(f"{i}행: 고정테이블 '{fixed_raw}' — 지금은 1(교수 · 운영진석)만 쓸 수 있다", file=sys.stderr)
+            return 2
         participants.append(
             {
                 "event_id": args.event_id,
@@ -112,6 +118,10 @@ def main() -> int:
                 "_pin_from_phone": pin_from_phone,
             }
         )
+        if cols["fixed"] in rows[0]:
+            participants[-1]["fixed_table"] = int(fixed_raw) if fixed_raw else None
+        if cols["teams"] in rows[0]:
+            participants[-1]["teams"] = [t.strip() for t in (r.get(cols["teams"]) or "").split(";") if t.strip()]
         profiles.append(
             {
                 "offer_text": (r.get(cols["offer"]) or "").strip()[:120],
@@ -124,7 +134,7 @@ def main() -> int:
     roles = {}
     for p in participants:
         roles[p["role"]] = roles.get(p["role"], 0) + 1
-    print(f"읽음 {len(participants)}명 · 구분 {roles} · 호스트 {sum(p['is_host'] for p in participants)}명 · 운영자 {sum(p['is_admin'] for p in participants)}명")
+    print(f"읽음 {len(participants)}명 · 구분 {roles} · 호스트 {sum(p['is_host'] for p in participants)}명 · 운영자 {sum(p['is_admin'] for p in participants)}명 · 고정 테이블 {sum(1 for p in participants if p.get('fixed_table'))}명")
     absent = [n for n in OPERATORS if n not in {p["display_name"] for p in participants}]
     if absent:
         print(f"운영자 명단에 있는데 CSV 에 없는 사람: {absent}. 콘솔을 쓰려면 CSV 에 넣고 다시 돌린다", file=sys.stderr)

@@ -50,3 +50,31 @@ export const INTEREST_CHOICES = [
 
 export type InterestChoice = (typeof INTEREST_CHOICES)[number]["key"];
 export const INTEREST_KEYS = INTEREST_CHOICES.map((c) => c.key) as [InterestChoice, ...InterestChoice[]];
+
+// 포스터 관심 이유(개발 지시서 v0.2 E-02, 미션 ①). 키는 DB poster_responses.reason 에 그대로 저장된다(0009 의 check 와 같아야 한다).
+// 전부 긍정이라 추천 계산에서 밀어내기는 하지 않는다. 가중치는 계산 서비스 pipeline/signals.py
+export const REASON_CHOICES = [
+  { key: "topic", label: "주제가 흥미로움" },
+  { key: "method", label: "방법이 궁금함" },
+  { key: "experience", label: "내 경험과 관련 있음" },
+  { key: "new_field", label: "새롭게 접한 분야" },
+] as const;
+
+export type ReasonChoice = (typeof REASON_CHOICES)[number]["key"];
+export const REASON_KEYS = REASON_CHOICES.map((c) => c.key) as [ReasonChoice, ...ReasonChoice[]];
+
+// 미션 ① 완료 기준: 서로 다른 포스터 2건
+export const POSTER_MISSION_GOAL = 2;
+
+// 원격 응답 방지: 이 시간 안에 그 포스터를 스캔한 기록이 있어야 응답 · 퀴즈 답을 낼 수 있다
+export const SCAN_WINDOW_MIN = 15;
+
+// 선택지 노출 순서를 사람마다 무작위로(첫 칸 쏠림을 나중에 보정하려고 순서도 저장한다)
+export function shuffledReasons(): { key: ReasonChoice; label: string }[] {
+  const a: { key: ReasonChoice; label: string }[] = REASON_CHOICES.map((c) => ({ key: c.key, label: c.label }));
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}

@@ -57,9 +57,9 @@ def main(path):
     t = time.time()
     r2 = service.precompute(repo, enc, reuse_codebook=True)
     print(f"체크인 마감 precompute {time.time()-t:.1f}초 · {r2}")
-    repo.t["assign_versions"][-1]["status"] = "published"
+    next(v for v in repo.t["assign_versions"] if v["version"] == r1["version"])["status"] = "published"   # 테이블토크는 전날 확정
 
-    tab = [m for m in repo.t["table_members"] if m["version"] == r2["version"]]
+    tab = [m for m in repo.t["table_members"] if m["version"] == r1["version"]]
     groups = {}
     for m in tab:
         groups.setdefault(m["table_no"], []).append(m["participant_id"])
@@ -77,7 +77,15 @@ def main(path):
     print(f"커피챗 {time.time()-t:.1f}초 · {r3}")
     labels = [l for l in repo.t["labels"] if len(l["prefix"]) == 1]
     print("1층 라벨:", ", ".join(f"{l['prefix'][0]}={l['label']}" for l in sorted(labels, key=lambda l: l["prefix"])))
-    ok = r3["forbid_hits"] == 0 and r2["cohort_over"] == 0
+    names = {p["id"]: p["display_name"] for p in repo.t["participants"]}
+    gr = [g for g in repo.t["group_reasons"] if g["version"] == r3["version"]]
+    kinds = {}
+    for g in gr:
+        kinds[g["kind"]] = kinds.get(g["kind"], 0) + 1
+    print(f"근거 한 줄 {len(gr)}개 {kinds}")
+    for g in gr[:6]:
+        print(f"  {names[g['participant_id']]} → {names[g['target_id']]}: {g['text']}")
+    ok = r3["forbid_hits"] == 0 and r1["cohort_over"] == 0
     print("판정:", "통과" if ok else "제약 위반 있음")
 
 

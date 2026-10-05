@@ -1,4 +1,5 @@
 // POST /api/poster/interest { poster_id, choice }  스캔 기록이 있는 포스터에만 관심도를 남길 수 있다
+// 개발 지시서 v0.2 부터는 /api/poster/response(관심 이유 4지선다)를 쓴다. 이 API 는 데모 화면이 바뀔 때까지만 둔다
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ok, fail, handle } from "@/lib/api";

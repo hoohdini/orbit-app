@@ -10,8 +10,8 @@ type Done = { job: Job; ms: number; result: Record<string, unknown> };
 
 const JOBS: { job: Job; label: string; when: string; what: string }[] = [
   { job: "precompute", label: "전날 계산", when: "행사 전날, 설문 마감 뒤 한 번", what: "새 코드북을 만들고 전원에게 주소를 준 뒤 테이블토크 자리를 배정한다. 다시 누르면 주소가 바뀐다" },
-  { job: "checkin", label: "체크인 마감 계산", when: "체크인 마감 직후", what: "현장 등록자에게만 주소를 붙이고, 체크인한 사람으로 테이블토크 자리를 다시 배정한다" },
-  { job: "coffeechat", label: "커피챗 계산", when: "포스터세션 중(끝 무렵일수록 관심도가 더 반영된다)", what: "만난 사람 · 만족도 · 포스터 관심도를 반영해 커피챗 자리와 추천을 만든다. 여러 번 눌러도 된다" },
+  { job: "checkin", label: "체크인 마감 계산", when: "체크인 마감 직후", what: "현장 등록자에게만 주소를 붙인다. 테이블토크는 전날 확정이라 다시 배정하지 않는다(새 초안 없음). 현장 등록자 자리는 체크인 칸의 워크인 추가에서 정한다" },
+  { job: "coffeechat", label: "커피챗 계산", when: "포스터 응답 마감(16:45) 뒤", what: "만난 사람 · 만족도 · 포스터 응답을 반영해 커피챗 3~4명 그룹과 자유 이동 추천을 만든다. 다시 누르면 새 초안이 생긴다" },
 ];
 
 const SUMMARY: [string, string][] = [

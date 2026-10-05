@@ -16,8 +16,10 @@ import numpy as np
 
 
 def personal(a: np.ndarray, met: np.ndarray, n_exact: int = 10, n_explore: int = 2,
-             cap: int | None = None, seed: int = 0) -> tuple[list[list[tuple[int, str]]], np.ndarray]:
-    """사람마다 [(상대 번호, 'exact'|'explore'), …] 와 사람별 노출 횟수."""
+             cap: int | None = None, seed: int = 0,
+             avoid: np.ndarray | None = None) -> tuple[list[list[tuple[int, str]]], np.ndarray]:
+    """사람마다 [(상대 번호, 'exact'|'explore'), …] 와 사람별 노출 횟수.
+    avoid[i, j] = 탐색 칸에는 넣지 않을 쌍(점수로는 이미 감점됐지만 탐색 칸은 노출 순으로 골라 감점이 소용없어서)."""
     n = len(a)
     per = n_exact + n_explore
     cap = cap if cap is not None else max(per, int(np.ceil(per * 1.2)))
@@ -29,7 +31,8 @@ def personal(a: np.ndarray, met: np.ndarray, n_exact: int = 10, n_explore: int =
     for i in order:
         cand = [int(j) for j in np.argsort(-a[i]) if j != i and not met[i, j] and exposure[j] < cap]
         exact = cand[:n_exact]
-        explore = sorted(cand[n_exact:], key=lambda j: (exposure[j], -a[i, j]))[:n_explore]
+        rest = [j for j in cand[n_exact:] if avoid is None or not avoid[i, j]]
+        explore = sorted(rest, key=lambda j: (exposure[j], -a[i, j]))[:n_explore]
         for j in exact + explore:
             exposure[j] += 1
         out[i] = [(j, "exact") for j in exact] + [(j, "explore") for j in explore]

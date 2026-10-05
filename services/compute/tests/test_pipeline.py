@@ -74,6 +74,73 @@ def test_blank_seek():
     assert np.allclose(S2[5], O[5]) and np.allclose(S2[6], S[6])
 
 
+def test_even_sizes_and_cohort_limit():
+    assert seating.even_sizes(72) == [9] * 8                          # v0.2: 8테이블 균등
+    assert seating.even_sizes(70) == [9] * 6 + [8] * 2               # 인원 차 1 이하
+    assert seating.even_sizes(20) == [4] * 5                          # 적으면 테이블당 4명 이상
+    assert [seating.cohort_limit(k) for k in (5, 6, 8, 9, 10)] == [2, 2, 3, 3, 4]   # 40% 내림. 5~6명은 예전 규칙(2명)과 같음
+
+
+def test_tabletalk_sizes_and_cohort_cap():
+    """테이블토크처럼 sizes 와 큰 기수 감점을 주면 정한 크기대로 앉히고 같은 기수 40% 를 넘기지 않는다."""
+    O, S, is_host, cohort, _ = fake_people()
+    A = scoring.table_matrix(scoring.directional(S, O), is_host)
+    sizes = seating.even_sizes(N)
+    r = seating.assign(A, is_host, cohort, iters=20000, seed=1, sizes=sizes, cohort_penalty=5.0)
+    assert sorted(np.bincount(r.table).tolist()) == sorted(sizes)
+    assert r.cohort_over == 0 == seating.cohort_overflow(r.table, cohort)
+    hosts = np.bincount(r.table[is_host], minlength=len(sizes))
+    assert hosts.max() - hosts.min() <= 1
+
+
+def test_uneven_cohort_limits_incremental():
+    """테이블마다 기수 상한이 다를 때(8 · 9 · 10명) 자리 바꾸기 증분 계산이 처음부터 다시 센 값과 같은지."""
+    rng = np.random.default_rng(3)
+    for trial in range(10):
+        sizes = [int(x) for x in rng.integers(4, 11, 6)]
+        n = sum(sizes)
+        M = rng.normal(size=(n, n)); A = (M + M.T) / 2
+        cohort = rng.integers(-1, 4, n)
+        t = np.repeat(np.arange(len(sizes)), sizes); rng.shuffle(t)
+        st = seating._State(A, np.zeros((n, n), bool), cohort, t, len(sizes), 5.0)
+        for _ in range(300):
+            i, j = rng.integers(0, n, 2)
+            if st.t[i] != st.t[j]:
+                st.swap(i, j)
+        fresh = seating._State(A, np.zeros((n, n), bool), cohort, st.t, len(sizes), 5.0)
+        assert st.cohort_over == fresh.cohort_over == seating.cohort_overflow(st.t, cohort)
+        assert np.allclose(st.ssum, fresh.ssum)
+
+
+def test_group_sizes():
+    assert seating.group_sizes(62) == [4] * 14 + [3] * 2               # 62 = 4 × 14 + 3 × 2
+    assert all(3 <= x <= 4 for n in range(12, 90) for x in seating.group_sizes(n))
+    assert seating.group_sizes(5) == [3, 2]
+
+
+def test_seat_order_large_table_falls_back():
+    rng = np.random.default_rng(2)
+    M = rng.normal(size=(20, 20)); A = (M + M.T) / 2
+    order, total = seating.seat_order(A, list(range(20)))             # 20명은 근사. 순서가 온전하고 합이 맞는지만
+    assert sorted(order) == list(range(20)) and abs(total - sum(A[order[i], order[(i + 1) % 20]] for i in range(20))) < 1e-9
+
+
+def test_seat_order_is_exact():
+    """좌석 순서(B-03)가 모든 순서를 다 본 것과 같은 답인지. 7 · 9명."""
+    import itertools
+    rng = np.random.default_rng(5)
+    for k in (2, 3, 7, 9):
+        M = rng.normal(size=(12, 12))
+        A = (M + M.T) / 2
+        mem = [int(x) for x in rng.choice(12, k, replace=False)]
+        order, total = seating.seat_order(A, mem)
+        assert sorted(order) == sorted(mem) and order[0] == mem[0]
+        ring = lambda p: (sum(A[p[i], p[(i + 1) % len(p)]] for i in range(len(p))) if len(p) > 2
+                          else A[p[0], p[1]] if len(p) == 2 else 0.0)        # 두 명이면 이웃은 한 쌍
+        best = max(ring([mem[0]] + list(q)) for q in itertools.permutations(mem[1:]))
+        assert abs(total - best) < 1e-9 and abs(ring(order) - total) < 1e-9, (k, total, best)
+
+
 def test_seating_constraints_and_speed():
     O, S, is_host, cohort, _ = fake_people()
     A = scoring.table_matrix(scoring.directional(S, O), is_host)

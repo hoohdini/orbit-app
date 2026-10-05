@@ -1,6 +1,7 @@
 "use client";
-// 포스터세션 화면. code 가 없으면 스탬프판 + QR 찍기, 있으면 그 포스터의 퀴즈 → 정답 → 관심도 순서로 간다.
-// 정답은 서버만 안다. 이 화면은 고른 보기 번호만 보낸다.
+// 포스터세션 화면. code 가 없으면 스탬프판 + QR 찍기, 있으면 그 포스터의 관심 이유 → (선택) 퀴즈 순서로 간다(개발 지시서 v0.2 E-02).
+// 관심 이유를 내면 그 포스터 스탬프를 받는다(미션 ①: 서로 다른 포스터 2개). 퀴즈는 선택이고 스탬프 · 응모권과 무관하다.
+// 정답은 서버만 안다. 이 화면은 고른 보기 번호만 보낸다. 데모 화면이라 프론트엔드가 E-01 · E-02 화면을 만들면 바뀐다.
 // 오류 처리: 불러오기 실패는 로딩 대신 문구와 다시 시도 버튼, 저장 실패는 그 카드 안 문구로 보여 준다. 화면 전체를 오류로 바꾸는 것은 스캔 실패뿐이다.
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -8,14 +9,20 @@ import { api } from "@/lib/client";
 import TopBar from "@/components/TopBar";
 import Loading from "@/components/Loading";
 import QrScanner from "@/components/QrScanner";
-import { INTEREST_CHOICES, type InterestChoice } from "@/app/api/poster/_lib";
+import { POSTER_MISSION_GOAL, type ReasonChoice } from "@/app/api/poster/_lib";
 
 type Stamps = { stamps: { poster_id: number; title: string; created_at: string }[]; total: number; tickets: { reason: string; issued_at: string }[] };
-type Quiz = { poster: { id: number; title: string }; quiz: { id: number; question: string; choices: string[] } };
+type Scan = {
+  poster: { id: number; code: string; title: string; presenter: string | null };
+  reasons: { key: ReasonChoice; label: string }[];
+  my_reason: ReasonChoice | null;
+  quiz: { id: number; question: string; choices: string[] } | null;
+};
 type Answer = { correct: boolean; stamp_count: number; ticket_issued: boolean };
+type Saved = { saved: boolean; count: number; goal: number; done: boolean };
 
 export default function PosterClient({ code }: { code: string | null }) {
-  return code ? <QuizFlow code={code} /> : <StampBoard />;
+  return code ? <PosterFlow code={code} /> : <StampBoard />;
 }
 
 // 앱 스캐너가 읽은 문자열에서 포스터 코드를 뽑는다. docs/QR_FORMAT.md 의 포스터 QR(https://<앱주소>/poster?c=<code>) 형식만 받는다.
@@ -96,7 +103,7 @@ function StampBoard() {
         <section className="rounded-2xl border border-gray-200 bg-white p-4">
           <div className="flex items-baseline justify-between">
             <h2 className="text-sm font-semibold">모은 스탬프</h2>
-            <span className="text-xs text-gray-500">응모권 {data.tickets.length}장</span>
+            <span className="text-xs text-gray-500">미션 ① {Math.min(got, POSTER_MISSION_GOAL)}/{POSTER_MISSION_GOAL}</span>
           </div>
           <p className="mt-1 text-3xl font-bold">
             {got}
@@ -130,56 +137,73 @@ function StampBoard() {
           </button>
         )}
         {notice && <p className="rounded-lg bg-yellow-50 px-3 py-2 text-sm text-yellow-800">{notice}</p>}
-        <p className="text-xs text-gray-500">포스터 앞의 QR 을 찍으면 퀴즈가 나온다. 맞히면 스탬프를 받고, 스탬프가 모이면 응모권이 나온다</p>
+        <p className="text-xs text-gray-500">포스터 앞의 QR 을 찍고 관심 이유를 고르면 스탬프를 받는다. 서로 다른 포스터 2개면 미션 ① 완료. 퀴즈는 풀어 보고 싶을 때만</p>
       </main>
     </>
   );
 }
 
-function QuizFlow({ code }: { code: string }) {
+function PosterFlow({ code }: { code: string }) {
   const router = useRouter();
-  const [quiz, setQuiz] = useState<Quiz | null>(null);
-  const [error, setError] = useState<string | null>(null); // 스캔 · 제출이 더 갈 수 없을 때. 화면 전체를 바꾼다
+  const [scan, setScan] = useState<Scan | null>(null);
+  const [error, setError] = useState<string | null>(null); // 스캔이 더 갈 수 없을 때. 화면 전체를 바꾼다
   const [retryable, setRetryable] = useState(false); // 스캔 실패가 일시적이면 다시 시도 버튼을 보여 준다
   const [retry, setRetry] = useState(0);
+  const [reason, setReason] = useState<ReasonChoice | null>(null);
+  const [saved, setSaved] = useState<Saved | null>(null);
+  const [reasonError, setReasonError] = useState<string | null>(null);
+  const [savingReason, setSavingReason] = useState(false);
   const [picked, setPicked] = useState<number | null>(null);
   const [result, setResult] = useState<Answer | null>(null);
   const [sending, setSending] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null); // 제출 실패 중 다시 누를 수 있는 것. 카드 안 문구
-  const [interest, setInterest] = useState<InterestChoice | null>(null);
-  const [interestError, setInterestError] = useState<string | null>(null); // 관심도 저장 실패. 정답 화면을 지우지 않는다
-  const [already, setAlready] = useState(false); // 이미 스탬프를 받은 포스터면 다시 풀어도 새로 받지 않는다
+  const [quizError, setQuizError] = useState<string | null>(null); // 퀴즈 제출 실패. 퀴즈 카드 안 문구
+  const [quizClosed, setQuizClosed] = useState<string | null>(null); // 시도 횟수를 다 쓴 경우 등. 관심 이유는 계속 낼 수 있다
 
   useEffect(() => {
     let alive = true;
-    api<Quiz>("/api/poster/scan", { json: { qr_payload: code } }).then(async (r) => {
+    api<Scan>("/api/poster/scan", { json: { qr_payload: code } }).then((r) => {
       if (!alive) return;
       if (!r.ok) {
         setRetryable(r.code === "NETWORK" || r.code === "INTERNAL" || r.code === "BAD_RESPONSE");
         return setError(r.message);
       }
-      // 이미 받은 포스터인지는 스탬프 목록으로 본다. 조회가 실패하면 모른다고 보고 넘어간다(정답 화면 문구만 달라진다)
-      const st = await api<Stamps>("/api/poster/stamps");
-      if (!alive) return;
-      setAlready(st.ok && st.data.stamps.some((x) => x.poster_id === r.data.poster.id));
-      setQuiz(r.data);
+      setScan(r.data);
+      setReason(r.data.my_reason);
     });
     return () => {
       alive = false;
     };
   }, [code, retry]);
 
-  async function submit() {
-    if (!quiz || picked == null) return;
-    setSending(true);
-    setSubmitError(null);
+  async function submitReason(choice: ReasonChoice) {
+    if (!scan) return;
+    setSavingReason(true);
+    setReasonError(null);
     try {
-      const r = await api<Answer>("/api/poster/answer", { json: { quiz_id: quiz.quiz.id, choice_index: picked } });
+      const r = await api<Saved>("/api/poster/response", {
+        json: { poster_id: scan.poster.id, reason: choice, shown_order: scan.reasons.map((c) => c.key) },
+      });
       if (!r.ok) {
-        // 더 풀 수 없는 경우만 화면을 바꾼다. 나머지는 카드 안에 보여 주고 다시 누를 수 있게 둔다
-        if (r.code === "TOO_MANY_ATTEMPTS") return setError("이 포스터는 시도 횟수를 다 썼다. 다른 포스터로 가 본다");
         if (r.code === "SCAN_REQUIRED") return setError("포스터를 찍은 지 오래됐다. QR 을 다시 찍는다");
-        return setSubmitError(r.message);
+        return setReasonError(r.message);
+      }
+      setReason(choice);
+      setSaved(r.data);
+    } finally {
+      setSavingReason(false);
+    }
+  }
+
+  async function submitQuiz() {
+    if (!scan?.quiz || picked == null) return;
+    setSending(true);
+    setQuizError(null);
+    try {
+      const r = await api<Answer>("/api/poster/answer", { json: { quiz_id: scan.quiz.id, choice_index: picked } });
+      if (!r.ok) {
+        if (r.code === "TOO_MANY_ATTEMPTS") return setQuizClosed("이 포스터 퀴즈는 시도 횟수를 다 썼다");
+        if (r.code === "SCAN_REQUIRED") return setError("포스터를 찍은 지 오래됐다. QR 을 다시 찍는다");
+        return setQuizError(r.message);
       }
       setResult(r.data);
     } finally {
@@ -187,18 +211,10 @@ function QuizFlow({ code }: { code: string }) {
     }
   }
 
-  async function saveInterest(choice: InterestChoice) {
-    if (!quiz) return;
-    setInterestError(null);
-    const r = await api<{ saved: boolean }>("/api/poster/interest", { json: { poster_id: quiz.poster.id, choice } });
-    if (r.ok) setInterest(choice);
-    else setInterestError(r.message);
-  }
-
   if (error)
     return (
       <>
-        <TopBar title="포스터 퀴즈" right={[{ href: "/poster", label: "스탬프판" }]} />
+        <TopBar title="포스터" right={[{ href: "/poster", label: "스탬프판" }]} />
         <main className="space-y-4 p-4">
           <p className="rounded-lg bg-yellow-50 px-3 py-3 text-sm text-yellow-800">{error}</p>
           {retryable && (
@@ -220,78 +236,80 @@ function QuizFlow({ code }: { code: string }) {
         </main>
       </>
     );
-  if (!quiz) return <Loading />;
+  if (!scan) return <Loading />;
+  const quiz = scan.quiz;
 
   return (
     <>
-      <TopBar title="포스터 퀴즈" right={[{ href: "/poster", label: "스탬프판" }]} />
+      <TopBar title="포스터" right={[{ href: "/poster", label: "스탬프판" }]} />
       <main className="space-y-4 p-4">
         <section className="rounded-2xl border border-gray-200 bg-white p-4">
-          <p className="text-xs text-gray-500">{quiz.poster.title}</p>
-          {already && <p className="mt-1 text-xs text-green-700">이미 스탬프를 받은 포스터다. 다시 풀어도 새로 받지는 않는다</p>}
-          <h2 className="mt-1 text-base font-semibold">{quiz.quiz.question}</h2>
-          <div className="mt-3 grid gap-2">
-            {quiz.quiz.choices.map((c, i) => (
+          <p className="text-xs text-gray-500">{scan.poster.code}{scan.poster.presenter ? ` · ${scan.poster.presenter}` : ""}</p>
+          <h2 className="mt-1 text-base font-semibold">{scan.poster.title}</h2>
+          <p className="mt-3 text-sm">어떤 점이 눈에 들어왔나요?</p>
+          <div className="mt-2 grid gap-2">
+            {scan.reasons.map((c) => (
               <button
-                key={i}
+                key={c.key}
                 type="button"
-                disabled={!!result?.correct || sending}
-                onClick={() => {
-                  setPicked(i);
-                  setResult(null);
-                  setSubmitError(null);
-                }}
-                className={`rounded-xl border px-3 py-2 text-left text-sm ${picked === i ? "border-black bg-black text-white" : "border-gray-300 bg-white"}`}
+                disabled={savingReason}
+                onClick={() => submitReason(c.key)}
+                className={`rounded-xl border px-3 py-2 text-left text-sm ${reason === c.key ? "border-black bg-black text-white" : "border-gray-300 bg-white"}`}
               >
-                {c}
+                {c.label}
               </button>
             ))}
           </div>
-          {!result?.correct && (
-            <button
-              type="button"
-              disabled={picked == null || sending}
-              onClick={submit}
-              className="mt-3 w-full rounded-xl bg-black py-2 text-sm font-semibold text-white disabled:bg-gray-300"
-            >
-              {sending ? "확인 중" : "제출"}
-            </button>
+          {reasonError && <p className="mt-2 text-xs text-red-600">{reasonError}</p>}
+          {saved && (
+            <p className="mt-2 text-sm text-green-700">
+              {saved.done ? `미션 ① 완료 (포스터 ${saved.count}개)` : `제출했다. 포스터 ${saved.count}/${saved.goal}`}
+            </p>
           )}
-          {result && !result.correct && <p className="mt-2 text-sm text-red-600">아쉽다. 다른 보기를 골라 다시 제출한다(시도 횟수에 한도가 있다)</p>}
-          {submitError && <p className="mt-2 text-sm text-red-600">{submitError}</p>}
+          {!saved && reason && <p className="mt-2 text-xs text-gray-500">이미 고른 이유다. 다른 것을 누르면 바꾼다</p>}
         </section>
 
-        {result?.correct && (
-          <section className="rounded-2xl border border-gray-200 bg-white p-4 text-center">
-            <p className="text-lg font-bold">{already ? "정답. 이미 받은 스탬프다" : "정답. 스탬프를 받았다"}</p>
-            <p className="mt-1 text-sm text-gray-600">지금까지 {result.stamp_count}개</p>
-            {result.ticket_issued && <p className="mt-2 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">응모권 1장이 나왔다</p>}
-          </section>
-        )}
-
-        {result?.correct && (
+        {quiz && (
           <section className="rounded-2xl border border-gray-200 bg-white p-4">
-            <h2 className="text-sm font-semibold">이 포스터는 어땠나</h2>
+            <p className="text-xs text-gray-500">퀴즈(선택)</p>
+            <h2 className="mt-1 text-base font-semibold">{quiz.question}</h2>
             <div className="mt-3 grid gap-2">
-              {INTEREST_CHOICES.map((c) => (
+              {quiz.choices.map((c, i) => (
                 <button
-                  key={c.key}
+                  key={i}
                   type="button"
-                  onClick={() => saveInterest(c.key)}
-                  className={`rounded-xl border px-3 py-2 text-left text-sm ${interest === c.key ? "border-black bg-black text-white" : "border-gray-300 bg-white"}`}
+                  disabled={!!result?.correct || sending || !!quizClosed}
+                  onClick={() => {
+                    setPicked(i);
+                    setResult(null);
+                    setQuizError(null);
+                  }}
+                  className={`rounded-xl border px-3 py-2 text-left text-sm ${picked === i ? "border-black bg-black text-white" : "border-gray-300 bg-white"}`}
                 >
-                  {c.label}
+                  {c}
                 </button>
               ))}
             </div>
-            {interestError && <p className="mt-2 text-xs text-red-600">{interestError}</p>}
-            {interest && (
-              <button type="button" onClick={() => router.replace("/poster")} className="mt-3 w-full rounded-xl bg-black py-2 text-sm font-semibold text-white">
-                스탬프판으로
+            {!result?.correct && !quizClosed && (
+              <button
+                type="button"
+                disabled={picked == null || sending}
+                onClick={submitQuiz}
+                className="mt-3 w-full rounded-xl bg-black py-2 text-sm font-semibold text-white disabled:bg-gray-300"
+              >
+                {sending ? "확인 중" : "제출"}
               </button>
             )}
+            {result?.correct && <p className="mt-2 text-sm text-green-700">정답이다</p>}
+            {result && !result.correct && <p className="mt-2 text-sm text-red-600">다른 보기를 골라 다시 제출할 수 있다(시도 횟수에 한도가 있다)</p>}
+            {quizError && <p className="mt-2 text-sm text-red-600">{quizError}</p>}
+            {quizClosed && <p className="mt-2 text-sm text-gray-600">{quizClosed}</p>}
           </section>
         )}
+
+        <button type="button" onClick={() => router.replace("/poster")} className="w-full rounded-xl border border-gray-300 bg-white py-2 text-sm">
+          스탬프판으로
+        </button>
       </main>
     </>
   );

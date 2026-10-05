@@ -113,7 +113,7 @@ export default function StatusPanel() {
             cmd={`curl -X POST http://localhost:8000/precompute -H "X-Compute-Secret: $COMPUTE_SECRET" -H "Content-Type: application/json" -d '{"event_id":"${status.event_id}"}'`}
           />
           <Cmd
-            title="2. 체크인 마감 (저장된 코드북에 현장 등록자만 붙이고, 체크인한 사람으로 테이블토크를 다시 냄)"
+            title="2. 체크인 마감 (저장된 코드북으로 현장 등록자에게 주소만 붙임. 테이블토크는 전날 확정)"
             cmd={`curl -X POST http://localhost:8000/precompute -H "X-Compute-Secret: $COMPUTE_SECRET" -H "Content-Type: application/json" -d '{"event_id":"${status.event_id}","reuse_codebook":true}'`}
           />
           <Cmd
