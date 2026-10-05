@@ -13,7 +13,7 @@ coffeechat  테이블토크 뒤(포스터세션 중, v0.2 B-04). 3~4명 그룹 �
 
 테이블토크 배정(v0.2 B-02 · B-03)
   participants.fixed_table 이 있는 사람(교수 · 운영진석)은 그 테이블에 고정하고 알고리즘에서 뺀다. 보통 1번
-  나머지는 남은 번호(2~9번) 8테이블에 고르게(인원 차 1 이하). 같은 기수는 테이블당 2명까지, 3명째부터 1명당 0.5점 감점(10/5 결정, 명단 기수별 인원 보고 다시)
+  나머지는 남은 번호(2~9번) 8테이블에 고르게(인원 차 1 이하). 같은 기수는 테이블당 3명까지, 4명째부터 1명당 0.5점 감점(10/5 결정, 명단 기수별 인원 보고 다시)
   테이블마다 좌석 순서를 정해 table_members.seat_no 에 저장한다(이웃 점수 합 최대)
 """
 from __future__ import annotations
@@ -52,10 +52,11 @@ def _heartbeat(repo, what: str) -> None:
 TABLETALK_TABLES = 8
 FIXED_TABLE_NO = 1               # 교수 · 운영진석. 고정할 사람이 없어도 알고리즘은 이 번호를 쓰지 않는다(행사장 1번 테이블)
 FIXED_TABLE_MAX = 10             # 넘으면 결과에 fixed_over 로 알린다(넘치는 운영진은 서서 진행, 일반 테이블 좌석은 빼지 않음)
-TABLETALK_COHORT_CAP = 2         # 같은 기수 3명째부터 감점(10/5 민찬 결정, 지시서 v0.2 의 '40% 넘으면 큰 감점' 대신).
+TABLETALK_COHORT_CAP = 3         # 같은 기수 4명째부터 감점(10/5 민찬 결정). 운영진 행사 진행 문서 '같은 기수 2~3명을 함께 배치'에 맞춤.
+                                 # 지시서 v0.2 는 '40% 넘으면 큰 감점(5)'. 예전 코드(9/26)는 3명째부터 0.5
 TABLETALK_COHORT_PENALTY = 0.5   # 작게: 한 기수가 많으면 지킬 수 없는 규칙이라 만족도보다 앞서지 않게. 명단의 기수별 인원을 보고 다시 정한다
 COFFEECHAT_GROUP_MAX = 4         # v0.2 결정 10: 커피챗 첫 배치 그룹 3~4명
-COFFEECHAT_COHORT_CAP = 2        # 커피챗도 같은 규칙(같은 기수 3명째부터 0.5점 감점)
+COFFEECHAT_COHORT_CAP = 2        # 커피챗은 3~4명 그룹이라 같은 기수 3명째부터 0.5점 감점(예전 규칙 그대로)
 
 
 def _people(repo, event_id: str, only_checked_in: bool) -> list[dict]:

@@ -94,7 +94,7 @@ def test_full_loop():
         assert seats == list(range(1, len(seats) + 1))
     assert all(m["reason"]["seat_no"] == m["seat_no"] for m in members)
     assert all(m["reason"].get("fixed") for m in members if m["participant_id"] in fixed)
-    # 같은 기수 3명째부터 감점(상한 2). 시험 명단은 한 기수가 평균 2명 넘게 앉아야 해서 넘침이 생길 수 있다 → 보고 값만 맞는지 본다
+    # 같은 기수 4명째부터 감점(상한 3). 시험 명단에 따라 넘침이 생길 수 있다 → 보고 값이 실제 넘친 수와 맞는지 본다
     reg = [p for p in repo.t["participants"] if p["id"] not in fixed and p.get("cohort") is not None]
     from collections import Counter
     cc = Counter((t1[p["id"]], p["cohort"]) for p in reg)
