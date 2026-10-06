@@ -87,6 +87,7 @@ class CoffeechatRequest(BaseModel):
     rec_mode: str | None = None           # 개인 추천 점수. 없으면 환경변수 REC_SCORE (기본 min)
     random_ratio: float = 0.0
     beta: float = 0.5                     # 만남 반영 세기. 구인구직 자료 최적값
+    final: bool = False                   # 행사 직후 추천: 커피챗 그룹은 그대로 두고 그날 신호를 모두 반영해 추천 목록만 다시(10/6)
 
 
 @app.get("/health")

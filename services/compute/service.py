@@ -278,9 +278,35 @@ def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = 
             "sizes_out_of_range": params["sizes_out_of_range"], "fixed_over": params["fixed_over"]}
 
 
+def _keep_groups(repo, ids: list[str], idx: dict[str, int], event_id: str, forbid: np.ndarray,
+                 cohort: np.ndarray) -> tuple[seating.Seating, list[int]]:
+    """행사 직후 추천(final)용. 공개된 커피챗 그룹을 그대로 둔다. 테이블 번호도 그대로(table_no − 1).
+    커피챗 배정 뒤에 들어온 사람은 혼자 한 그룹으로 둔다(동석자가 없어 추천에서 빠지는 사람이 없게)."""
+    rows = repo.latest_tables("coffeechat", ids, event_id)
+    if not rows:
+        raise ValueError("커피챗 배정이 없다. 행사 직후 추천은 커피챗 계산 · 공개 뒤에 한다")
+    table = np.full(len(ids), -1)
+    for m in rows:
+        table[idx[m["participant_id"]]] = int(m["table_no"]) - 1
+    nxt = int(table.max()) + 1
+    for i in np.where(table < 0)[0]:
+        table[i] = nxt
+        nxt += 1
+    same = seating.same_table_pairs(table)
+    r = seating.Seating(table=table, random_seat=np.zeros(len(ids), bool), satisfaction=np.zeros(len(ids)), objective=0.0,
+                        forbid_hits=int((forbid & same).sum() // 2),
+                        cohort_over=seating.cohort_overflow(table, cohort, cap=COFFEECHAT_COHORT_CAP), iters=0)
+    sizes = [int(c) for c in np.bincount(table) if c > 0]
+    return r, sizes
+
+
 def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5, table_mode: str = "min",
                rec_mode: str | None = None, random_ratio: float = 0.0, beta: float = 0.5,
-               n_exact: int = 10, n_explore: int = 2, iters: int = 20000, seed: int = 43) -> dict:
+               n_exact: int = 10, n_explore: int = 2, iters: int = 20000, seed: int = 43, final: bool = False) -> dict:
+    """커피챗 계산(16:45 포스터 응답 마감 뒤). final=True 면 행사 직후 추천(10/6 민찬): 그날 쌓인 신호(만족도 · 명함 · 포스터 · 검색)를
+    모두 반영해 추천 목록만 다시 만든다. 커피챗 그룹은 공개된 그대로 두고, 테이블토크 · 커피챗 동석자와 이미 교환한 사람은 뺀다
+    → '오늘 못 만났지만 연락해 볼 만한 사람'. 새 초안 버전(round=coffeechat, params.kind=final)으로 저장하고 운영자가 공개한다.
+    최근 10분 쏠림 규칙(H-04, 웹)은 행사가 끝나면 최근 교환이 없어 저절로 꺼진다"""
     P = _people(repo, event_id, only_checked_in=True)
     if len(P) < 5:
         raise ValueError(f"배정할 사람이 {len(P)}명뿐이다 (5명 이상 필요)")
@@ -368,10 +394,13 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     cohort = np.array([p["cohort"] if p.get("cohort") is not None else -1 for p in P])
     A = scoring.table_matrix(a, is_host, table_mode)
     A_np = scoring.table_matrix(a_np, is_host, table_mode)
-    sizes = seating.group_sizes(n, COFFEECHAT_GROUP_MAX)
-    r = seating.assign(A, is_host, cohort, forbid=forbid, random_ratio=random_ratio, iters=iters, seed=seed,
-                       sizes=sizes, cohort_cap=COFFEECHAT_COHORT_CAP)
-    params = {"kind": "coffeechat", "table_mode": table_mode, "rec_mode": rec_mode or "env", "beta": beta,
+    if final:
+        r, sizes = _keep_groups(repo, ids, idx, event_id, forbid, cohort)
+    else:
+        sizes = seating.group_sizes(n, COFFEECHAT_GROUP_MAX)
+        r = seating.assign(A, is_host, cohort, forbid=forbid, random_ratio=random_ratio, iters=iters, seed=seed,
+                           sizes=sizes, cohort_cap=COFFEECHAT_COHORT_CAP)
+    params = {"kind": "final" if final else "coffeechat", "table_mode": table_mode, "rec_mode": rec_mode or "env", "beta": beta,
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2), "cards": card_stat,
               "sat_weights": sw, "sat_counts": dict(Counter(sat.values())),
               "poster_source": poster_source, "poster_weights": pw, "poster_beta": poster_beta, "poster_filter": poster_stat,
@@ -409,8 +438,8 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     np.fill_diagonal(met, True)
     exposure = _write_recs(repo, v, P, ids, a, met, tags, intents, [(c,) for c in first_prefix], rec_mode,
                            n_exact, n_explore, seed)
-    _heartbeat(repo, "coffeechat")
-    return {"version": v, "n": n, "tables": len(sizes), "groups": len(sizes), "fallback": fallback,
+    _heartbeat(repo, "final" if final else "coffeechat")
+    return {"version": v, "final": final, "n": n, "tables": len(sizes), "groups": len(sizes), "fallback": fallback,
             "response_rate": round(rate, 3), "forbid_hits": r.forbid_hits, "group_reasons": n_reasons,
             "exposure_min": int(exposure.min()), "exposure_max": int(exposure.max())}
 

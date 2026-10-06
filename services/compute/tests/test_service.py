@@ -216,6 +216,37 @@ def test_v02_signals_recs_reasons():
     print("  근거 예:", gr[0]["text"])
 
 
+def test_final_recs_keep_groups():
+    """행사 직후 추천(final): 커피챗 그룹은 그대로, 추천 목록만 다시. 동석자 · 교환한 사람은 빠지고, 커피챗 전이면 거절."""
+    repo, enc = seed_repo(n=40, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    for pid in ids:
+        repo.t["checkins"].append({"participant_id": pid})
+    try:
+        service.coffeechat(repo, enc, iters=300, final=True)
+    except ValueError as e:
+        assert "커피챗 배정이 없다" in str(e)
+    else:
+        raise AssertionError("커피챗 전 final 을 막지 않았다")
+    r = service.coffeechat(repo, enc, iters=500)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    g = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == r["version"]}
+    a, b = ids[0], next(q for q in ids if g[q] != g[ids[0]])           # 커피챗 뒤 다른 그룹 사람과 교환
+    repo.t["card_exchanges"] += [{"scanner_id": a, "scanned_id": b, "source": "qr"}, {"scanner_id": b, "scanned_id": a, "source": "auto"}]
+    f = service.coffeechat(repo, enc, final=True)
+    assert f["final"] and f["version"] != r["version"]
+    v = next(x for x in repo.t["assign_versions"] if x["version"] == f["version"])
+    assert v["round"] == "coffeechat" and v["params"]["kind"] == "final" and v["status"] != "published"   # 운영자가 공개
+    g2 = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == f["version"]}
+    assert g2 == g                                                      # 그룹 · 테이블 번호 그대로
+    recs = [x for x in repo.t["recs"] if x["version"] == f["version"]]
+    assert recs and not any(x["participant_id"] == a and x["target_id"] == b for x in recs)        # 교환한 사람 빠짐
+    assert not any(g[x["participant_id"]] == g[x["target_id"]] for x in recs)                       # 커피챗 동석자 빠짐
+    assert repo.ops_get("compute_heartbeat")["last"] == "final"
+
+
 def test_search_and_query_shift():
     repo, enc = seed_repo(n=30, n_staff=0), FakeEncoder()
     service.precompute(repo, enc, iters=300)
