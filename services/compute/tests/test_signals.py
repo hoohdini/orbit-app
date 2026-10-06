@@ -98,6 +98,53 @@ def test_affiliation_and_teams():
     assert M[0, 1] and M[1, 2] and not M[0, 2] and not M[2, 3] and not M.diagonal().any()   # 같은 기수 · 같은 소속 / 같은 팀(띄어쓰기 달라도)
 
 
+def test_query_targets_and_apply():
+    from pipeline import search
+    from pipeline.embed import unit
+    now = 10_000.0
+    L = lambda pid, kind, t, **pl: {"participant_id": pid, "kind": kind, "created_at": t, "payload": pl}
+    logs = [
+        # a: '추천' → 20초 뒤 열어 봄(b) → 40초 뒤 '추천 시스템'으로 고쳐 침. 열어 봄은 묶음에 붙어 사라지지 않는다
+        L("a", "keyword_search", now - 600, q="추천", hits=3), L("a", "keyword_open", now - 580, q="추천", target_id="b"),
+        L("a", "keyword_search", now - 560, q="추천 시스템", hits=2),
+        # c: 40분 전 '금융' → 폭 절반. '오타' 는 결과 0명이라 안 씀
+        L("c", "keyword_search", now - 40 * 60, q="금융", hits=2), L("c", "keyword_search", now - 10 * 60, q="굼융", hits=0),
+        # d: 같은 'LLM' 두 번(5분 간격) 뒤 한 번 열어 봄 → 열어 봄은 직전 검색에만 한 번. 열어 본 뒤 교환 → 0.3
+        L("d", "keyword_search", now - 600, q="LLM", hits=2), L("d", "keyword_search", now - 300, q="LLM", hits=2),
+        L("d", "keyword_open", now - 200, q="LLM", target_id="a"),
+        # b: 이미 교환한 사람(교환이 열어 보기 전)을 다시 열어 봄 → 0.2
+        L("b", "keyword_search", now - 100, q="커머스", hits=1), L("b", "keyword_open", now - 90, q="커머스", target_id="c"),
+    ]
+    at = {(0, 3): now - 150, (1, 2): now - 5000}
+    items, st = search.query_targets(logs, IDX, at, now)
+    got = sorted(((it["i"], it.get("target"), it.get("text"), round(it["beta"], 4)) for it in items), key=repr)
+    dec = lambda age: 0.5 ** (age / 60 / 40)
+    assert got == sorted([(0, 1, None, round(0.2 * dec(560), 4)), (2, None, "금융", 0.05),
+                          (3, 0, None, round(0.3 * dec(300), 4)), (1, 2, None, round(0.2 * dec(100), 4)),
+                          (3, None, "LLM", round(0.1 * dec(600), 4))], key=repr), got     # 5분 전 첫 'LLM' 은 따로 센 검색(열어 봄 없음)
+    assert st["chained"] == 1 and st["zero_hit"] == 1 and st["opened"] == 2 and st["opened_exchanged"] == 1
+    # 적용: 목표를 지나치지 않고, 행사 전 Seek 와 cos 0.85 아래로 안 감
+    S = unit(np.array([[1.0, 0, 0, 0], [0, 1.0, 0, 0]]))
+    O = unit(np.array([[0, 0, 1.0, 0], [0.99, 0.14, 0, 0]]))
+    Z = search.apply_queries(S, [{"i": 0, "target": 1, "beta": 0.3}], O, lambda t: np.ones((len(t), 4)))
+    assert Z[0] @ O[1] >= S[0] @ O[1] - 1e-9 and Z[0] @ O[1] > 0.999            # 거의 같은 방향 목표는 그 자리에서 멈춤
+    far = search.apply_queries(S, [{"i": 0, "target": 0, "beta": 3.0}], O, lambda t: np.ones((len(t), 4)), S_ref=S)
+    assert far[0] @ S[0] >= search.MIN_COS_TO_BEFORE - 1e-9
+    assert np.allclose(Z[1], S[1])                                              # 다른 사람은 그대로
+    r = search.semantic_rank(np.array([1.0, 0, 0, 0]), np.eye(4), ["a", "b", "c", "d"], {"b"})
+    assert r == [("a", 1.0)]
+
+
+def test_search_items_and_query_text():
+    from pipeline import search
+    assert search.search_items("LLM 을 만든다. 비전도 한다", ["llm", " ", "컴퓨터비전"]) == \
+        ["LLM 을 만든다.", "비전도 한다", "관심 주제: llm", "관심 주제: 컴퓨터비전"]     # 태그는 하나씩, 빈 태그는 뺌
+    assert search.query_text("언어모델", ["LLM", "언어모델", "llm", " ", "대규모 언어 모델"]) == "언어모델 (LLM, 대규모 언어 모델)"
+    assert search.query_text("금융", []) == "금융"
+    # 사람별 최고: 0번 사람 항목 2개(0.2, 0.9), 1번 사람 항목 1개(0.5)
+    assert np.allclose(search.person_max(np.array([0.2, 0.9, 0.5]), np.array([0, 0, 1]), 3), [0.9, 0.5, -1.0])
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

@@ -39,6 +39,10 @@
 | card | /api/card/inbox | GET | 없음 | { new: [{exchange_id, message, card}], count } 아직 안 본 "OO 님에게 명함이 공유되었습니다" | 있음 |
 | card | /api/card/inbox/seen | POST | exchange_ids?(비우면 전부) | { seen: n } | 있음 |
 | card | /api/card/search | GET | q(2자 이상) | { people: [{id, display_name, affiliation}] } 같은 행사·체크인·본인 제외·10명. 카메라 대체 경로 | 있음 |
+| card | /api/card/keyword | GET | q(2~30자) | { q, aliases, total, semantic, people: [{id, display_name, affiliation, cohort, career_line, offer_text, matched_fields: ["관심 태그"·"하는 일"·"뜻이 가까움"], matched_tags, exchanged}] } 글자 검색(줄임말 사전 _aliases.json 의 같은 뜻 다른 표기도 함께, aliases = 함께 찾은 표기) + 뜻 검색(계산 서비스 /search, 0.5초 넘으면 글자만, semantic=false)을 합쳐 추천 점수(상호 점수) 높은 순 20명. 찾는 사람 문장은 주지 않음. 체크인 · 동의한 사람끼리, 본인 제외. 검색어는 event_log(keyword_search) | 시제품(민찬 제안 10/5, 회의 채택 전) |
+| card | /api/card/keyword/open | POST | q, target_id | { saved } 검색 결과에서 사람을 열어 봄(event_log keyword_open). 계산 서비스가 추천에 반영 | 시제품 |
+| card | /api/card/twolist | GET | 없음 | { anchor: {id, display_name} 또는 null, similar: [사람 3], different: [사람 3] } 가장 최근 교환한 사람과 하는 일이 비슷한 쪽 · 다른 쪽에서 추천 점수 높은 3명씩. 오늘 교환한 사람 쪽으로 찾는 방향을 옮겨 점수. 교환한 사람 · 동석자 제외. event_log(twolist_shown) | 시제품(민찬 제안 10/5) |
+| card | /api/card/tags | GET | q?(자동완성) | { tags: [{tag, count}] } 다른 참가자들의 관심 태그와 사람 수(검색과 같은 범위). 눌러서 찾기용. q 를 주면 그 글자(또는 같은 뜻 다른 표기)가 든 태그만 사람 많은 순 8개. 동의 · 체크인 전이면 403 | 시제품(민찬 제안 10/5, 회의 채택 전) |
 | card | /api/card/settings | POST | visibility?(all·scanned), links?({linkedin, github, email, url}) | { visibility, links } | 있음 |
 | tabletalk | /api/tabletalk/table | GET | 없음 | { table_no, label, members: [{id, display_name, affiliation, role, cohort, seat_no, topic_tags, career_line, offer_text}] } 좌석 순서(나부터 시계 방향). career_line = 하는 일 첫 문장(v0.2 N-02) | 있음 |
 | tabletalk | /api/tabletalk/satisfaction | POST | choice(아래 선택지), comment?, round?(tabletalk 기본 · coffeechat) | { saved: true, round } 라운드마다 1건, 다시 내면 덮어씀(v0.2 N-03) | 있음 |
@@ -92,6 +96,7 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 |---|---|---|---|
 | /health | GET | 항상 | 모델·코드북 로드 여부 |
 | /precompute | POST | 행사 전날 | 사전 등록자 전원 임베딩·코드북·주소·라벨 발급, 테이블토크 배정 · 좌석 draft(1번 고정 + 2~9번), 전날 추천 목록. reuse_codebook=true 면 현장 등록자 주소만 |
+| /search | POST | 사람 찾기 때(시제품) | q(2~30자), viewer_id, aliases?(웹 줄임말 사전의 같은 뜻 다른 표기, 최대 20) → { q, people: [{id, score}], all_scores } 하는 일 문장 · 관심 태그 중 검색어와 가장 가까운 것의 cos 를 그 사람 점수로(문장별 최고), 평균 + 1 표준편차 이상 최대 10. aliases 는 검색어 뒤 괄호로 붙여 벡터로 바꿈. score 는 웹 정렬 · 거르기용, 화면에 안 냄. WARM_MODEL=1 이면 켤 때 모델을 미리 올림 |
 | /coffeechat | POST | 포스터 응답 마감 뒤(16:45) | 체크인 명단 + 명함 교환 + 테이블토크 만족도 + 포스터 응답(docs/DATA_SPEC.md 규칙) 으로 점수 재계산, 3~4명 그룹 draft, 그룹 카드 근거 한 줄, 자유 이동 추천 목록 |
 
 호출자는 헤더 `X-Compute-Secret` 을 보낸다. 결과는 계산 서비스가 DB 에 직접 쓰고 `assign_versions.version` 만 돌려준다.

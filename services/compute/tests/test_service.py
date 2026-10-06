@@ -33,7 +33,7 @@ class FakeEncoder:
     def encode(self, sentences):
         X = np.zeros((len(sentences), DIM))
         for k, s in enumerate(sentences):
-            for w in s.replace(",", " ").split():
+            for w in s.replace(",", " ").replace("(", " ").replace(")", " ").split():
                 X[k] += self._word(w)
         return unit(X)
 
@@ -214,6 +214,46 @@ def test_v02_signals_recs_reasons():
     ps = [p for p in repo.t["pair_scores"] if p["version"] == r3["version"]]
     assert all("score_no_poster" in p for p in ps) and any(abs(p["score"] - p["score_no_poster"]) > 1e-6 for p in ps)
     print("  근거 예:", gr[0]["text"])
+
+
+def test_search_and_query_shift():
+    repo, enc = seed_repo(n=30, n_staff=0), FakeEncoder()
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    ids = [p["id"] for p in repo.t["participants"]]
+    for pid in ids:
+        repo.t["checkins"].append({"participant_id": pid})
+    r = service.search(repo, enc, "추천시스템 일을 한다", viewer_id=ids[0])
+    assert r["people"] and ids[0] not in {p["id"] for p in r["people"]} and len(r["people"]) <= 10
+    hit = r["people"][0]["id"]
+    prof = {p["participant_id"]: p for p in repo.t["profiles"]}
+    assert "추천시스템" in prof[hit]["offer_text"] or "추천시스템" in prof[hit]["topic_tags"]
+    # 줄임말 사전: 사전 표기(추천시스템)를 붙이면 글자가 전혀 다른 검색어로도 같은 사람이 맨 위
+    r2 = service.search(repo, enc, "RecSys", viewer_id=ids[0], aliases=["추천시스템"])
+    assert r2["people"] and r2["people"][0]["id"] == hit
+    # 항목 벡터는 하는 일 · 태그가 바뀐 사람만 다시 만든다
+    calls = []
+    real = enc.encode
+    enc.encode = lambda xs: (calls.append(len(xs)), real(xs))[1]
+    service._SEARCH_CACHE.clear()
+    prof[ids[3]]["offer_text"] = "회계 감사를 한다"
+    service.search(repo, enc, "회계", viewer_id=ids[0])
+    n_items = len(service.searchm.search_items("회계 감사를 한다", prof[ids[3]].get("topic_tags")))
+    assert calls == [n_items, 1], calls                  # 바뀐 1명 항목 + 검색어 1개
+    enc.encode = real
+    # pool: 웹에서 검색할 수 있는 사람만(동의 안 한 사람은 결과 · 점수에 안 나옴)
+    r4 = service.search(repo, enc, "추천시스템 일을 한다", viewer_id=ids[0], pool=[pid for pid in ids if pid != hit])
+    assert hit not in {p["id"] for p in r4["people"]} and hit not in r4["all_scores"]
+    assert set(r4["all_scores"]) == set(ids) - {ids[0], hit}
+    assert service.search(repo, enc, "회계", pool=[])["people"] == []
+    now = datetime.now(timezone.utc).isoformat()
+    repo.t["event_log"] += [{"participant_id": ids[1], "kind": "keyword_search", "payload": {"q": "금융"}, "created_at": now},
+                            {"participant_id": ids[2], "kind": "keyword_search", "payload": {"q": "회계"}, "created_at": now},
+                            {"participant_id": ids[2], "kind": "keyword_open", "payload": {"q": "회계", "target_id": ids[5]},
+                             "created_at": now}]
+    r3 = service.coffeechat(repo, enc, iters=300)
+    v3 = next(v for v in repo.t["assign_versions"] if v["version"] == r3["version"])
+    assert v3["params"]["search"]["people"] == 2 and v3["params"]["search"]["opened"] == 1
 
 
 def test_fixed_table_other_than_one_is_refused():

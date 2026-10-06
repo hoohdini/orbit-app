@@ -39,6 +39,9 @@ def test_flow_and_conflict():
     assert r.status_code == 200 and r.json()["issued"] == 72, r.text   # 참가자 70 + 운영진 2
     r = c.post("/coffeechat", json={"rec_mode": "one_way"}, headers=H)
     assert r.status_code == 200 and r.json()["fallback"], r.text
+    r = c.post("/search", json={"q": "추천시스템"}, headers=H)
+    assert r.status_code == 200 and "people" in r.json(), r.text                 # 뜻 검색(시제품)
+    assert c.post("/search", json={"q": "추"}, headers=H).status_code == 422     # 한 글자 거절
     c2 = client(n=3, n_staff=0)
     assert c2.post("/precompute", json={}, headers=H).status_code == 409
 

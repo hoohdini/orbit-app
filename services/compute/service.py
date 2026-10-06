@@ -18,6 +18,7 @@ coffeechat  테이블토크 뒤(포스터세션 중, v0.2 B-04). 3~4명 그룹 �
 """
 from __future__ import annotations
 
+import threading
 from collections import Counter
 from datetime import datetime, timezone
 
@@ -27,6 +28,7 @@ from pipeline import codebook as cbm
 from pipeline import evidence as evm
 from pipeline import recs as recm
 from pipeline import people as peoplem
+from pipeline import search as searchm
 from pipeline import scoring, seating, signals
 from pipeline.embed import offer_items, seek_items, unit
 
@@ -296,7 +298,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     S = unit(np.array([sid[pid]["seek_vec"] for pid in ids], dtype=float))
 
     n = len(ids)
-    W, card_stat, _ = signals.card_matrix(repo.card_exchanges(), idx)   # 확인된 교환 모두 1.0 · 확인 대기 제외(10/5)
+    W, card_stat, card_at = signals.card_matrix(repo.card_exchanges(), idx)   # 확인된 교환 모두 1.0 · 확인 대기 제외(10/5)
 
     forbid = np.zeros((n, n), bool)
     groups: dict[int, list[int]] = {}
@@ -353,6 +355,13 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
                 T, pwv = scoring.poster_targets(n, part, V, S2.shape[1], negative=negative)
                 S2 = scoring.seek_toward(S2, T, pwv, b)
 
+    # 사람 찾기 검색어 → Seek (10/5 시제품, pipeline/search.py). 기록이 없으면 그대로
+    q_items, query_stat = searchm.query_targets(repo.search_logs(ids), idx, card_at,
+                                                datetime.now(timezone.utc).timestamp())
+    if q_items and hasattr(enc, "encode"):
+        S2 = searchm.apply_queries(S2, q_items, O, enc.encode, S_ref=S)   # 상한은 행사 전 저장된 Seek 기준
+    else:
+        query_stat["used"] = 0
     a = scoring.directional(S2, O2)
 
     is_host = np.array([bool(p.get("is_host")) for p in P])
@@ -366,7 +375,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2), "cards": card_stat,
               "sat_weights": sw, "sat_counts": dict(Counter(sat.values())),
               "poster_source": poster_source, "poster_weights": pw, "poster_beta": poster_beta, "poster_filter": poster_stat,
-              "poster_answers": len(rows), "poster_people": len(set(poster_n) | set(poster_not)),
+              "poster_answers": len(rows), "poster_people": len(set(poster_n) | set(poster_not)), "search": query_stat,
               "forbid_hits": r.forbid_hits, "cohort_over": r.cohort_over, "n": n, "groups": len(sizes),
               "group_sizes": dict(Counter(sizes))}
     reasons = _reasons(P, r.table + 1, A, r.random_seat, prev=prev, sat=None if fallback else sat,
@@ -404,3 +413,74 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     return {"version": v, "n": n, "tables": len(sizes), "groups": len(sizes), "fallback": fallback,
             "response_rate": round(rate, 3), "forbid_hits": r.forbid_hits, "group_reasons": n_reasons,
             "exposure_min": int(exposure.min()), "exposure_max": int(exposure.max())}
+
+
+_SEARCH_CACHE: dict[tuple[int, int, str], tuple[float, list[str], np.ndarray, np.ndarray]] = {}
+_ITEM_VECS: dict[tuple[int, str], tuple[tuple, np.ndarray]] = {}   # (인코더, 사람) → ((하는 일, 태그), 항목 벡터)
+SEARCH_CACHE_SECONDS = 60
+_SEARCH_LOCK = threading.Lock()     # 켠 직후 동시에 들어온 검색이 저마다 모든 사람을 다시 만들지 않게
+
+
+def _item_matrix(repo, enc, event_id: str) -> tuple[list[str], np.ndarray, np.ndarray]:
+    """체크인한 사람들의 뜻 검색 항목 벡터(searchm.search_items)와 항목 → 사람 번호.
+    웹이 0.5초만 기다리므로 사람 목록 · 프로필은 행사마다 60초 동안 메모리에 둔다(현장 등록자는 60초 안에 들어옴).
+    항목 벡터는 하는 일 · 태그가 바뀐 사람만 다시 만든다. 그래도 계산 서비스를 켠 뒤 첫 검색은 모두 만드느라 0.5초를 넘길 수 있다
+    (맥 기준 280문장 0.31초, 10/5 잼)"""
+    key = (id(repo), id(enc), event_id)
+    with _SEARCH_LOCK:
+        hit = _SEARCH_CACHE.get(key)
+        now = datetime.now(timezone.utc).timestamp()
+        if hit and now - hit[0] < SEARCH_CACHE_SECONDS:
+            return hit[1], hit[2], hit[3]
+        return _refresh_items(repo, enc, event_id, key, now)
+
+
+def _refresh_items(repo, enc, event_id: str, key: tuple, now: float) -> tuple[list[str], np.ndarray, np.ndarray]:
+    ids = [p["id"] for p in _people(repo, event_id, only_checked_in=True)]
+    prof = repo.profiles(ids)
+    todo: dict[str, tuple] = {}
+    for pid in ids:
+        pr = prof.get(pid) or {}
+        sig = (pr.get("offer_text") or "", tuple(pr.get("topic_tags") or []))
+        old = _ITEM_VECS.get((id(enc), pid))
+        if old is None or old[0] != sig:
+            todo[pid] = sig
+    if todo:
+        lists = {pid: searchm.search_items(sig[0], list(sig[1])) for pid, sig in todo.items()}
+        flat = [s for items in lists.values() for s in items]
+        V = unit(np.asarray(enc.encode(flat), dtype=float)) if flat else np.zeros((0, 1))
+        k = 0
+        for pid, items in lists.items():
+            _ITEM_VECS[(id(enc), pid)] = (todo[pid], V[k:k + len(items)])
+            k += len(items)
+    have = [pid for pid in ids if len(_ITEM_VECS[(id(enc), pid)][1])]
+    blocks = [_ITEM_VECS[(id(enc), pid)][1] for pid in have]
+    V = np.vstack(blocks) if blocks else np.zeros((0, 1))
+    owner = np.repeat(np.arange(len(have)), [len(b) for b in blocks]) if blocks else np.zeros(0, dtype=int)
+    _SEARCH_CACHE[key] = (now, have, V, owner)
+    return have, V, owner
+
+
+def search(repo, enc, q: str, event_id: str = "dev", viewer_id: str | None = None,
+           aliases: list[str] | None = None, pool: list[str] | None = None) -> dict:
+    """뜻 검색(시제품). 체크인한 사람 중 검색어와 '하는 일' · 관심 태그 뜻이 가까운 사람(people)과, 모든 사람의 점수(all_scores).
+    점수 = 그 사람 항목(문장 · 태그) 중 가장 높은 cos. aliases = 웹 줄임말 사전이 찾은 같은 뜻 다른 표기(검색어에 붙여 벡터로 바꿈).
+    pool = 웹에서 검색할 수 있는 사람(체크인 · 동의). 주면 그 안에서만 기준 · 상위 10명을 잡는다(동의 안 한 사람이 자리를 차지하지 않게)
+    웹은 글자로 맞은 사람이 있으면 all_scores 로 더 엄하게 거른다. 점수는 순서 · 거르기용으로만 쓰고 화면에는 내보내지 않는다."""
+    q = (q or "").strip()
+    if len(q) < 2:
+        raise ValueError("검색어는 2자 이상")
+    have, V, owner = _item_matrix(repo, enc, event_id)
+    if pool is not None:
+        keep = set(pool)
+        sel = [k for k, pid in enumerate(have) if pid in keep]
+        rows = np.isin(owner, sel)
+        remap = {k: n for n, k in enumerate(sel)}
+        have, V, owner = [have[k] for k in sel], V[rows], np.array([remap[k] for k in owner[rows]], dtype=int)
+    if not have:
+        return {"q": q, "people": [], "all_scores": {}}
+    qv = unit(np.asarray(enc.encode([searchm.query_text(q, aliases)]), dtype=float))[0]
+    allsc = searchm.person_max(V @ qv, owner, len(have))
+    ranked = searchm.rank_scores(allsc, have, {viewer_id} if viewer_id else set())
+    return {"q": q, "people": [{"id": pid, "score": round(sc, 4)} for pid, sc in ranked],
+            "all_scores": {pid: round(float(allsc[k]), 4) for k, pid in enumerate(have) if pid != viewer_id}}
