@@ -69,6 +69,22 @@ def test_no_poster_and_concentration():
     assert c["사람"] == 20 and c["못 받은 사람"] == 17
 
 
+
+def test_report_helpers():
+    from eval.rehearsal_report import picks_from_satisfaction_rows, poster_gaps
+    rows = [{"participant_id": "a", "created_at": "2026-10-31T16:20:00+09:00"},
+            {"participant_id": "a", "created_at": "2026-10-31T16:20:20+09:00"},     # 20초
+            {"participant_id": "a", "created_at": "2026-10-31T16:25:20+09:00"},     # 300초
+            {"participant_id": "b", "created_at": "2026-10-31T16:30:00+09:00"}]
+    g = poster_gaps(rows)
+    assert g["간격 수"] == 2 and g["30초 안 비율"] == 0.5
+    assert poster_gaps([]) == {"간격 수": 0}
+    members = [{"participant_id": p, "table_no": t} for p, t in (("a", 1), ("b", 1), ("c", 2))]
+    picks, raters = picks_from_satisfaction_rows([{"participant_id": "a", "picks": ["b", "c"]}, {"participant_id": "b", "picks": []},
+                                                  {"participant_id": "c", "choice": "gained"}], members)
+    assert picks == {("a", "b")} and raters == {"a", "b"}                 # 다른 테이블 c 는 뺌, picks 칸 없는 행은 무시
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
