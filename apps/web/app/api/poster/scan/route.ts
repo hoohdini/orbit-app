@@ -5,15 +5,19 @@ import { db } from "@/lib/db";
 import { ok, fail, handle } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 import { logEvent } from "@/lib/log";
+import { collectGuard } from "@/lib/consent";
 import { parsePosterCode, shuffledReasons } from "../_lib";
 
 export const dynamic = "force-dynamic";
 
-const Body = z.object({ qr_payload: z.string().trim().min(1) });
+// via 는 스캐너를 연 탭(card 명함 탭 · event 이벤트 탭). 운영 콘솔 탭 불일치 수(A-07)에만 쓴다
+const Body = z.object({ qr_payload: z.string().trim().min(1), via: z.enum(["card", "event"]).optional() });
 
 export async function POST(req: Request) {
   return handle(async () => {
     const s = await requireSession();
+    const guard = await collectGuard(s.pid); // 동의 거부자는 행사 중 수집 제외(10/5 회의)
+    if (guard) return guard;
     const b = Body.parse(await req.json());
     const code = parsePosterCode(b.qr_payload);
     if (!code) {
@@ -35,7 +39,7 @@ export async function POST(req: Request) {
     if (quizRes.error) throw quizRes.error;
     if (mineRes.error) throw mineRes.error;
 
-    await logEvent("poster_scan", s.pid, { poster_id: poster.id });
+    await logEvent("poster_scan", s.pid, { poster_id: poster.id, via: b.via ?? null });
     return ok({
       poster: { id: poster.id, code: poster.code, title: poster.title, presenter: poster.presenter ?? null },
       reasons: shuffledReasons(),

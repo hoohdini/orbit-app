@@ -24,9 +24,12 @@ export type Card = {
   links: CardLinks | null; // 공개 범위 밖이면 null
   source?: CardSource; // 명함함·알림에서만. 내가 찍은 것(qr·manual)인지 받은 것(auto)인지
   exchanged_at?: string;
+  status?: "pending" | "confirmed"; // 명함함·알림에서만. pending 은 이름 검색 교환의 상대 확인 전(v0.2 H-05-BE2)
+  first_meet?: boolean | null; // 명함함에서만. 내가 고른 오늘 처음 대화한 분인가요? 의 답(null 은 아직 안 고름 · 건너뜀)
+  note?: string | null; // 명함함에서만. 내가 남긴 한 줄
 };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // docs/QR_FORMAT.md 의 명함 QR(`https://<앱주소>/card?p=<participant_id>`) 또는 uuid 문자열을 받아 id 만 뽑는다.
 export function parseCardId(raw: string): string | null {

@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   return handle(async () => {
     const s = await requireSession();
     const b = Body.parse(await req.json().catch(() => ({})));
-    let q = db().from("card_exchanges").update({ seen_at: new Date().toISOString() }).eq("scanner_id", s.pid).eq("source", "auto").is("seen_at", null);
+    let q = db().from("card_exchanges").update({ seen_at: new Date().toISOString() }).eq("scanner_id", s.pid).eq("source", "auto").eq("status", "confirmed").is("seen_at", null);
     if (b.exchange_ids && b.exchange_ids.length > 0) q = q.in("id", b.exchange_ids);
     const { data, error } = await q.select("id");
     if (error) throw error;

@@ -86,12 +86,15 @@ export async function buildMyCard(id: string): Promise<Card | null> {
   return m.get(id) ?? null;
 }
 
-export type ExchangeRow = { id: number; scanner_id: string; scanned_id: string; source: CardSource; seen_at: string | null; created_at: string };
+export type ExchangeRow = {
+  id: number; scanner_id: string; scanned_id: string; source: CardSource; seen_at: string | null; created_at: string;
+  status: "pending" | "confirmed"; first_meet: boolean | null; first_meet_at: string | null; note: string | null;
+};
 
 export async function myExchanges(me: string): Promise<ExchangeRow[]> {
   const { data, error } = await db()
     .from("card_exchanges")
-    .select("id, scanner_id, scanned_id, source, seen_at, created_at")
+    .select("id, scanner_id, scanned_id, source, seen_at, created_at, status, first_meet, first_meet_at, note")
     .eq("scanner_id", me)
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -108,7 +111,7 @@ export async function cardsOf(rows: ExchangeRow[]): Promise<Card[]> {
   const out: Card[] = [];
   for (const r of rows) {
     const c = cards.get(r.scanned_id);
-    if (c) out.push({ ...c, source: r.source, exchanged_at: r.created_at });
+    if (c) out.push({ ...c, source: r.source, exchanged_at: r.created_at, status: r.status, first_meet: r.first_meet, note: r.note });
   }
   return out;
 }
