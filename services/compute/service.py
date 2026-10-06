@@ -426,7 +426,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
         sim, si, oj = evm.best_match(sv, ov)
         thr = evm.threshold(sim)
         names = [p.get("display_name") or "" for p in P]
-        pairs = [(i, j) for g in range(len(sizes)) for i in np.where(r.table == g)[0] for j in np.where(r.table == g)[0]
+        pairs = [(i, j) for g in np.unique(r.table) for i in np.where(r.table == g)[0] for j in np.where(r.table == g)[0]
                  if i != j]
         ev = evm.sentences([(int(i), int(j)) for i, j in pairs], names, si_, oi, sim, si, oj, thr, tags)
         repo.insert("group_reasons", [{"version": v, "participant_id": ids[i], "target_id": ids[j], "kind": k, "text": t}

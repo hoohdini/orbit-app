@@ -245,6 +245,12 @@ def test_final_recs_keep_groups():
     assert recs and not any(x["participant_id"] == a and x["target_id"] == b for x in recs)        # 교환한 사람 빠짐
     assert not any(g[x["participant_id"]] == g[x["target_id"]] for x in recs)                       # 커피챗 동석자 빠짐
     assert repo.ops_get("compute_heartbeat")["last"] == "final"
+    # 커피챗 그룹 하나가 통째로 빠져도(전원 체크인 취소) 뒤 번호 그룹의 근거 한 줄이 계속 만들어진다
+    gone = {p for p, t in g.items() if t == 1}
+    repo.t["checkins"] = [c for c in repo.t["checkins"] if c["participant_id"] not in gone]
+    f2 = service.coffeechat(repo, enc, final=True)
+    gr = [x for x in repo.t["group_reasons"] if x["version"] == f2["version"]]
+    assert max(g[x["participant_id"]] for x in gr) == max(t for p, t in g.items() if p not in gone)
 
 
 def test_search_and_query_shift():
