@@ -1,20 +1,24 @@
-# 경로별 담당. PR 리뷰어가 자동 지정된다.
-# 팀원 GitHub 아이디를 받으면 아래 자리 표시를 바꾼다.
+# 경로별 리뷰 담당. PR 을 열면 아래 사람이 리뷰어로 자동 지정된다.
+# 아래쪽 줄이 위쪽 줄보다 우선한다. 구역 규칙(어느 브랜치가 어느 폴더를 고치나)은 docs/COLLAB.md.
 
-/supabase/                         @hoohdini
-/docs/                             @hoohdini
-/apps/web/app/(modules)/onboarding/  @hoohdini
-/apps/web/app/(modules)/home/        @hoohdini
-/apps/web/app/(modules)/card/        @hoohdini
-/apps/web/app/api/onboarding/        @hoohdini
-/apps/web/app/api/home/              @hoohdini
-/apps/web/app/api/card/              @hoohdini
+# 기본: 모든 파일은 성하(팀장, 머지 담당)
+*                                     @hoohdini
 
-# 민찬 (아이디 확인 후 교체)
-# /apps/web/app/(modules)/tabletalk/   @minchan-github-id
-# /apps/web/app/(modules)/coffeechat/  @minchan-github-id
-# /apps/web/app/(modules)/poster/      @minchan-github-id
-# /apps/web/app/api/tabletalk/         @minchan-github-id
-# /apps/web/app/api/coffeechat/        @minchan-github-id
-# /apps/web/app/api/poster/            @minchan-github-id
-# /services/compute/                   @minchan-github-id
+# 프론트 화면. 수민 GitHub 아이디를 받으면 아래 줄의 주석을 풀고 아이디를 바꾼다.
+# /apps/web/app/(modules)/            @hoohdini @수민-github-id
+# /apps/web/components/               @hoohdini @수민-github-id
+
+# 민찬 모듈 API 와 계산 서비스
+/apps/web/app/api/tabletalk/          @hoohdini @K-Minchan
+/apps/web/app/api/coffeechat/         @hoohdini @K-Minchan
+/apps/web/app/api/poster/             @hoohdini @K-Minchan
+/services/compute/                    @K-Minchan @hoohdini
+/docs/DATA_SPEC.md                    @K-Minchan @hoohdini
+
+# 공용 설정과 규칙 파일은 성하만
+/.github/                             @hoohdini
+/AGENTS.md                            @hoohdini
+/CLAUDE.md                            @hoohdini
+/package.json                         @hoohdini
+/apps/web/package.json                @hoohdini
+/apps/web/package-lock.json           @hoohdini
