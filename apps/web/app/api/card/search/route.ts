@@ -21,6 +21,7 @@ export async function GET(req: Request) {
       .select("id, display_name, affiliation")
       .eq("event_id", eventId())
       .neq("id", s.pid)
+      .is("consent_refused_at", null) // 동의 거부자는 남의 이름 검색에서 빠진다(v0.2 H-00)
       .ilike("display_name", `%${safe}%`)
       .order("display_name")
       .limit(50);

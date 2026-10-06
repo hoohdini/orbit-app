@@ -17,7 +17,7 @@ export const PUBLIC_COLS = "id, display_name, affiliation, role, cohort, is_host
 export async function getParticipant(id: string) {
   const { data, error } = await db()
     .from("participants")
-    .select("id, display_name, affiliation, role, cohort, is_host, is_admin, visibility, consent_at")
+    .select("id, display_name, affiliation, role, cohort, is_host, is_admin, visibility, consent_at, consent_refused_at")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -59,7 +59,7 @@ export async function labelFor(codebookVersion: string, sid: number[]): Promise<
 export async function getMyTable(id: string, round: "tabletalk" | "coffeechat") {
   const { data, error } = await db()
     .from("current_tables")
-    .select("version, table_no, label")
+    .select("version, table_no, label, seat_no")
     .eq("round", round)
     .eq("participant_id", id)
     .maybeSingle();

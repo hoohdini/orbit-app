@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     const [card, wallet, unseen, me] = await Promise.all([
       buildMyCard(s.pid),
       db().from("card_exchanges").select("id", { count: "exact", head: true }).eq("scanner_id", s.pid),
-      db().from("card_exchanges").select("id", { count: "exact", head: true }).eq("scanner_id", s.pid).eq("source", "auto").is("seen_at", null),
+      db().from("card_exchanges").select("id", { count: "exact", head: true }).eq("scanner_id", s.pid).eq("source", "auto").eq("status", "confirmed").is("seen_at", null),
       db().from("participants").select("visibility").eq("id", s.pid).maybeSingle(),
     ]);
     if (!card) return fail("NOT_FOUND", "참가자를 찾을 수 없다", 404);

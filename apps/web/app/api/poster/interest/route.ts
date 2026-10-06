@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { ok, fail, handle } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 import { logEvent } from "@/lib/log";
+import { collectGuard } from "@/lib/consent";
 import { INTEREST_KEYS } from "../_lib";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,8 @@ const Body = z.object({
 export async function POST(req: Request) {
   return handle(async () => {
     const s = await requireSession();
+    const guard = await collectGuard(s.pid); // 동의 거부자는 행사 중 수집 제외(10/5 회의)
+    if (guard) return guard;
     const b = Body.parse(await req.json());
 
     const { data: scanned, error: scanErr } = await db()

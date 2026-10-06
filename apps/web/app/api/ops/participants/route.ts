@@ -11,7 +11,7 @@ export async function GET() {
     await requireAdmin();
     const { data, error } = await db()
       .from("participants")
-      .select("id, display_name, affiliation, role, cohort, is_host, is_admin, consent_at")
+      .select("id, display_name, affiliation, role, cohort, is_host, is_admin, consent_at, consent_refused_at")
       .eq("event_id", eventId())
       .order("display_name");
     if (error) throw error;
@@ -33,6 +33,7 @@ export async function GET() {
         is_host: p.is_host,
         is_admin: p.is_admin,
         consented: !!p.consent_at,
+        consent_refused: !!p.consent_refused_at,
         has_sid: hasSid.has(p.id as string),
         checked_at: ci.get(p.id as string)?.checked_at ?? null,
         is_late: ci.get(p.id as string)?.is_late ?? false,
