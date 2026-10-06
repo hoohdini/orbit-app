@@ -137,7 +137,7 @@ export function publicMission(m: MissionStatus) {
 
 // 이 행사 운영자 화면 등에서 쓰는 참가자 id 목록(체크인한 사람)
 export async function checkedInIds(eventId: string): Promise<string[]> {
-  const { data, error } = await db().from("participants").select("id, checkins!inner(participant_id)").eq("event_id", eventId);
+  const { data, error } = await db().from("participants").select("id, checkins!checkins_participant_id_fkey!inner(participant_id)").eq("event_id", eventId);
   if (error) throw error;
   return (data ?? []).map((r) => r.id as string);
 }

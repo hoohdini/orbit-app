@@ -43,7 +43,8 @@ async function walkinSeat(pid: string) {
   }
   const best = [...count.entries()].sort((a, b) => a[1].n - b[1].n || a[0] - b[0])[0];
   if (!best) return null;
-  const seat = { version: v.version as number, table_no: best[0], seat_no: best[1].seat + 1 };
+  // 좌석 번호가 없는 예전 배정이어도 겹치지 않게 인원 수와 가장 큰 좌석 번호 중 큰 쪽 다음 번호
+  const seat = { version: v.version as number, table_no: best[0], seat_no: Math.max(best[1].seat, best[1].n) + 1 };
   const { error: ie } = await db().from("table_members").insert({ ...seat, participant_id: pid, reason: { text: "현장 등록, 인원이 가장 적은 테이블 끝 좌석" } });
   if (ie) throw ie;
   return seat;
