@@ -13,7 +13,16 @@ import re
 import numpy as np
 
 MODEL = os.environ.get("EMBED_MODEL", "intfloat/multilingual-e5-small")
-PREFIX = os.environ.get("EMBED_PREFIX", "query: ")
+
+
+def clean_prefix(raw: str) -> str:
+    """접두사 끝 공백을 하나로 맞춘다. source .env 는 끝 공백을 버리고 docker --env-file 은 남겨서,
+    읽는 방식에 따라 query: 와 query: (공백) 로 갈리면 같은 문장의 이웃 5명이 78% 만 겹친다(9/30 확인)."""
+    p = (raw or "").strip()
+    return p + " " if p else ""
+
+
+PREFIX = clean_prefix(os.environ.get("EMBED_PREFIX", "query: "))
 MAX_CHARS = 200                     # 한 문장 상한. 한국어 한 글자가 약 0.6 토큰이라 512 토큰 한계에 한참 못 미친다
 
 _SPLIT = re.compile(r"[\n;]+|(?<=[.!?。])\s+")
@@ -45,7 +54,7 @@ class Encoder:
 
     def __init__(self, model: str = MODEL, prefix: str = PREFIX, device: str | None = None):
         from sentence_transformers import SentenceTransformer
-        self.prefix = prefix
+        self.prefix = clean_prefix(prefix)
         self.model = SentenceTransformer(model, device=device or "cpu")
 
     def encode(self, sentences: list[str]) -> np.ndarray:
