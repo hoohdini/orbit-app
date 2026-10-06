@@ -52,6 +52,23 @@ def test_satisfaction_auc():
     assert c["one_way"]["얻음"] > 0 and c["one_way"]["못 얻음"] > 0
 
 
+def test_no_poster_and_concentration():
+    from eval.rehearsal_accuracy import concentration, gini, picks_from_exchanges
+    ids, members, pairs, a = fake_round(n=20, size=4)
+    for r in pairs:
+        r["score_no_poster"] = r["score"] * 0.5
+    sat = {p: ("gained" if k % 2 else "mismatch") for k, p in enumerate(ids)}
+    out = satisfaction_auc(pairs, members, sat)
+    assert "no_poster" in out and "score" in out
+    assert gini([1, 1, 1, 1]) == 0.0 and gini([0, 0, 0, 8]) > 0.7
+    rows = [{"scanner_id": "p0", "scanned_id": "p1"}, {"scanner_id": "p1", "scanned_id": "p0"},
+            {"scanner_id": "p0", "scanned_id": "p9"},                                        # 다른 테이블 → 양성 아님
+            {"scanner_id": "p2", "scanned_id": "p3", "status": "pending"}]
+    assert picks_from_exchanges(rows, members) == {("p0", "p1"), ("p1", "p0")}
+    c = concentration(rows, ids)
+    assert c["사람"] == 20 and c["못 받은 사람"] == 17
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

@@ -113,15 +113,17 @@ def seek_shift(S: np.ndarray, O: np.ndarray, mates: list[list[int]], w: np.ndarr
     return seek_toward(S, T, np.array([w[i] if mates[i] else 0.0 for i in range(len(mates))]), beta)
 
 
-def card_shift(S: np.ndarray, O: np.ndarray, W: np.ndarray, beta: float = 0.5) -> np.ndarray:
+def card_shift(S: np.ndarray, O: np.ndarray, W: np.ndarray, beta: float = 0.5, by_weight: bool = False) -> np.ndarray:
     """명함 교환 반영. W[i, j] = i 와 j 사이 명함 간선 가중치(대칭). i 의 Seek 를 명함을 교환한 사람들의 Offer
     가중 평균 쪽으로 beta 만큼 옮긴다 → 커피챗 추천에서 i 에게 그 사람들과 비슷한 새 사람이 더 올라온다.
     9/29 민찬 결정: 예전엔 i 의 Offer 를 옮겼다(1차 G★ 를 그대로 옮긴 모양). 그러면 명함 한 장으로 i 의 소개가 바뀌고
     i 자신의 추천은 거의 안 바뀐다. 명함 교환은 i 가 무엇에 관심 있는지를 더 잘 보여 주므로 만족도 · 포스터처럼 Seek 쪽에 넣는다.
-    간선이 없는 사람은 그대로 둔다."""
+    간선이 없는 사람은 그대로 둔다. by_weight=True 면 옮기는 폭을 그 사람의 가장 큰 간선 가중치로 정한다
+    (지금은 확인된 교환이 모두 1.0 이라 결과는 같다. 가중치를 다시 나누면 쓰려고 남겨 둠)."""
     deg = W.sum(1)
     T = np.where(deg[:, None] > 0, W @ unit(O) / np.maximum(deg, 1e-12)[:, None], 0.0)
-    return seek_toward(S, T, (deg > 0).astype(float), beta)
+    w = W.max(1) if by_weight else (deg > 0).astype(float)
+    return seek_toward(S, T, w, beta)
 
 
 # 포스터 관심도 답 → 추천 방향. 관심 있게 본 포스터의 주제 쪽으로 Seek 를 옮긴다(9/28 민찬 결정). 값은 임시, 리허설 뒤 정함

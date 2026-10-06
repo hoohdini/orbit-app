@@ -22,7 +22,7 @@ class MemoryRepo:
         self.t: dict[str, list[dict]] = {k: [] for k in (
             "participants", "profiles", "sids", "labels", "checkins", "assign_versions", "tables_meta",
             "table_members", "pair_scores", "recs", "card_exchanges", "satisfaction", "ops_state",
-            "posters", "poster_interest", "codebooks")}
+            "posters", "poster_interest", "codebooks", "poster_responses", "group_reasons")}
         self._version = itertools.count(1)
 
     # ---------- 읽기 ----------
@@ -50,7 +50,20 @@ class MemoryRepo:
         return list(seen.values())
 
     def posters(self) -> list[dict]:
-        return [{"id": p["id"], "title": p["title"], "tags": p.get("tags") or []} for p in self.t["posters"]]
+        return [{"id": p["id"], "title": p["title"], "tags": p.get("tags") or [], "summary": p.get("summary"),
+                 "presenter_ids": p.get("presenter_ids") or []} for p in self.t["posters"]]
+
+    def poster_responses(self, ids: list[str]) -> list[dict]:
+        """[{participant_id, poster_id, reason, latency_ms, seq_no, quiz_attempted, created_at}] (0009)."""
+        s = set(ids)
+        return [r for r in self.t["poster_responses"] if r["participant_id"] in s]
+
+    def card_exchanges(self) -> list[dict]:
+        """명함 교환 원본 행. 첫 대화 체크(first_meet) · 확인 상태(status) 칸은 생기기 전이면 없다(H-05-BE2)."""
+        return list(self.t["card_exchanges"])
+
+    def labels(self, codebook_version: str) -> dict[tuple, str]:
+        return {tuple(r["prefix"]): r["label"] for r in self.t["labels"] if r["codebook_version"] == codebook_version}
 
     def poster_interest(self, ids: list[str]) -> list[dict]:
         """[{participant_id, poster_id, choice}]. 키는 0005 마이그레이션의 learn_more · interesting · not_mine."""
@@ -141,7 +154,7 @@ class SupabaseRepo:
 
     def participants(self, event_id: str) -> list[dict]:
         return self._all(lambda: self.db.table("participants")
-                         .select("id, display_name, role, cohort, is_host, event_id").eq("event_id", event_id))
+                         .select("id, display_name, affiliation, role, cohort, is_host, fixed_table, teams, event_id").eq("event_id", event_id))
 
     def profiles(self, ids):
         return {r["participant_id"]: r for r in self._in("profiles", "participant_id, offer_text, seek_text, topic_tags, intent_tags", "participant_id", ids)}
@@ -156,7 +169,18 @@ class SupabaseRepo:
         return self._all(lambda: self.db.table("edges").select("a, b, kind, weight"))
 
     def posters(self):
-        return self._all(lambda: self.db.table("posters").select("id, title, tags"))
+        return self._all(lambda: self.db.table("posters").select("id, title, tags, summary, presenter_ids"))
+
+    def poster_responses(self, ids):
+        return self._in("poster_responses", "participant_id, poster_id, reason, latency_ms, seq_no, quiz_attempted, created_at",
+                        "participant_id", ids)
+
+    def card_exchanges(self):
+        return self._all(lambda: self.db.table("card_exchanges").select("*"))     # 칸이 늘어도(first_meet · status) 그대로 받으려고 *
+
+    def labels(self, codebook_version):
+        rows = self._all(lambda: self.db.table("labels").select("prefix, label").eq("codebook_version", codebook_version))
+        return {tuple(r["prefix"]): r["label"] for r in rows}
 
     def poster_interest(self, ids):
         return self._in("poster_interest", "participant_id, poster_id, choice", "participant_id", ids)

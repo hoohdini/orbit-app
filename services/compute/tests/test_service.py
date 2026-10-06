@@ -10,6 +10,7 @@ import os
 import random
 import sys
 import uuid
+from datetime import datetime, timezone
 
 import numpy as np
 
@@ -29,6 +30,13 @@ class FakeEncoder:
         seed = int(hashlib.md5(w.encode()).hexdigest()[:8], 16)
         return np.random.default_rng(seed).normal(size=DIM)
 
+    def encode(self, sentences):
+        X = np.zeros((len(sentences), DIM))
+        for k, s in enumerate(sentences):
+            for w in s.replace(",", " ").split():
+                X[k] += self._word(w)
+        return unit(X)
+
     def people(self, item_lists):
         X = np.zeros((len(item_lists), DIM))
         blank = np.array([len(x) == 0 for x in item_lists])
@@ -39,17 +47,20 @@ class FakeEncoder:
         return unit(X), blank
 
 
-def seed_repo(n=70, n_host=8, n_staff=2, seed=0):
+def seed_repo(n=70, n_host=8, n_staff=2, seed=0, n_fixed=0):
+    """참가자 n(앞 n_host 명은 호스트) → 운영진 n_staff → 교수 · 운영진석(fixed_table=1) n_fixed 순서."""
     rng = random.Random(seed)
     repo = MemoryRepo()
-    for i in range(n + n_staff):
+    for i in range(n + n_staff + n_fixed):
         pid = str(uuid.UUID(int=i + 1))
-        staff = i >= n
-        host = (not staff) and i < n_host
+        staff = n <= i < n + n_staff
+        fixed = i >= n + n_staff
+        host = (not staff) and (i < n_host or fixed)
         f, g = rng.choice(FIELDS), rng.choice(FIELDS)
         repo.t["participants"].append({"id": pid, "event_id": "dev", "display_name": f"사람{i}",
-                                       "role": "staff" if staff else ("alumni" if host else "student"),
-                                       "cohort": None if host or staff else rng.randint(10, 14), "is_host": host})
+                                       "role": "staff" if staff else ("professor" if fixed else "alumni" if host else "student"),
+                                       "cohort": None if host or staff else rng.randint(10, 14), "is_host": host,
+                                       "fixed_table": 1 if fixed else None})
         repo.t["profiles"].append({"participant_id": pid, "offer_text": f"{f} 일을 한다. {g} 공부를 한다",
                                    "seek_text": "" if host or rng.random() < 0.15 else f"{rng.choice(FIELDS)} 선배를 만나고 싶다",
                                    "topic_tags": [f, g], "intent_tags": ["멘토링"] if rng.random() < 0.5 else []})
@@ -57,13 +68,15 @@ def seed_repo(n=70, n_host=8, n_staff=2, seed=0):
 
 
 def test_full_loop():
-    repo, enc = seed_repo(), FakeEncoder()
+    # 참가자 70(호스트 8) + 운영진 2 + 교수 · 운영진석 3(fixed_table=1) = 75명
+    repo, enc = seed_repo(n_fixed=3), FakeEncoder()
     ids = [p["id"] for p in repo.t["participants"]]
+    fixed = set(ids[72:])
 
-    # 1. 행사 전날 — 새 코드북, 전원 주소, 테이블토크 배정
+    # 1. 행사 전날 — 새 코드북, 전원 주소, 테이블토크 배정(전날 확정, 좌석 순서까지)
     r1 = service.precompute(repo, enc, iters=3000)
-    assert r1["new_codebook"] and r1["issued"] == 72 and r1["n"] == 72   # 참가자 70 + 운영진 2
-    assert len(repo.t["sids"]) == 72                                    # 운영진도 주소 받음
+    assert r1["new_codebook"] and r1["issued"] == 75 and r1["n"] == 75 and r1["fixed"] == 3
+    assert len(repo.t["sids"]) == 75                                    # 운영진 · 고정 테이블도 주소 받음
     assert all(len(s["offer_sid"]) == 3 and len(s["offer_vec"]) == DIM for s in repo.t["sids"])
     assert repo.active_codebook("dev")["version"] == r1["codebook_version"]   # 코드북 전용 표(0007)
     assert all(v["event_id"] == "dev" for v in repo.t["assign_versions"])   # 배정 버전에 행사 번호
@@ -71,10 +84,25 @@ def test_full_loop():
     assert all(m["label"] is None for m in repo.t["tables_meta"])                           # 테이블 이름표 없음
     v1 = r1["version"]
     members = [m for m in repo.t["table_members"] if m["version"] == v1]
-    assert len(members) == 72 and len({m["table_no"] for m in members}) == r1["tables"]
-    assert len([p for p in repo.t["pair_scores"] if p["version"] == v1]) == 72 * 71 // 2
+    t1 = {m["participant_id"]: m["table_no"] for m in members}
+    assert len(members) == 75 and r1["tables"] == 9
+    assert {t1[p] for p in fixed} == {1} and sum(t == 1 for t in t1.values()) == 3       # 1번 = 교수 · 운영진석만
+    size = {t: sum(1 for x in t1.values() if x == t) for t in range(2, 10)}
+    assert set(size) == set(t1.values()) - {1} and max(size.values()) - min(size.values()) <= 1   # 2~9번 고르게(72명 → 9명씩)
+    for t in range(1, 10):                                                # 좌석 번호 1..k, 겹치지 않음
+        seats = sorted(m["seat_no"] for m in members if m["table_no"] == t)
+        assert seats == list(range(1, len(seats) + 1))
+    assert all(m["reason"]["seat_no"] == m["seat_no"] for m in members)
+    assert all(m["reason"].get("fixed") for m in members if m["participant_id"] in fixed)
+    # 같은 기수 4명째부터 감점(상한 3). 시험 명단에 따라 넘침이 생길 수 있다 → 보고 값이 실제 넘친 수와 맞는지 본다
+    reg = [p for p in repo.t["participants"] if p["id"] not in fixed and p.get("cohort") is not None]
+    from collections import Counter
+    cc = Counter((t1[p["id"]], p["cohort"]) for p in reg)
+    assert r1["cohort_over"] == sum(max(0, v - service.TABLETALK_COHORT_CAP) for v in cc.values())
+    assert len([p for p in repo.t["pair_scores"] if p["version"] == v1]) == 75 * 74 // 2
+    repo.t["assign_versions"][-1]["status"] = "published"                # 전날 공개
 
-    # 2. 체크인 마감 — 60명 체크인 + 현장 등록 2명. 저장된 코드북에 붙이기만
+    # 2. 체크인 마감 — 60명 체크인 + 현장 등록 2명. 주소만 붙이고 테이블토크는 다시 배정하지 않음
     for pid in ids[:60]:
         repo.t["checkins"].append({"participant_id": pid})
     for k in range(2):
@@ -85,14 +113,19 @@ def test_full_loop():
                                    "topic_tags": ["추천시스템"], "intent_tags": []})
         repo.t["checkins"].append({"participant_id": pid})
     before = {s["participant_id"]: s["offer_sid"] for s in repo.t["sids"]}
+    n_versions = len(repo.t["assign_versions"])
     r2 = service.precompute(repo, enc, reuse_codebook=True, iters=3000)
-    assert not r2["new_codebook"] and r2["issued"] == 2 and r2["n"] == 62
+    assert not r2["new_codebook"] and r2["issued"] == 2 and r2["version"] is None
+    assert len(repo.t["assign_versions"]) == n_versions                  # 새 배정 버전 없음(전날 확정)
     after = {s["participant_id"]: s["offer_sid"] for s in repo.t["sids"]}
     assert all(after[p] == before[p] for p in before)                    # 먼저 받은 주소는 그대로
-    repo.t["assign_versions"][-1]["status"] = "published"                # 운영자가 공개
+    # 현장 등록자 자리는 운영 콘솔 워크인 추가(A-05)가 정함. 여기서는 그 결과를 흉내 내 4번 테이블 끝에 앉힘
+    for k, pid in enumerate([p["id"] for p in repo.t["participants"][-2:]]):
+        repo.t["table_members"].append({"version": v1, "table_no": 4, "participant_id": pid, "seat_no": 50 + k,
+                                        "reason": {"table_no": 4, "text": "워크인(운영 콘솔)"}})
+    tab = [m for m in repo.t["table_members"] if m["version"] == v1]
 
     # 3. 테이블토크 중 명함 교환 · 만족도 (응답률 70%)
-    tab = [m for m in repo.t["table_members"] if m["version"] == r2["version"]]
     by_table = {}
     for m in tab:
         by_table.setdefault(m["table_no"], []).append(m["participant_id"])
@@ -101,7 +134,7 @@ def test_full_loop():
             for b in g:
                 if a < b:
                     repo.t["card_exchanges"].append({"scanner_id": a, "scanned_id": b})
-    checked = [m["participant_id"] for m in tab]
+    checked = [m["participant_id"] for m in tab if m["participant_id"] in set(ids[:60]) or m["seat_no"] >= 50]
     answers = ["gained", "different", "unsure", "mismatch"]
     for k, pid in enumerate(checked[: int(len(checked) * 0.7)]):
         repo.t["satisfaction"].append({"participant_id": pid, "round": "tabletalk", "choice": answers[k % 4]})
@@ -116,7 +149,7 @@ def test_full_loop():
     r3 = service.coffeechat(repo, enc, iters=5000)
     assert r3["forbid_hits"] == 0 and not r3["fallback"]                  # 테이블토크 동석자와 다시 안 앉음
     recs = [r for r in repo.t["recs"] if r["version"] == r3["version"]]
-    assert len(recs) == 62 * 12
+    assert len(recs) == 62 * 12                                          # 체크인 60 + 현장 등록 2
     t2 = {m["participant_id"]: m["table_no"] for m in tab}
     assert all(t2[r["participant_id"]] != t2[r["target_id"]] for r in recs)   # 이미 만난 사람은 추천 안 함
     assert repo.ops_get("compute_heartbeat")["last"] == "coffeechat"
@@ -133,9 +166,65 @@ def test_full_loop():
     assert "관심 없다고 한 포스터 1개 반영" in by_pid[checked[1]]["text"]
     v3 = next(v for v in repo.t["assign_versions"] if v["version"] == r3["version"])
     assert v3["params"]["poster_answers"] == 3 and v3["params"]["poster_people"] == 2
-    assert v3["params"]["sat_counts"] == {"gained": 11, "different": 11, "unsure": 11, "mismatch": 10}
+    assert sum(v3["params"]["sat_counts"].values()) == int(len(checked) * 0.7)
     print("  이유 예:", by_pid[checked[0]]["text"])
-    print(f"  전날 {r1['tables']}테이블 · 체크인 뒤 {r2['tables']}테이블(워크인 {r2['issued']}명) · 커피챗 {r3['tables']}테이블 · 추천 {len(recs)}행")
+    print(f"  전날 {r1['tables']}테이블({size}) · 체크인 뒤 워크인 주소 {r2['issued']}명 · 커피챗 {r3['tables']}테이블 · 추천 {len(recs)}행")
+
+
+def test_v02_signals_recs_reasons():
+    """v0.2: 전날 추천 목록(B-06) · 포스터 응답 전처리(B-05) · 커피챗 그룹 근거 한 줄(B-07) · 궤도 라벨(B-08) · 포스터 없는 점수."""
+    repo, enc = seed_repo(n=40, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    for k, p in enumerate(repo.t["participants"]):
+        p["affiliation"] = "연세대" if k < 20 else "카카오"
+    r1 = service.precompute(repo, enc, iters=500)
+    v1 = r1["version"]
+    t1 = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == v1}
+    recs1 = [r for r in repo.t["recs"] if r["version"] == v1]
+    assert len(recs1) == 40 * 12 and all(t1[r["participant_id"]] != t1[r["target_id"]] for r in recs1)   # 같은 테이블 사람 빼고
+    coh = {p["id"]: (p["cohort"], p["affiliation"]) for p in repo.t["participants"]}
+    same = sum(1 for r in recs1 if coh[r["participant_id"]][0] is not None and coh[r["participant_id"]] == coh[r["target_id"]])
+    assert same <= len(recs1) * 0.05                                 # 같은 기수 · 같은 소속은 거의 안 뜸(감점)
+    assert not any(coh[r["participant_id"]][0] is not None and coh[r["participant_id"]] == coh[r["target_id"]]
+                   for r in recs1 if r["kind"] == "explore")             # 탐색 칸으로 다시 들어오지도 않음
+    meta1 = [m for m in repo.t["tables_meta"] if m["version"] == v1]
+    assert all("orbit_label" in m and "orbit_prefix" in m for m in meta1) and any(m["orbit_label"] for m in meta1)
+    repo.t["assign_versions"][-1]["status"] = "published"
+
+    for pid in ids:
+        repo.t["checkins"].append({"participant_id": pid})
+    for k, pid in enumerate(ids[:30]):
+        repo.t["satisfaction"].append({"participant_id": pid, "round": "tabletalk", "choice": "gained"})
+    repo.t["posters"] = [{"id": q, "title": f"{FIELDS[q]} 포스터", "tags": [FIELDS[q]], "summary": f"{FIELDS[q]} 연구",
+                          "presenter_ids": [ids[39]] if q == 1 else []} for q in range(1, 5)]
+    for k, pid in enumerate(ids[:20]):                                # 20명이 포스터 3개씩
+        for seq, q in enumerate((1, 2, 3), start=1):
+            repo.t["poster_responses"].append({"participant_id": pid, "poster_id": q, "reason": "topic", "seq_no": seq,
+                                               "latency_ms": 30000, "quiz_attempted": seq == 3,
+                                               "created_at": f"2026-10-31T16:{20 + seq * 5:02d}:00+09:00"})
+    r3 = service.coffeechat(repo, enc, iters=2000)
+    v3 = next(v for v in repo.t["assign_versions"] if v["version"] == r3["version"])
+    assert v3["params"]["poster_source"] == {"poster_responses": 20, "poster_interest": 0} and v3["params"]["poster_people"] == 20
+    assert r3["groups"] == 10 and r3["forbid_hits"] == 0                # 40명 → 4명 그룹 10개
+    cm = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == r3["version"]}
+    gr = [g for g in repo.t["group_reasons"] if g["version"] == r3["version"]]
+    assert gr and r3["group_reasons"] == len(gr)
+    assert all(cm[g["participant_id"]] == cm[g["target_id"]] and g["participant_id"] != g["target_id"] for g in gr)
+    assert all(g["kind"] in ("seek_offer", "offer_seek", "common_tags") and "점수" not in g["text"] for g in gr)
+    ps = [p for p in repo.t["pair_scores"] if p["version"] == r3["version"]]
+    assert all("score_no_poster" in p for p in ps) and any(abs(p["score"] - p["score_no_poster"]) > 1e-6 for p in ps)
+    print("  근거 예:", gr[0]["text"])
+
+
+def test_fixed_table_other_than_one_is_refused():
+    repo, enc = seed_repo(n=30, n_staff=0, n_fixed=2), FakeEncoder()
+    repo.t["participants"][-1]["fixed_table"] = 3
+    try:
+        service.precompute(repo, enc, iters=100)
+    except ValueError as e:
+        assert "1번만" in str(e)
+    else:
+        raise AssertionError("고정 테이블 3 을 막지 않았다")
 
 
 def test_other_event_does_not_leak():

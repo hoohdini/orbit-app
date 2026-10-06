@@ -12,24 +12,40 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 
+import threading
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import service
 
 APP_VERSION = "0.1.0"
-app = FastAPI(title="orbit-compute", version=APP_VERSION)
+@asynccontextmanager
+async def lifespan(_app):
+    """WARM_MODEL=1 이면 켜자마자 모델을 뒤에서 올린다(약 10초). 첫 계산이 모델 올리는 시간 때문에 늦지 않게."""
+    if os.environ.get("WARM_MODEL") == "1":
+        threading.Thread(target=encoder, daemon=True).start()
+    yield
+
+
+app = FastAPI(title="orbit-compute", version=APP_VERSION, lifespan=lifespan)
 
 _enc = None
 _repo = None
 
 
+_enc_lock = threading.Lock()
+
+
 def encoder():
-    """모델은 처음 부를 때 한 번 올린다(약 9초). 이후 요청은 재사용."""
+    """모델은 처음 부를 때 한 번 올린다(약 9초). 이후 요청은 재사용. 미리 올리는 중에 요청이 와도 모델을 두 번 만들지 않게 잠근다."""
     global _enc
     if _enc is None:
-        from pipeline.embed import Encoder
-        _enc = Encoder()
+        with _enc_lock:
+            if _enc is None:
+                from pipeline.embed import Encoder
+                _enc = Encoder()
     return _enc
 
 
@@ -50,9 +66,10 @@ def require_secret(x_compute_secret: str = Header(default="")) -> None:
 class PrecomputeRequest(BaseModel):
     event_id: str = "dev"
     codebook_version: str | None = None   # 없으면 날짜로 만든다
-    reuse_codebook: bool = False          # 체크인 마감 때 true — 저장된 코드북에 현장 등록자만 붙이고 배정을 다시 낸다
+    reuse_codebook: bool = False          # 체크인 마감 때 true — 저장된 코드북으로 현장 등록자에게 주소만 붙인다(테이블토크는 전날 확정)
     table_mode: str = "min"               # 테이블 점수 결합: min | avg | harmonic
     random_ratio: float = 0.0             # 무작위로 앉히는 자리 비율 (리허설 정확도 0.65 미만이면 0.15~0.40)
+    n_tables: int = Field(8, ge=4, le=12)  # 테이블토크 알고리즘 테이블 수(교수 · 운영진석 1번 제외). 개발 지시서 v0.2 결정 9
 
 
 class CoffeechatRequest(BaseModel):

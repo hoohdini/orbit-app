@@ -40,18 +40,20 @@
 | card | /api/card/inbox/seen | POST | exchange_ids?(비우면 전부) | { seen: n } | 있음 |
 | card | /api/card/search | GET | q(2자 이상) | { people: [{id, display_name, affiliation}] } 같은 행사·체크인·본인 제외·10명. 카메라 대체 경로 | 있음 |
 | card | /api/card/settings | POST | visibility?(all·scanned), links?({linkedin, github, email, url}) | { visibility, links } | 있음 |
-| tabletalk | /api/tabletalk/table | GET | 없음 | { table_no, label, members: [{id, display_name, affiliation, topic_tags, offer_text}] } | 있음 |
-| tabletalk | /api/tabletalk/satisfaction | POST | choice(아래 선택지), comment? | { saved: true } | 있음 |
-| coffeechat | /api/coffeechat/table | GET | 없음 | { table_no, label, talk_prompts, members: [...] } | 있음 |
+| tabletalk | /api/tabletalk/table | GET | 없음 | { table_no, label, members: [{id, display_name, affiliation, role, cohort, seat_no, topic_tags, career_line, offer_text}] } 좌석 순서(나부터 시계 방향). career_line = 하는 일 첫 문장(v0.2 N-02) | 있음 |
+| tabletalk | /api/tabletalk/satisfaction | POST | choice(아래 선택지), comment?, round?(tabletalk 기본 · coffeechat) | { saved: true, round } 라운드마다 1건, 다시 내면 덮어씀(v0.2 N-03) | 있음 |
+| tabletalk | /api/tabletalk/satisfaction | GET | round?(tabletalk 기본 · coffeechat) | { round, answered, choice } 전면 카드를 다시 띄우지 않으려고 | 있음 |
+| coffeechat | /api/coffeechat/table | GET | 없음 | { group_no, table_no(같은 값), label, talk_prompts(예전 화면용), members: [{id, display_name, affiliation, role, cohort, topic_tags, career_line, offer_text, reason}] } reason = 근거 한 줄 또는 null(v0.2 N-04 · B-07) | 있음 |
 | coffeechat | /api/coffeechat/recs | GET | 없음 | { recs: [{rank, target: {id, display_name, affiliation}, current_table_no, reason}] } | 있음 |
-| poster | /api/poster/scan | POST | qr_payload | { poster: {id, title}, quiz: {id, question, choices} } | 있음 |
-| poster | /api/poster/answer | POST | quiz_id, choice_index | { correct: bool, stamp_count, ticket_issued: bool } | 있음 |
-| poster | /api/poster/interest | POST | poster_id, choice(아래 선택지) | { saved: true } | 있음 |
+| poster | /api/poster/scan | POST | qr_payload | { poster: {id, code, title, presenter}, reasons: [{key, label}](사람마다 무작위 순서), my_reason, quiz: {id, question, choices} 또는 null } 퀴즈 없는 포스터도 스캔된다(v0.2 E-02) | 있음 |
+| poster | /api/poster/response | POST | poster_id, reason(아래 선택지), shown_order | { saved, count, goal: 2, done } 최근 15분 스캔 필요, 재응답은 덮어씀, 제출하면 그 포스터 스탬프(미션 ①) | 있음 |
+| poster | /api/poster/answer | POST | quiz_id, choice_index | { correct: bool, stamp_count, ticket_issued: false } 퀴즈는 선택. 정답이어도 스탬프 · 응모권 없음(v0.2 E-02 · 결정 6) | 있음 |
+| poster | /api/poster/interest | POST | poster_id, choice(아래 선택지) | { saved: true } 예전 화면용. v0.2 부터는 /api/poster/response | 있음 |
 | poster | /api/poster/stamps | GET | 없음 | { stamps: [...], total, tickets: [...] } | 있음 |
 | ops | /api/ops/reset-pin | POST | participant_id | { pin } 새 무작위 4자리를 한 번만 돌려준다 | 있음 |
 | ops | /api/ops/add-participant | POST | display_name, affiliation?, role, cohort?, is_host?, pin?, offer_text?, seek_text?, topic_tags? | { participant, pin } 워크인 추가 | 있음 |
 | ops | /api/ops/compute | GET | 없음 | { reachable, model_loaded?, version? } 계산 서비스 상태. 운영자만 | 있음 |
-| ops | /api/ops/compute | POST | job: precompute(전날) · checkin(체크인 마감) · coffeechat(포스터세션 중) | { job, ms, result } result 는 계산 서비스 응답(초안 version 등). 거절이면 409 COMPUTE_REFUSED. 운영자만 | 있음 |
+| ops | /api/ops/compute | POST | job: precompute(전날) · checkin(체크인 마감) · coffeechat(포스터세션 중) | { job, ms, result } result 는 계산 서비스 응답(초안 version 등. checkin 은 새 초안이 없어 version 이 null). 거절이면 409 COMPUTE_REFUSED. 운영자만 | 있음 |
 | ops | /api/ops/participants | GET | 없음 | { participants: [{id, display_name, affiliation, role, cohort, is_host, is_admin, consented, has_sid, checked_at, is_late}] } 이 행사 전원. 운영자만 | 있음 |
 | ops | /api/ops/checkin | POST | participant_id, is_late? | { checked_at, is_late, already } 수동 체크인. 이미 돼 있으면 already true. 운영자만 | 있음 |
 | ops | /api/ops/labels | GET | 없음 | { codebook_version, labels: [{prefix, label, members}] } 활성 코드북의 이름표. 운영자만 | 있음 |
@@ -76,7 +78,11 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 | | different | 좋았지만 내 관심사와는 조금 달랐다 |
 | | unsure | 잘 모르겠다 |
 | | mismatch | 나와는 잘 안 맞았다 |
-| /api/poster/interest | learn_more | 더 알아보고 싶다 |
+| /api/poster/response | topic | 주제가 흥미로움 |
+| | method | 방법이 궁금함 |
+| | experience | 내 경험과 관련 있음 |
+| | new_field | 새롭게 접한 분야 |
+| /api/poster/interest(예전 화면) | learn_more | 더 알아보고 싶다 |
 | | interesting | 흥미로웠다 |
 | | not_mine | 내 관심 분야는 아니다 |
 
@@ -85,7 +91,7 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 | 경로 | 방법 | 언제 | 하는 일 |
 |---|---|---|---|
 | /health | GET | 항상 | 모델·코드북 로드 여부 |
-| /precompute | POST | 행사 전날 | 사전 등록자 전원 임베딩·코드북·주소·라벨 발급, 테이블토크 배정 draft 생성 |
-| /coffeechat | POST | 테이블토크 종료 뒤(포스터세션 중) | 체크인 명단 + edges + satisfaction + poster_interest 로 점수 재계산, 커피챗 배정 draft, 추천 목록 생성 |
+| /precompute | POST | 행사 전날 | 사전 등록자 전원 임베딩·코드북·주소·라벨 발급, 테이블토크 배정 · 좌석 draft(1번 고정 + 2~9번), 전날 추천 목록. reuse_codebook=true 면 현장 등록자 주소만 |
+| /coffeechat | POST | 포스터 응답 마감 뒤(16:45) | 체크인 명단 + 명함 교환 + 테이블토크 만족도 + 포스터 응답(docs/DATA_SPEC.md 규칙) 으로 점수 재계산, 3~4명 그룹 draft, 그룹 카드 근거 한 줄, 자유 이동 추천 목록 |
 
 호출자는 헤더 `X-Compute-Secret` 을 보낸다. 결과는 계산 서비스가 DB 에 직접 쓰고 `assign_versions.version` 만 돌려준다.

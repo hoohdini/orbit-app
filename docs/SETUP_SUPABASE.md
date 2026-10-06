@@ -39,3 +39,5 @@
 ## 6. 스키마를 바꿀 때
 
 새 파일 `supabase/migrations/0003_<설명>.sql` 을 만들고 PR 로 올린다. 병합 뒤 성하가 SQL Editor 에서 dev → event 순서로 실행한다. 기존 파일은 고치지 않는다.
+
+새 칸 · 표를 읽는 코드가 같이 들어오면 마이그레이션을 먼저 실행한 뒤 웹 · 계산 서비스를 띄운다. 예: 0008(fixed_table · seat_no) · 0009(poster_responses · group_reasons · orbit 라벨 · score_no_poster)가 없으면 테이블토크 · 커피챗 · 포스터 API 와 계산 서비스가 칸이 없다는 오류로 멈춘다. 번호가 겹치지 않게 PR 을 올리기 전에 main 의 마지막 번호를 확인한다.
