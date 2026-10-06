@@ -8,7 +8,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from eval.rehearsal_accuracy import per_person_accuracy, satisfaction_auc  # noqa: E402
+from eval.rehearsal_accuracy import per_person_accuracy, picks_from_satisfaction, satisfaction_auc  # noqa: E402
 
 
 def fake_round(n=60, size=5, seed=0):
@@ -67,6 +67,16 @@ def test_no_poster_and_concentration():
     assert picks_from_exchanges(rows, members) == {("p0", "p1"), ("p1", "p0")}
     c = concentration(rows, ids)
     assert c["사람"] == 20 and c["못 받은 사람"] == 17
+
+
+
+def test_picks_from_satisfaction():
+    members = [{"participant_id": p, "table_no": t} for p, t in (("a", 1), ("b", 1), ("c", 1), ("d", 2))]
+    rows = [{"participant_id": "a", "picks": ["b", "d"], "elapsed_ms": 3000},      # d 는 다른 테이블 → 뺌
+            {"participant_id": "b", "picks": [], "elapsed_ms": 5000},              # 안 골라도 답한 사람
+            {"participant_id": "c", "picks": ["a"], "elapsed_ms": 200}]            # 0.2초 → 뺌
+    picks, raters = picks_from_satisfaction(rows, members)
+    assert picks == {("a", "b")} and raters == {"a", "b"}
 
 
 if __name__ == "__main__":

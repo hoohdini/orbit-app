@@ -80,6 +80,12 @@ class MemoryRepo:
         s = set(ids)
         return {r["participant_id"]: r["choice"] for r in self.t["satisfaction"] if r["round"] == round_ and r["participant_id"] in s}
 
+    def satisfaction_rows(self, round_: str, ids: list[str]) -> list[dict]:
+        """[{participant_id, choice, picks, elapsed_ms}]. picks · elapsed_ms 는 0012(고른 사람, 답하는 데 걸린 시간)."""
+        s = set(ids)
+        return [{"participant_id": r["participant_id"], "choice": r["choice"], "picks": r.get("picks") or [],
+                 "elapsed_ms": r.get("elapsed_ms")} for r in self.t["satisfaction"] if r["round"] == round_ and r["participant_id"] in s]
+
     def latest_tables(self, round_: str, ids: list[str], event_id: str = "dev") -> list[dict]:
         """이 행사의 라운드별 최신 배정(공개된 것 우선, 없으면 최신 초안)에서 이 사람들의 자리."""
         s = set(ids)
@@ -201,6 +207,14 @@ class SupabaseRepo:
     def satisfaction(self, round_, ids):
         rows = self._in("satisfaction", "participant_id, round, choice", "participant_id", ids)
         return {r["participant_id"]: r["choice"] for r in rows if r["round"] == round_}
+
+    def satisfaction_rows(self, round_, ids):
+        try:
+            rows = self._in("satisfaction", "participant_id, round, choice, picks, elapsed_ms", "participant_id", ids)
+        except Exception:                                   # 0012 전 DB(picks · elapsed_ms 칸 없음): 커피챗 계산이 멈추지 않게 예전 칸만 읽는다
+            rows = self._in("satisfaction", "participant_id, round, choice", "participant_id", ids)
+        return [{"participant_id": r["participant_id"], "choice": r["choice"], "picks": r.get("picks") or [],
+                 "elapsed_ms": r.get("elapsed_ms")} for r in rows if r["round"] == round_]
 
     def latest_tables(self, round_, ids, event_id="dev"):
         vs = self._all(lambda: self.db.table("assign_versions").select("version, status").eq("round", round_)

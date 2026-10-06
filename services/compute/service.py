@@ -91,8 +91,9 @@ def _labels(codes: np.ndarray, tags: list[list[str]], version: str) -> list[dict
     return rows
 
 
-SAT_TEXT = {"gained": "새로 얻은 게 있었다", "different": "좋았지만 내 관심사와는 조금 달랐다",
-            "unsure": "잘 모르겠다", "mismatch": "나와는 잘 안 맞았다"}
+SAT_TEXT = {"gained": "많이 얻었어요", "different": "조금 얻었어요",          # 0012 부터 3지선다(키는 그대로 문구만 바꿈)
+            "unsure": "잘 모르겠다", "mismatch": "잘 맞지 않았어요"}         # unsure 는 예전 답(더 받지 않음)
+SAT_MIN_ELAPSED_MS = 1000   # 질문이 뜬 뒤 1초도 안 돼 낸 답은 대충 누른 것으로 보고 반영하지 않는다(10/6 민찬)
 
 
 def _reasons(P, table, A, random_seat, prev: dict[int, int] | None = None,
@@ -312,22 +313,39 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     np.fill_diagonal(forbid, False)
     mates = [[j for j in groups.get(prev[i], []) if j != i] if i in prev else [] for i in range(n)]
 
-    sat_raw = repo.satisfaction("tabletalk", ids)
-    sat = {idx[pid]: c for pid, c in sat_raw.items() if pid in idx}
-    rate = len(sat) / n
+    # 만족도(0012): 3지선다 + 고른 사람(picks). 고른 사람이 있으면 테이블 전체 평균 대신 그 사람들의 하는 일 쪽으로 옮긴다.
+    #   고른 사람이 있으면 테이블 답이 '잘 맞지 않았어요'여도 고른 사람 쪽으로는 약하게(조금 얻었어요 무게) 당긴다.
+    #   안 고른 사람은 감점하지 않는다. 1초도 안 돼 낸 답은 응답률에는 세고 반영에서는 뺀다
+    sat_rows = [r for r in repo.satisfaction_rows("tabletalk", ids) if r["participant_id"] in idx]
+    rate = len(sat_rows) / n
     fallback = rate < min_response_rate
     sw = scoring.sat_weights()
+    sat: dict[int, str] = {}
+    picked: dict[int, list[int]] = {}
+    sat_fast = 0
+    for r in sat_rows:
+        i = idx[r["participant_id"]]
+        if r.get("elapsed_ms") is not None and r["elapsed_ms"] < SAT_MIN_ELAPSED_MS:
+            sat_fast += 1
+            continue
+        sat[i] = r["choice"]
+        ps = [idx[p] for p in dict.fromkeys(r.get("picks") or []) if p in idx and idx[p] in mates[i]]
+        if ps:
+            picked[i] = ps
+    targets = [picked.get(i, mates[i]) for i in range(n)]
+    sat_w = np.array([max(sw.get(sat.get(i), 0.0), sw.get("different", 0.33)) if i in picked else sw.get(sat.get(i), 0.0)
+                      for i in range(n)])
     if fallback:                                                         # 대체 경로 = 만남 반영 없이 텍스트만
         O2, S2 = O, S
     else:
         O2 = O
-        S2 = scoring.seek_shift(S, O, mates, np.array([sw.get(sat.get(i), 0.0) for i in range(n)]), beta)  # 만족도 → Seek
+        S2 = scoring.seek_shift(S, O, targets, sat_w, beta)           # 만족도 · 고른 사람 → Seek
         S2 = scoring.card_shift(S2, O, W, beta, by_weight=True)          # 명함 교환 → Seek
 
     a_np = scoring.directional(S2, O2)                                   # 포스터 반영 전 점수(B-05 검증용으로 같이 저장)
 
     # 포스터 → Seek 를 관심 있게 본 포스터 주제 쪽으로 당긴다. 만족도 응답률과 상관없이 답한 사람마다 반영한다
-    #   새 응답(poster_responses, v0.2 E-02)이 있으면 B-05 전처리 뒤 폭 0.2 로 당기기만 한다
+    #   새 응답(poster_responses, 0011 흥미 3단계)이 있으면 B-05 전처리 뒤 폭 0.2 로 당기고, 관심 분야 아님은 밀어낸다
     #   없으면 예전 관심도(poster_interest 3지선다)를 예전 규칙(폭 beta, 관심 없음은 밀어냄)으로 쓴다
     # 사람마다 갈린다 — 새 응답이 있는 사람은 새 규칙, 없고 예전 관심도만 있는 사람은 예전 규칙(예전 데모 화면으로 답한 사람)
     all_posters = {p["id"]: p for p in repo.posters()}
@@ -350,7 +368,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
         PV, _ = enc.people([[p["title"]] + (["관심 주제: " + ", ".join(p["tags"])] if p.get("tags") else [])
                             + ([p["summary"]] if p.get("summary") else []) for p in used])
         V = {p["id"]: PV[k] for k, p in enumerate(used)}
-        for part, b in ((new_rows, signals.POSTER_BETA), (old_rows, beta)):   # 새 응답은 폭 0.2 · 당기기만, 예전은 폭 beta · 밀어내기 포함
+        for part, b in ((new_rows, signals.POSTER_BETA), (old_rows, beta)):   # 새 응답은 폭 0.2, 예전은 폭 beta. 둘 다 음수 답은 밀어냄
             for negative in (False, True):
                 T, pwv = scoring.poster_targets(n, part, V, S2.shape[1], negative=negative)
                 S2 = scoring.seek_toward(S2, T, pwv, b)
@@ -373,7 +391,8 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
                        sizes=sizes, cohort_cap=COFFEECHAT_COHORT_CAP)
     params = {"kind": "coffeechat", "table_mode": table_mode, "rec_mode": rec_mode or "env", "beta": beta,
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2), "cards": card_stat,
-              "sat_weights": sw, "sat_counts": dict(Counter(sat.values())),
+              "sat_weights": sw, "sat_counts": dict(Counter(sat.values())), "sat_fast": sat_fast,
+              "sat_picks": {"people": len(picked), "picked": sum(len(v) for v in picked.values())},
               "poster_source": poster_source, "poster_weights": pw, "poster_beta": poster_beta, "poster_filter": poster_stat,
               "poster_answers": len(rows), "poster_people": len(set(poster_n) | set(poster_not)), "search": query_stat,
               "forbid_hits": r.forbid_hits, "cohort_over": r.cohort_over, "n": n, "groups": len(sizes),
