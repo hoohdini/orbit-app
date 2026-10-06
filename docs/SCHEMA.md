@@ -28,7 +28,7 @@
 | recs | 개인 추천(순위, 상대, 이유) | 계산 서비스 | 전날 계산(테이블토크 버전)과 커피챗 계산(커피챗 버전) 두 번 만든다. 생성 시점은 version 의 round 로 안다(v0.2 B-06) |
 | group_reasons | 커피챗 그룹 구성원 카드의 근거 한 줄(보는 사람 → 상대) | 계산 서비스 | 0009. 근거가 없는 쌍은 행이 없다(v0.2 B-07) |
 | card_exchanges | 명함 교환 기록(방향 있음). `source` qr·manual 은 찍은 쪽, auto 는 받은 쪽. `seen_at` 은 받은 쪽 알림 확인 시각. 0010: `status`(pending 이름 검색 교환의 상대 확인 전 · confirmed), `confirmed_at`(성립 시각, 미션 판정 기준), `first_meet` · `first_meet_at`(오늘 처음 대화한 분인가요? 의 답, 내 행에만), `note`(한 줄 100자, 계산에 안 씀), `via`(스캐너를 연 탭 card · event) | card 모듈 API | 한 번 찍으면 두 행(양방향, 9/26 확정). 교환 수는 행 수 그대로(교환 1건 = 각자 +1, 전체 +2). 성립 전(pending) 교환은 미션 · 추천 · 간선 어디에도 세지 않는다 |
-| satisfaction | 테이블토크 끝 만족도. 문장 선택지 choice(gained, different, unsure, mismatch)와 한 줄 의견 | tabletalk 모듈 API | 라운드당 1건. 0005 에서 1~5 숫자를 선택지로 바꿨다 |
+| satisfaction | 테이블토크 · 커피챗 끝 만족도. 문장 선택지 choice(gained, different, mismatch. 예전 unsure 는 더 받지 않음), 고른 사람 picks(uuid[], 같은 테이블 사람), 답하는 데 걸린 시간 elapsed_ms, 한 줄 의견 | tabletalk 모듈 API | 라운드당 1건. 0005 에서 1~5 숫자를 선택지로 바꿨다. 0012 에서 3지선다 + 사람 고르기(picks · elapsed_ms) |
 | event_log | 화면 이벤트(열람, 스캔 실패 등) | 모든 모듈 API | 패시브 수집. 운영 쓰기(ops_*)는 운영자 id 를 participant_id 로 남겨 감사 로그(A-09)가 된다 |
 | rec_impressions | 오늘 만나면 좋을 분(H-04)에 처음 보인 시각(사람 쌍마다 한 행, version) | card 모듈 API(/api/card/recs) | 0010. 미션 ② 판정과 행사 뒤 분석. 다시 보여도 시각을 바꾸지 않는다 |
 | posters | 포스터 목록과 QR 코드, 요약 한 줄(summary), 발표자 참가자 id(presenter_ids) | 사전 적재 | summary · presenter_ids 는 0009. 포스터 벡터 = 제목 + tags + summary, 발표자 본인 · 같은 소속 응답은 계산에서 뺀다 |
@@ -36,7 +36,7 @@
 | quiz_attempts | 퀴즈 시도 기록 | poster 모듈 API | 오답도 남긴다 |
 | stamps | 포스터 스탬프 | poster 모듈 API | 포스터당 1개. v0.2 부터는 관심 이유를 내면 찍힌다(퀴즈 정답과 무관, /api/poster/response) |
 | poster_interest | 포스터 관심도. 문장 선택지 choice(learn_more, interesting, not_mine) | poster 모듈 API | 0005 에서 1~5 숫자를 선택지로 바꿨다. v0.2 부터는 poster_responses 를 쓴다(운영 콘솔 포스터 칸이 아직 읽어 남겨 둠) |
-| poster_responses | 포스터 관심 이유(미션 ①). reason(topic, method, experience, new_field), 보여 준 순서, 소요 시간, 응답 순번, 퀴즈 시도 | poster 모듈 API | 0009. 계산 서비스가 B-05 전처리 뒤 커피챗에 반영(docs/DATA_SPEC.md) |
+| poster_responses | 포스터 응답(미션 ①). reason = 흥미 3단계(want, maybe, not_mine), 보여 준 순서, 소요 시간, 응답 순번, 퀴즈 시도 | poster 모듈 API | 0009. 0011 에서 관심 이유 4지선다(topic, method, experience, new_field)를 흥미 3단계로 바꿨다(칸 이름 reason 은 그대로). 계산 서비스가 B-05 전처리 뒤 커피챗에 반영(docs/DATA_SPEC.md) |
 | raffle_tickets | 응모권 | poster 모듈 API | v0.2 결정 6 으로 앱에서 발급하지 않는다(명찰 번호로 앱 밖). 표와 운영 콘솔 추첨은 남아 있다 |
 | ops_state | 운영 상태(키 · 값). phase(9개 값, lib/phase.ts), phase_meta(바꾼 시각 · 사람), notice(공지와 만료 시각), mission_closed_at(미션 마감, 처음 wrapup 으로 넘어간 시각), award_excluded(특별 시상 제외 명단), published_*, compute_heartbeat, raffle_result | 운영 콘솔, 계산 서비스 | 단계 값은 표가 아니라 API(zod)가 막는다 |
 | chat_logs | 챗봇 질문 기록(횟수 제한) | P2 | |

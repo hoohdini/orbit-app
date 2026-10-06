@@ -1,7 +1,8 @@
 // POST /api/poster/answer { quiz_id, choice_index }  서버 판정. 원격 풀이 방지 · 시도 상한을 여기서 처리한다
 // 개발 지시서 v0.2 E-02: 퀴즈는 선택이고 미션과 무관하다. 정답이어도 스탬프 · 응모권을 주지 않는다
-// (스탬프 = 관심 이유 제출, /api/poster/response. 응모권은 명찰 번호로 앱 밖, v0.2 결정 6).
-// 풀어 본 기록은 그 포스터 관심 이유 응답의 quiz_attempted 에 남긴다(계산 서비스가 가중치 × 1.2)
+// (스탬프 = 포스터 응답 제출, /api/poster/response. 응모권은 명찰 번호로 앱 밖, v0.2 결정 6).
+// 퀴즈는 이지선다이고 시도는 포스터마다 1번(POSTER_MAX_ATTEMPTS 기본 1, 10/5 회의).
+// 풀어 본 기록은 그 포스터 응답의 quiz_attempted 에 남긴다(집계용. 계산 서비스는 10/6 부터 반영하지 않는다)
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ok, fail, handle } from "@/lib/api";
