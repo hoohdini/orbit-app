@@ -1,5 +1,5 @@
 "use client";
-// 포스터세션 화면. code 가 없으면 스탬프판 + QR 찍기, 있으면 그 포스터의 관심 이유 → (선택) 퀴즈 순서로 간다(개발 지시서 v0.2 E-02).
+// 포스터 응답 화면. 그 포스터의 관심 이유 → (선택) 퀴즈 순서로 간다(개발 지시서 v0.2 E-02). 미션 현황판은 이벤트 탭(/event)이다.
 // 관심 이유를 내면 그 포스터 스탬프를 받는다(미션 ①: 서로 다른 포스터 2개). 퀴즈는 선택이고 스탬프 · 응모권과 무관하다.
 // 정답은 서버만 안다. 이 화면은 고른 보기 번호만 보낸다. 데모 화면이라 프론트엔드가 E-01 · E-02 화면을 만들면 바뀐다.
 // 오류 처리: 불러오기 실패는 로딩 대신 문구와 다시 시도 버튼, 저장 실패는 그 카드 안 문구로 보여 준다. 화면 전체를 오류로 바꾸는 것은 스캔 실패뿐이다.
@@ -8,10 +8,8 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
 import TopBar from "@/components/TopBar";
 import Loading from "@/components/Loading";
-import QrScanner from "@/components/QrScanner";
-import { POSTER_MISSION_GOAL, type ReasonChoice } from "@/app/api/poster/_lib";
+import type { ReasonChoice } from "@/app/api/poster/_lib";
 
-type Stamps = { stamps: { poster_id: number; title: string; created_at: string }[]; total: number; tickets: { reason: string; issued_at: string }[] };
 type Scan = {
   poster: { id: number; code: string; title: string; presenter: string | null };
   reasons: { key: ReasonChoice; label: string }[];
@@ -21,129 +19,12 @@ type Scan = {
 type Answer = { correct: boolean; stamp_count: number; ticket_issued: boolean };
 type Saved = { saved: boolean; count: number; goal: number; done: boolean };
 
-export default function PosterClient({ code }: { code: string | null }) {
-  return code ? <PosterFlow code={code} /> : <StampBoard />;
+// via 는 스캐너를 연 탭(card 명함 탭 · event 이벤트 탭). 운영 콘솔 탭 불일치 수에만 쓴다. 폰 기본 카메라로 들어오면 null
+export default function PosterClient({ code, via }: { code: string; via: "card" | "event" | null }) {
+  return <PosterFlow code={code} via={via} />;
 }
 
-// 앱 스캐너가 읽은 문자열에서 포스터 코드를 뽑는다. docs/QR_FORMAT.md 의 포스터 QR(https://<앱주소>/poster?c=<code>) 형식만 받는다.
-// 서버의 parsePosterCode 는 수동 입력용으로 아무 문자열이나 코드로 보지만, 카메라는 아무 QR · 바코드나 읽으므로 URL 만 받는다(명함 스캔 화면과 같은 규칙).
-function posterCodeFromQr(text: string): string | null {
-  try {
-    const u = new URL(text.trim());
-    if (!u.pathname.endsWith("/poster")) return null;
-    const c = u.searchParams.get("c");
-    return c && c.trim() ? c.trim() : null;
-  } catch {
-    return null;
-  }
-}
-
-function ErrorWithRetry({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <section className="space-y-2">
-      <p className="rounded-lg bg-yellow-50 px-3 py-3 text-sm text-yellow-800">{message}</p>
-      <button type="button" onClick={onRetry} className="w-full rounded-xl border border-gray-300 bg-white py-2 text-sm">
-        다시 시도
-      </button>
-    </section>
-  );
-}
-
-function StampBoard() {
-  const router = useRouter();
-  const [data, setData] = useState<Stamps | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [retry, setRetry] = useState(0);
-  const [scanning, setScanning] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    api<Stamps>("/api/poster/stamps").then((r) => {
-      if (!alive) return;
-      if (r.ok) setData(r.data);
-      else setLoadError(r.message);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [retry]);
-
-  function onDecode(text: string) {
-    // 명찰 QR(/card?p=)은 URL 이지만 /poster 가 아니라 null 이 나온다. 스폰서 QR · 상품 바코드 같은 일반 문자열도 null
-    const c = posterCodeFromQr(text);
-    if (!c) return setNotice("포스터 QR 이 아니다. 명찰 QR 은 명함 탭에서 찍는다");
-    router.push(`/poster?c=${encodeURIComponent(c)}`);
-  }
-
-  if (!data) {
-    if (!loadError) return <Loading />;
-    return (
-      <>
-        <TopBar title="스탬프 투어" />
-        <main className="space-y-4 p-4">
-          <ErrorWithRetry
-            message={loadError}
-            onRetry={() => {
-              setLoadError(null);
-              setRetry((n) => n + 1);
-            }}
-          />
-        </main>
-      </>
-    );
-  }
-  const got = data.stamps.length;
-  const pct = data.total > 0 ? Math.round((got / data.total) * 100) : 0;
-
-  return (
-    <>
-      <TopBar title="스탬프 투어" />
-      <main className="space-y-4 p-4">
-        <section className="rounded-2xl border border-gray-200 bg-white p-4">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-sm font-semibold">모은 스탬프</h2>
-            <span className="text-xs text-gray-500">미션 ① {Math.min(got, POSTER_MISSION_GOAL)}/{POSTER_MISSION_GOAL}</span>
-          </div>
-          <p className="mt-1 text-3xl font-bold">
-            {got}
-            <span className="text-base font-normal text-gray-500"> / {data.total}</span>
-          </p>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100">
-            <div className="h-full bg-black" style={{ width: `${pct}%` }} />
-          </div>
-          {got > 0 && (
-            <ul className="mt-3 space-y-1 text-sm">
-              {data.stamps.map((s) => (
-                <li key={s.poster_id} className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-black" />
-                  {s.title}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {scanning ? (
-          <section className="space-y-2">
-            <QrScanner onDecode={onDecode} onDenied={() => setNotice("카메라를 쓸 수 없다. 폰 기본 카메라로 포스터 QR 을 찍어도 된다")} />
-            <button type="button" onClick={() => setScanning(false)} className="w-full rounded-xl border border-gray-300 bg-white py-2 text-sm">
-              닫기
-            </button>
-          </section>
-        ) : (
-          <button type="button" onClick={() => setScanning(true)} className="w-full rounded-xl bg-black py-3 text-sm font-semibold text-white">
-            포스터 QR 찍기
-          </button>
-        )}
-        {notice && <p className="rounded-lg bg-yellow-50 px-3 py-2 text-sm text-yellow-800">{notice}</p>}
-        <p className="text-xs text-gray-500">포스터 앞의 QR 을 찍고 관심 이유를 고르면 스탬프를 받는다. 서로 다른 포스터 2개면 미션 ① 완료. 퀴즈는 풀어 보고 싶을 때만</p>
-      </main>
-    </>
-  );
-}
-
-function PosterFlow({ code }: { code: string }) {
+function PosterFlow({ code, via }: { code: string; via: "card" | "event" | null }) {
   const router = useRouter();
   const [scan, setScan] = useState<Scan | null>(null);
   const [error, setError] = useState<string | null>(null); // 스캔이 더 갈 수 없을 때. 화면 전체를 바꾼다
@@ -161,7 +42,7 @@ function PosterFlow({ code }: { code: string }) {
 
   useEffect(() => {
     let alive = true;
-    api<Scan>("/api/poster/scan", { json: { qr_payload: code } }).then((r) => {
+    api<Scan>("/api/poster/scan", { json: { qr_payload: code, ...(via ? { via } : {}) } }).then((r) => {
       if (!alive) return;
       if (!r.ok) {
         setRetryable(r.code === "NETWORK" || r.code === "INTERNAL" || r.code === "BAD_RESPONSE");
@@ -173,7 +54,7 @@ function PosterFlow({ code }: { code: string }) {
     return () => {
       alive = false;
     };
-  }, [code, retry]);
+  }, [code, via, retry]);
 
   async function submitReason(choice: ReasonChoice) {
     if (!scan) return;
@@ -230,8 +111,8 @@ function PosterFlow({ code }: { code: string }) {
               다시 시도
             </button>
           )}
-          <button type="button" onClick={() => router.replace("/poster")} className="w-full rounded-xl border border-gray-300 bg-white py-2 text-sm">
-            스탬프판으로
+          <button type="button" onClick={() => router.replace("/event")} className="w-full rounded-xl border border-gray-300 bg-white py-2 text-sm">
+            미션 현황으로
           </button>
         </main>
       </>
@@ -307,8 +188,8 @@ function PosterFlow({ code }: { code: string }) {
           </section>
         )}
 
-        <button type="button" onClick={() => router.replace("/poster")} className="w-full rounded-xl border border-gray-300 bg-white py-2 text-sm">
-          스탬프판으로
+        <button type="button" onClick={() => router.replace("/event")} className="w-full rounded-xl border border-gray-300 bg-white py-2 text-sm">
+          미션 현황으로
         </button>
       </main>
     </>

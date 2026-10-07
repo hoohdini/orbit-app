@@ -45,7 +45,7 @@ function OnboardingForm() {
       return;
     }
     // 명함 · 포스터 QR 로 들어온 사람(next)은 로그인 뒤 제자리로. 첫 로그인이면 동의 화면을 거치되 next 를 이어 준다
-    router.replace(r.data.consented ? (next ?? "/onboarding/table") : withNext("/onboarding/consent", next));
+    router.replace(r.data.consented ? (next ?? "/card") : withNext("/onboarding/consent", next));
   }
 
   const canSubmit = name.trim().length >= 1 && /^\d{4}$/.test(pin) && !busy;
