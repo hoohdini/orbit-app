@@ -1,6 +1,7 @@
 "use client";
 // 배정 버전 목록 · 확인 · 공개. 계산 버튼이 끝나면(orbit:versions-changed) 목록을 다시 읽는다.
 // 공개 전에 "배정 보기"로 테이블별 구성원과 사람별 이유를 확인한다(9/27 회의: 운영진 더블체크).
+// v0.2 A-03: 지표(그룹 수 · 크기, 평균 · 최저 점수, 검수 표시, 재회 쌍, 기수 초과, 미체크인), A-04: 두 사람을 골라 자리를 바꾼 새 초안, A-10: 인쇄 좌석표.
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 
@@ -12,10 +13,28 @@ type Version = {
   published_at: string | null;
   summary: Record<string, unknown>;
 };
+type Metrics = {
+  groups: number;
+  size_min: number;
+  size_max: number;
+  mean_score: number | null;
+  low_score: number | null;
+  check_tables: number[];
+  reunion_pairs: number | null;
+  cohort_over: number;
+  not_checked_in: number;
+};
 type Detail = {
   version: number;
   round: string;
-  tables: { table_no: number; members: { id: string; display_name: string; affiliation: string | null; role: string; random: boolean; reason: string }[] }[];
+  status: string;
+  metrics?: Metrics;
+  tables: {
+    table_no: number;
+    mean_score?: number | null;
+    check?: boolean;
+    members: { id: string; display_name: string; affiliation: string | null; role: string; seat_no?: number | null; random: boolean; reason: string }[];
+  }[];
 };
 
 const ROUND = { tabletalk: "테이블토크", coffeechat: "커피챗" } as Record<string, string>;
@@ -32,6 +51,8 @@ export default function VersionsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<Detail | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
+  const [pick, setPick] = useState<string[]>([]);
+  const [swapMsg, setSwapMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -50,6 +71,8 @@ export default function VersionsPanel() {
   }, []);
 
   async function show(version: number) {
+    setPick([]);
+    setSwapMsg(null);
     if (open?.version === version) return setOpen(null);
     setBusy(version);
     const r = await api<Detail>(`/api/ops/versions/${version}`);
@@ -65,6 +88,21 @@ export default function VersionsPanel() {
     const r = await api<{ published_at: string }>("/api/ops/publish", { json: { version: v.version } });
     setBusy(null);
     if (!r.ok) return setError(r.message);
+    window.dispatchEvent(new Event("orbit:versions-changed"));
+  }
+
+  // 수동 교체(A-04). 원본은 두고 두 사람 자리를 바꾼 새 초안을 만든다
+  function toggle(id: string) {
+    setPick((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur.slice(-1), id]));
+  }
+  async function swap() {
+    if (!open || pick.length !== 2) return;
+    setBusy(open.version);
+    const r = await api<{ version: number; delta: number }>("/api/ops/swap", { json: { version: open.version, a: pick[0], b: pick[1] } });
+    setBusy(null);
+    if (!r.ok) return setError(r.message);
+    setSwapMsg(`새 초안 ${r.data.version}번을 만들었다. 점수 변화 ${r.data.delta >= 0 ? "+" : ""}${r.data.delta}. 확인하고 공개한다`);
+    setPick([]);
     window.dispatchEvent(new Event("orbit:versions-changed"));
   }
 
@@ -122,13 +160,39 @@ export default function VersionsPanel() {
               </div>
               {open?.version === v.version && (
                 <div className="mt-2 space-y-2">
+                  {open.metrics && (
+                    <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+                      <Metric label="그룹" value={`${open.metrics.groups}개 · ${open.metrics.size_min}~${open.metrics.size_max}명`} />
+                      <Metric label="평균 · 최저 점수" value={`${open.metrics.mean_score ?? "-"} · ${open.metrics.low_score ?? "-"}`} />
+                      <Metric label="재회 쌍 · 기수 초과" value={`${open.metrics.reunion_pairs ?? "-"} · ${open.metrics.cohort_over}`} warn={(open.metrics.reunion_pairs ?? 0) > 0 || open.metrics.cohort_over > 0} />
+                      <Metric label="체크인 안 한 사람" value={`${open.metrics.not_checked_in}명`} />
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <a href={`/api/ops/print?version=${open.version}`} target="_blank" rel="noreferrer" className="rounded-lg border border-gray-300 px-2 py-1">
+                      인쇄 좌석표
+                    </a>
+                    <span className="text-gray-500">{pick.length === 2 ? "두 사람을 골랐다" : "이름을 눌러 자리를 바꿀 두 사람을 고른다"}</span>
+                    {pick.length === 2 && (
+                      <button type="button" disabled={busy !== null} onClick={swap} className="rounded-lg bg-black px-2 py-1 font-semibold text-white">
+                        자리 바꾼 새 초안 만들기
+                      </button>
+                    )}
+                  </div>
+                  {swapMsg && <p className="rounded-lg bg-green-50 px-3 py-2 text-xs text-green-800">{swapMsg}</p>}
                   {open.tables.map((t) => (
-                    <div key={t.table_no} className="rounded-xl bg-gray-50 p-2">
-                      <p className="text-xs font-semibold">{t.table_no}번 테이블 · {t.members.length}명</p>
+                    <div key={t.table_no} className={`rounded-xl p-2 ${t.check ? "bg-yellow-50" : "bg-gray-50"}`}>
+                      <p className="text-xs font-semibold">
+                        {t.table_no}번 · {t.members.length}명{t.mean_score != null ? ` · 평균 ${t.mean_score}` : ""}
+                        {t.check && <span className="ml-1 rounded bg-yellow-200 px-1 text-[10px] text-yellow-900">검수</span>}
+                      </p>
                       <ul className="mt-1 space-y-1">
                         {t.members.map((m) => (
                           <li key={m.id} className="text-xs">
-                            <span className="font-medium">{m.display_name}</span>
+                            {m.seat_no != null && <span className="mr-1 text-gray-400">{m.seat_no}</span>}
+                            <button type="button" onClick={() => toggle(m.id)} className={`font-medium ${pick.includes(m.id) ? "rounded bg-black px-1 text-white" : "underline decoration-dotted"}`}>
+                              {m.display_name}
+                            </button>
                             {m.affiliation && <span className="ml-1 text-gray-500">{m.affiliation}</span>}
                             {m.random && <span className="ml-1 rounded bg-blue-100 px-1 text-[10px] text-blue-800">무작위</span>}
                             {m.reason && <p className="text-gray-600">{m.reason}</p>}
@@ -144,5 +208,14 @@ export default function VersionsPanel() {
         </ul>
       )}
     </section>
+  );
+}
+
+function Metric({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+  return (
+    <div className={`rounded-lg border bg-white px-2 py-1.5 ${warn ? "border-yellow-300" : "border-gray-200"}`}>
+      <p className="text-[11px] text-gray-500">{label}</p>
+      <p className="font-semibold">{value}</p>
+    </div>
   );
 }

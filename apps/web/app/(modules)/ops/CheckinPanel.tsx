@@ -183,11 +183,11 @@ function WalkinForm({ onAdded }: { onAdded: (msg: string) => void }) {
     setBusy(true);
     setError(null);
     try {
-      const r = await api<{ participant: { id: string; display_name: string }; pin: string }>("/api/ops/add-participant", {
+      const r = await api<{ participant: { id: string; display_name: string }; pin: string; seat: { table_no: number; seat_no: number } | null }>("/api/ops/add-participant", {
         json: { display_name: name.trim(), affiliation: aff.trim() || undefined, role, cohort: cohort ? Number(cohort) : undefined, is_host: host },
       });
       if (!r.ok) return setError(r.message);
-      onAdded(`${r.data.participant.display_name} 님 추가. 숫자 4자리: ${r.data.pin} (지금만 보인다. 본인에게 바로 알려 준다). 주소는 체크인 마감 계산 때 붙는다`);
+      onAdded(`${r.data.participant.display_name} 님 추가. 숫자 4자리: ${r.data.pin} (지금만 보인다. 본인에게 바로 알려 준다). ${r.data.seat ? `자리: ${r.data.seat.table_no}번 테이블 ${r.data.seat.seat_no}번 좌석(인원이 가장 적은 테이블 끝). ` : ""}주소는 체크인 마감 계산 때 붙는다`);
     } finally {
       setBusy(false);
     }

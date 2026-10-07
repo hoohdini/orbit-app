@@ -1,6 +1,7 @@
 "use client";
 // 상태판. 체크인 · 만족도 응답률 · 명함 교환 · 계산 서비스 생존 신호 · 라운드별 공개 버전. 15초마다 다시 읽는다.
 // 아래에 계산 서비스를 노트북에서 직접 부르는 명령도 보여 준다(9/29 결정: 행사 당일 계산 서비스는 운영자 노트북).
+// v0.2 A-01: 단계 이름, 라운드별 응답률, 쏠림 지표(받은 교환 수의 지니 계수, 한 건도 못 받은 사람 수)를 더했다.
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 
@@ -9,9 +10,12 @@ const POLL_MS = 15_000;
 type Status = {
   event_id: string;
   phase: string | null;
+  phase_label: string | null;
   participants: number;
   checkins: number;
   satisfaction: { answered: number; rate: number | null };
+  satisfaction_by_round?: Record<"tabletalk" | "coffeechat", { answered: number; rate: number | null }>;
+  skew?: { gini: number | null; zero_received: number };
   exchanges: number;
   compute_heartbeat: { at: string; last: string } | null;
   published: Record<string, { version: number; published_at: string | null } | null>;
@@ -67,7 +71,7 @@ export default function StatusPanel() {
           <h2 className="text-base font-semibold">상태판</h2>
           <span className="text-xs text-gray-500">
             행사 {status.event_id}
-            {status.phase ? ` · 단계 ${status.phase}` : ""} · {fmt(status.now)} 기준, 15초마다 갱신
+            {status.phase ? ` · 단계 ${status.phase_label ?? status.phase}` : ""} · {fmt(status.now)} 기준, 15초마다 갱신
           </span>
         </div>
         {error && <p className="mt-2 rounded-lg bg-yellow-50 px-3 py-2 text-sm text-yellow-800">{error}</p>}
@@ -79,7 +83,18 @@ export default function StatusPanel() {
             sub={`${status.satisfaction.answered}명 · 50% 미만이면 커피챗은 대체 경로`}
             warn={rate != null && rate < 0.5}
           />
-          <Stat label="명함 교환" value={String(status.exchanges)} sub="건수(양방향 1건)" />
+          <Stat label="명함 교환" value={String(status.exchanges)} sub="건수(양방향 1건, 성립한 것만)" />
+          <Stat
+            label="쏠림(지니 계수)"
+            value={status.skew?.gini == null ? "-" : status.skew.gini.toFixed(2)}
+            sub={`0 고르게 · 1 한 사람에게 몰림. 한 건도 못 받은 사람 ${status.skew?.zero_received ?? "-"}명`}
+            warn={(status.skew?.gini ?? 0) > 0.6}
+          />
+          <Stat
+            label="커피챗 만족도 응답"
+            value={status.satisfaction_by_round?.coffeechat.rate == null ? "-" : `${Math.round(status.satisfaction_by_round.coffeechat.rate * 100)}%`}
+            sub={`${status.satisfaction_by_round?.coffeechat.answered ?? 0}명 · 평가에만 쓴다`}
+          />
           <Stat
             label="계산 서비스 마지막 작업"
             value={hb ? `${hbAgo}분 전` : "기록 없음"}

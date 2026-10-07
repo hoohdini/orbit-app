@@ -1,23 +1,4 @@
-// 테이블토크 모듈 보호 (담당: 민찬). home/layout.tsx 와 같은 규칙이다.
-// 커피챗은 독립된 /coffeechat 페이지다(한 페이지로 합칠지는 다음 회의에서 정한다).
-// 글자색을 직접 정한다. globals.css 가 폰 다크 모드에서 글자를 밝게 바꿔 흰 카드 위에서 안 보이기 때문이다
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/session";
-import { getParticipant } from "@/lib/participants";
-import BottomNav from "@/components/BottomNav";
-
-export const dynamic = "force-dynamic";
-
-export default async function TabletalkLayout({ children }: { children: React.ReactNode }) {
-  const s = await getSession();
-  if (!s) redirect("/onboarding?next=/tabletalk");
-  const p = await getParticipant(s.pid);
-  if (!p) redirect("/onboarding?next=/tabletalk");
-  if (!p.consent_at) redirect("/onboarding/consent");
-  return (
-    <div className="mx-auto min-h-screen max-w-md pb-20 text-gray-900">
-      {children}
-      <BottomNav />
-    </div>
-  );
+// v0.2 결정 1: 테이블토크 · 커피챗은 네트워킹 탭(/networking) 하나로 합쳤다. 예전 주소로 들어와도 page 가 그쪽으로 보낸다.
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return children;
 }
