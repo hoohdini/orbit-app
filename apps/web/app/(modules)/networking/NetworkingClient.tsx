@@ -1,8 +1,9 @@
 "use client";
 // 네트워킹 탭 화면(개발 지시서 v0.2 N-01 ~ N-06). 궤도는 위, 명단은 아래. 자유 이동용 추천은 넣지 않는다(명함 탭 H-04).
 // 어느 배정을 보여 줄지는 상태 API 로 정한다:
-// - 커피챗 배정이 공개됐고 이 기기에서 아직 확인하지 않았으면 "새 테이블이 배정됐어요" 카드를 먼저 띄운다(N-06). 확인 전에는 테이블토크 화면 그대로
-// - 확인했으면 커피챗 화면(N-04 · N-05). 테이블토크 화면도 위 전환 버튼으로 다시 볼 수 있다
+// - 커피챗 배정이 공개됐고 단계가 포스터 세션 이후이면 "새 테이블이 배정됐어요" 카드를 먼저 띄운다(N-06). 확인 전에는 테이블토크 화면 그대로
+//   (단계도 함께 본다. 예전 공개본이 남아 있어도 테이블토크 단계에서는 커피챗을 꺼내지 않는다)
+// - 확인했거나 단계가 커피챗(coffeechat_seated 부터)이면 커피챗 화면(N-04 · N-05). 테이블토크 화면도 위 전환 버튼으로 다시 볼 수 있다
 // 마지막으로 받은 배정은 기기에 저장해 통신이 끊겨도 보여 준다(N-02). 대화거리 · 상대 현재 위치는 보여 주지 않는다(결정 2).
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
@@ -20,6 +21,9 @@ type OrbitData = {
 type Round = "tabletalk" | "coffeechat";
 type View = { assignment: Assignment; orbit: OrbitData | null; offline: boolean };
 
+// 커피챗 배정을 꺼내도 되는 단계(포스터 세션 16:55 공개 이후). 단계가 아직 없으면(운영 전) 공개 여부만 본다
+const CC_READY = ["poster", "coffeechat_seated", "coffeechat_free", "wrapup", "award"];
+const CC_NOW = ["coffeechat_seated", "coffeechat_free", "wrapup", "award"];
 const cacheKey = (round: Round) => `orbit:networking:${round}`;
 const ackKey = (version: number) => `orbit:coffeechat-ack:${version}`;
 
@@ -63,10 +67,13 @@ export default function NetworkingClient() {
   const [view, setView] = useState<View | "unpublished" | null>(null);
   const [ackTick, setAckTick] = useState(0);
 
-  const ccVersion = s?.coffeechat ? s.published.coffeechat : null;
+  const phaseOk = !s?.phase || CC_READY.includes(s.phase);
+  const ccVersion = s?.coffeechat && phaseOk ? s.published.coffeechat : null;
   const acked = ccVersion !== null && (ackTick >= 0 && readLocal<boolean>(ackKey(ccVersion)) === true);
   const pending = ccVersion !== null && !acked; // 새 배정 안내 카드를 띄울 때
-  const shown: Round = round ?? (ccVersion !== null && acked ? "coffeechat" : "tabletalk");
+  const ccNow = !!s?.phase && CC_NOW.includes(s.phase);
+  // 내가 고른 화면이 있으면 그것, 아니면 확인했거나 커피챗 단계면 커피챗(확인 카드는 위에 계속 둔다)
+  const shown: Round = ccVersion === null ? "tabletalk" : (round ?? (acked || ccNow ? "coffeechat" : "tabletalk"));
 
   useEffect(() => {
     api<{ participant: { id: string; display_name: string } }>("/api/onboarding/me").then((r) => {
@@ -96,7 +103,7 @@ export default function NetworkingClient() {
 
   if (!s || view === null) return <Loading />;
 
-  const canSwitch = ccVersion !== null && acked && s.tabletalk;
+  const canSwitch = ccVersion !== null && (acked || ccNow) && s.tabletalk;
   const label = shown === "tabletalk" ? "테이블" : "그룹";
 
   return (
