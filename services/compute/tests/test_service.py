@@ -253,6 +253,50 @@ def test_final_recs_keep_groups():
     assert max(g[x["participant_id"]] for x in gr) == max(t for p, t in g.items() if p not in gone)
 
 
+def test_final_recs_republish_and_late_arrival():
+    """행사 직후 추천: 원본 = 공개된 적 있는 커피챗 버전. final 공개 → 철회 → 다시 돌려도 같은 그룹.
+    커피챗 뒤에 들어온 사람은 자리를 쓰지 않고(없는 조 번호 방지) 추천은 받는다. 공개 안 된 커피챗 초안으로는 돌지 않는다."""
+    repo, enc = seed_repo(n=40, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    late = ids[-1]
+    for pid in ids[:-1]:
+        repo.t["checkins"].append({"participant_id": pid})
+    r = service.coffeechat(repo, enc, iters=500)
+    try:                                                                # 커피챗 초안만 있고 공개 전
+        service.coffeechat(repo, enc, final=True)
+    except ValueError as e:
+        assert "커피챗 배정이 없다" in str(e)
+    else:
+        raise AssertionError("공개 안 된 커피챗 초안으로 final 이 돌았다")
+    ver = {x["version"]: x for x in repo.t["assign_versions"]}
+    ver[r["version"]]["status"] = "published"
+    g = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == r["version"]}
+    rnd = next(m for m in repo.t["table_members"] if m["version"] == r["version"])
+    rnd["reason"] = {**(rnd.get("reason") or {}), "random": True}       # 원본의 무작위 자리 표시는 final 에도 남는다
+    repo.t["checkins"].append({"participant_id": late})                # 커피챗 계산 뒤 체크인
+    f = service.coffeechat(repo, enc, final=True)
+    assert f["late"] == 1
+    g2 = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == f["version"]}
+    assert g2 == g and late not in g2                                   # 늦게 온 사람은 자리 없음, 나머지 그대로
+    metas = {m["table_no"] for m in repo.t["tables_meta"] if m["version"] == f["version"]}
+    assert metas == set(g.values())                                     # 없는 조 번호가 생기지 않음
+    assert any(x["participant_id"] == late for x in repo.t["recs"] if x["version"] == f["version"])
+    assert not any(late in (x["participant_id"], x["target_id"]) for x in repo.t["group_reasons"] if x["version"] == f["version"])
+    ver = {x["version"]: x for x in repo.t["assign_versions"]}
+    assert ver[f["version"]]["params"]["source_version"] == r["version"]
+    assert next(m for m in repo.t["table_members"] if m["version"] == f["version"]
+                and m["participant_id"] == rnd["participant_id"])["reason"]["random"] is True
+    # 운영자가 final 공개(원본은 retired) → 철회 → 다시 돌림
+    ver[r["version"]]["status"], ver[f["version"]]["status"] = "retired", "published"
+    ver[f["version"]]["status"] = "retired"
+    f2 = service.coffeechat(repo, enc, final=True)
+    g3 = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == f2["version"]}
+    assert g3 == g
+    assert {x["version"]: x for x in repo.t["assign_versions"]}[f2["version"]]["params"]["source_version"] == r["version"]
+
+
 def test_search_and_query_shift():
     repo, enc = seed_repo(n=30, n_staff=0), FakeEncoder()
     service.precompute(repo, enc, iters=300)

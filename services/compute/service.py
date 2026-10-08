@@ -145,16 +145,18 @@ def _reasons(P, table, A, random_seat, prev: dict[int, int] | None = None,
 
 def _write_round(repo, round_: str, P, table, a, A, tags, params, reasons: list[dict], event_id: str,
                  seat: dict[int, int] | None = None, orbit: dict[int, tuple] | None = None,
-                 A_no_poster: np.ndarray | None = None) -> int:
+                 A_no_poster: np.ndarray | None = None, write: np.ndarray | None = None) -> int:
     """table = 테이블 번호(1부터). seat 이 있으면 table_members.seat_no 에 넣는다(테이블토크).
-    orbit = {테이블 번호: (대표 주소 첫자리, 라벨)} → tables_meta.orbit_* (B-08). A_no_poster → pair_scores.score_no_poster (B-05)."""
+    orbit = {테이블 번호: (대표 주소 첫자리, 라벨)} → tables_meta.orbit_* (B-08). A_no_poster → pair_scores.score_no_poster (B-05).
+    write = 자리를 쓸 사람(bool). 없으면 전원. 행사 직후 추천에서 커피챗 배정이 없던 사람은 자리를 쓰지 않는다(없는 조 번호가 화면에 뜨지 않게)"""
     v = repo.new_version(round_, params, event_id)
     ids = [p["id"] for p in P]
+    w = np.ones(len(ids), bool) if write is None else write
     repo.insert("table_members", [{"version": v, "table_no": int(t), "participant_id": ids[i], "reason": reasons[i],
                                    **({"seat_no": seat[i]} if seat is not None else {})}
-                                  for i, t in enumerate(table)])
+                                  for i, t in enumerate(table) if w[i]])
     meta = []
-    for t in sorted(set(table.tolist())):
+    for t in sorted(set(table[w].tolist())):
         prompts = recm.talk_prompts(list(np.where(table == t)[0]), tags)
         row = {"version": v, "table_no": int(t), "label": None, "talk_prompts": prompts}   # 화면용 이름표는 달지 않는다
         if orbit is not None:
@@ -279,34 +281,43 @@ def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = 
 
 
 def _keep_groups(repo, ids: list[str], idx: dict[str, int], event_id: str, forbid: np.ndarray,
-                 cohort: np.ndarray) -> tuple[seating.Seating, list[int]]:
-    """행사 직후 추천(final)용. 공개된 커피챗 그룹을 그대로 둔다. 테이블 번호도 그대로(table_no − 1).
-    커피챗 배정 뒤에 들어온 사람은 혼자 한 그룹으로 둔다(동석자가 없어 추천에서 빠지는 사람이 없게)."""
-    rows = repo.latest_tables("coffeechat", ids, event_id)
-    if not rows:
-        raise ValueError("커피챗 배정이 없다. 행사 직후 추천은 커피챗 계산 · 공개 뒤에 한다")
+                 cohort: np.ndarray) -> tuple[seating.Seating, list[int], np.ndarray, dict]:
+    """행사 직후 추천(final)용. 원본 커피챗 그룹을 그대로 둔다. 테이블 번호 · 무작위 자리 표시도 그대로.
+    원본 = 한 번이라도 공개된 커피챗 버전 중 final 이 아닌 최신 것(repo.coffeechat_source). final 을 공개하면 원본이 retired 가 되므로,
+    final 을 철회하고 다시 돌려도 같은 그룹을 찾는다. 공개된 적 없는 초안으로는 돌지 않는다.
+    커피챗 배정 뒤에 들어온 사람은 계산 안에서만 혼자 한 그룹으로 두고(동석자로 빠지는 사람이 없게) 자리는 쓰지 않는다.
+    돌려주는 것: (배정, 그룹 크기, 자리를 쓸 사람, 원본 버전)"""
+    src, rows = repo.coffeechat_source(ids, event_id)
+    if src is None:
+        raise ValueError("공개된 커피챗 배정이 없다. 행사 직후 추천은 커피챗 계산 · 공개 뒤에 한다")
     table = np.full(len(ids), -1)
+    random_seat = np.zeros(len(ids), bool)
     for m in rows:
-        table[idx[m["participant_id"]]] = int(m["table_no"]) - 1
+        i = idx[m["participant_id"]]
+        table[i] = int(m["table_no"]) - 1
+        random_seat[i] = bool((m.get("reason") or {}).get("random"))
+    seated = table >= 0
     nxt = int(table.max()) + 1
-    for i in np.where(table < 0)[0]:
+    for i in np.where(~seated)[0]:
         table[i] = nxt
         nxt += 1
     same = seating.same_table_pairs(table)
-    r = seating.Seating(table=table, random_seat=np.zeros(len(ids), bool), satisfaction=np.zeros(len(ids)), objective=0.0,
+    r = seating.Seating(table=table, random_seat=random_seat, satisfaction=np.zeros(len(ids)), objective=0.0,
                         forbid_hits=int((forbid & same).sum() // 2),
                         cohort_over=seating.cohort_overflow(table, cohort, cap=COFFEECHAT_COHORT_CAP), iters=0)
-    sizes = [int(c) for c in np.bincount(table) if c > 0]
-    return r, sizes
+    sizes = [int(c) for c in np.bincount(table[seated]) if c > 0]
+    return r, sizes, seated, src
 
 
 def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5, table_mode: str = "min",
                rec_mode: str | None = None, random_ratio: float = 0.0, beta: float = 0.5,
                n_exact: int = 10, n_explore: int = 2, iters: int = 20000, seed: int = 43, final: bool = False) -> dict:
-    """커피챗 계산(16:45 포스터 응답 마감 뒤). final=True 면 행사 직후 추천(10/6 민찬): 그날 쌓인 신호(만족도 · 명함 · 포스터 · 검색)를
-    모두 반영해 추천 목록만 다시 만든다. 커피챗 그룹은 공개된 그대로 두고, 테이블토크 · 커피챗 동석자와 이미 교환한 사람은 뺀다
-    → '오늘 못 만났지만 연락해 볼 만한 사람'. 새 초안 버전(round=coffeechat, params.kind=final)으로 저장하고 운영자가 공개한다.
-    최근 10분 쏠림 규칙(H-04, 웹)은 행사가 끝나면 최근 교환이 없어 저절로 꺼진다"""
+    """커피챗 계산(16:45 포스터 응답 마감 뒤). final=True 면 행사 직후 추천(10/6 민찬): 커피챗 계산과 같은 신호
+    (테이블토크 만족도 · 그날 명함 교환 전부 · 포스터 응답 · 검색)를 반영해 추천 목록만 다시 만든다. 검색은 감쇠 없이 그날 것을 모두 쓴다.
+    커피챗 뒤 만족도는 평가용이라 넣지 않는다(DATA_SPEC, 넣을지는 팀 결정 대기).
+    커피챗 그룹은 원본 그대로 두고(_keep_groups), 테이블토크 · 커피챗 동석자와 이미 교환한 사람은 뺀다 → '오늘 못 만났지만 연락해 볼 만한 사람'.
+    새 초안 버전(round=coffeechat, params.kind=final)으로 저장하고 운영자가 공개한다. 공개하면 원본 커피챗 버전은 retired 가 되고
+    화면은 이 버전을 읽는다(그룹 · 번호는 같음). 최근 10분 쏠림 규칙(H-04, 웹)은 행사가 끝나면 최근 교환이 없어 저절로 꺼진다"""
     P = _people(repo, event_id, only_checked_in=True)
     if len(P) < 5:
         raise ValueError(f"배정할 사람이 {len(P)}명뿐이다 (5명 이상 필요)")
@@ -383,7 +394,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
 
     # 사람 찾기 검색어 → Seek (10/5 시제품, pipeline/search.py). 기록이 없으면 그대로
     q_items, query_stat = searchm.query_targets(repo.search_logs(ids), idx, card_at,
-                                                datetime.now(timezone.utc).timestamp())
+                                                datetime.now(timezone.utc).timestamp(), decay_on=not final)
     if q_items and hasattr(enc, "encode"):
         S2 = searchm.apply_queries(S2, q_items, O, enc.encode, S_ref=S)   # 상한은 행사 전 저장된 Seek 기준
     else:
@@ -394,8 +405,9 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     cohort = np.array([p["cohort"] if p.get("cohort") is not None else -1 for p in P])
     A = scoring.table_matrix(a, is_host, table_mode)
     A_np = scoring.table_matrix(a_np, is_host, table_mode)
+    seated, src = np.ones(n, bool), None
     if final:
-        r, sizes = _keep_groups(repo, ids, idx, event_id, forbid, cohort)
+        r, sizes, seated, src = _keep_groups(repo, ids, idx, event_id, forbid, cohort)
     else:
         sizes = seating.group_sizes(n, COFFEECHAT_GROUP_MAX)
         r = seating.assign(A, is_host, cohort, forbid=forbid, random_ratio=random_ratio, iters=iters, seed=seed,
@@ -406,7 +418,8 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
               "poster_source": poster_source, "poster_weights": pw, "poster_beta": poster_beta, "poster_filter": poster_stat,
               "poster_answers": len(rows), "poster_people": len(set(poster_n) | set(poster_not)), "search": query_stat,
               "forbid_hits": r.forbid_hits, "cohort_over": r.cohort_over, "n": n, "groups": len(sizes),
-              "group_sizes": dict(Counter(sizes))}
+              "group_sizes": dict(Counter(sizes)),
+              **({"source_version": src["version"], "late": int((~seated).sum())} if final else {})}
     reasons = _reasons(P, r.table + 1, A, r.random_seat, prev=prev, sat=None if fallback else sat,
                        exchanges=None if fallback else (W > 0).sum(1), posters=poster_n,
                        posters_not=poster_not)
@@ -414,7 +427,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     cbv = sid[ids[0]]["codebook_version"]
     labels = {k[0]: lab for k, lab in repo.labels(cbv).items() if len(k) == 1}     # 운영진이 고친 최신 이름표
     v = _write_round(repo, "coffeechat", P, r.table + 1, a, A, tags, params, reasons, event_id,
-                     orbit=_orbit(r.table + 1, first_prefix, labels, tags), A_no_poster=A_np)
+                     orbit=_orbit(r.table + 1, first_prefix, labels, tags), A_no_poster=A_np, write=seated)
 
     # 그룹 구성원 카드 근거 한 줄(B-07). 문장별 벡터가 필요해 인코더의 encode 를 쓴다(없으면 건너뜀)
     n_reasons = 0
@@ -426,7 +439,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
         sim, si, oj = evm.best_match(sv, ov)
         thr = evm.threshold(sim)
         names = [p.get("display_name") or "" for p in P]
-        pairs = [(i, j) for g in np.unique(r.table) for i in np.where(r.table == g)[0] for j in np.where(r.table == g)[0]
+        pairs = [(i, j) for g in np.unique(r.table[seated]) for i in np.where(r.table == g)[0] for j in np.where(r.table == g)[0]
                  if i != j]
         ev = evm.sentences([(int(i), int(j)) for i, j in pairs], names, si_, oi, sim, si, oj, thr, tags)
         repo.insert("group_reasons", [{"version": v, "participant_id": ids[i], "target_id": ids[j], "kind": k, "text": t}
@@ -439,7 +452,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     exposure = _write_recs(repo, v, P, ids, a, met, tags, intents, [(c,) for c in first_prefix], rec_mode,
                            n_exact, n_explore, seed)
     _heartbeat(repo, "final" if final else "coffeechat")
-    return {"version": v, "final": final, "n": n, "tables": len(sizes), "groups": len(sizes), "fallback": fallback,
+    return {"version": v, "final": final, "late": int((~seated).sum()), "n": n, "tables": len(sizes), "groups": len(sizes), "fallback": fallback,
             "response_rate": round(rate, 3), "forbid_hits": r.forbid_hits, "group_reasons": n_reasons,
             "exposure_min": int(exposure.min()), "exposure_max": int(exposure.max())}
 

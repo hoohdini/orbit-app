@@ -91,6 +91,18 @@ class MemoryRepo:
         ver = max(pub or vs, key=lambda v: v["version"])["version"]
         return [m for m in self.t["table_members"] if m["version"] == ver and m["participant_id"] in s]
 
+    def coffeechat_source(self, ids: list[str], event_id: str = "dev") -> tuple[dict | None, list[dict]]:
+        """행사 직후 추천(final)의 원본 = 한 번이라도 공개된(published · retired) 커피챗 버전 중 final 이 아닌 최신 것과 그 자리.
+        final 을 공개하면 원본은 retired 가 되므로 retired 도 본다. 공개된 적 없는 초안은 보지 않는다.
+        retired = 한 번은 공개됐던 버전이라는 것은 웹 공개 · 철회 라우트 규칙(published 만 retired 로 바꿈)에 기댄다."""
+        vs = [v for v in self.t["assign_versions"] if v["round"] == "coffeechat" and v.get("event_id", "dev") == event_id
+              and v["status"] in ("published", "retired") and (v.get("params") or {}).get("kind") != "final"]
+        if not vs:
+            return None, []
+        v = max(vs, key=lambda v: v["version"])
+        s = set(ids)
+        return v, [m for m in self.t["table_members"] if m["version"] == v["version"] and m["participant_id"] in s]
+
     def active_codebook(self, event_id: str) -> dict | None:
         return next((c for c in self.t["codebooks"] if c["event_id"] == event_id and c["active"]), None)
 
@@ -212,6 +224,18 @@ class SupabaseRepo:
         s = set(ids)
         rows = self._all(lambda: self.db.table("table_members").select("version, table_no, participant_id").eq("version", ver))
         return [m for m in rows if m["participant_id"] in s]
+
+    def coffeechat_source(self, ids, event_id="dev"):
+        vs = self._all(lambda: self.db.table("assign_versions").select("version, status, params")
+                       .eq("round", "coffeechat").eq("event_id", event_id).in_("status", ["published", "retired"]))
+        vs = [v for v in vs if (v.get("params") or {}).get("kind") != "final"]
+        if not vs:
+            return None, []
+        v = max(vs, key=lambda v: v["version"])
+        s = set(ids)
+        rows = self._all(lambda: self.db.table("table_members").select("version, table_no, participant_id, reason")
+                         .eq("version", v["version"]))
+        return v, [m for m in rows if m["participant_id"] in s]
 
     def active_codebook(self, event_id):
         r = self.db.table("codebooks").select("*").eq("event_id", event_id).eq("active", True).limit(1).execute().data

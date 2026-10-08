@@ -93,7 +93,7 @@ def _ts(v) -> float:
 
 
 def query_targets(logs: list[dict], idx: dict[str, int], exchanged_at: dict[tuple[int, int], float],
-                  now: float) -> tuple[list[dict], dict]:
+                  now: float, decay_on: bool = True) -> tuple[list[dict], dict]:
     """event_log(keyword_search · keyword_open) → 반영할 목표 [{i, text 또는 target, beta}] 와 집계.
     exchanged_at = {(작은 번호, 큰 번호): 그 쌍이 처음 명함을 교환한 시각(초)}. 시각을 모르면 0.
 
@@ -102,7 +102,7 @@ def query_targets(logs: list[dict], idx: dict[str, int], exchanged_at: dict[tupl
            묶음 시작 ~ 마지막 검색 뒤 15분 안이어야 한다
     폭    열어 본 사람이 있으면 그 사람 Offer 쪽으로 0.2, 그 사람과 '열어 본 뒤에' 명함을 교환했으면 0.3.
           열어 본 사람이 없으면 검색어 쪽으로 0.1. 결과가 0명이었던 검색(오타 등)은 쓰지 않는다
-    감쇠  묶음의 마지막 검색 시각부터 40분마다 절반"""
+    감쇠  묶음의 마지막 검색 시각부터 40분마다 절반. decay_on=False 면 감쇠 없음(행사 직후 추천: 그날 검색을 모두 같은 무게로)"""
     stat = {"searches": 0, "zero_hit": 0, "chained": 0, "opened": 0, "opened_exchanged": 0, "used": 0}
     by: dict[str, list[dict]] = {}
     for r in logs:
@@ -132,7 +132,7 @@ def query_targets(logs: list[dict], idx: dict[str, int], exchanged_at: dict[tupl
             if fit and pl.get("target_id") in idx:
                 max(fit, key=lambda c: c["start"])["opens"].append((idx[pl["target_id"]], t))
         for c in chains:
-            decay = 0.5 ** (max(0.0, now - c["end"]) / 60 / HALF_LIFE_MIN)
+            decay = 0.5 ** (max(0.0, now - c["end"]) / 60 / HALF_LIFE_MIN) if decay_on else 1.0
             if c["opens"]:
                 seen = set()
                 for j, t_open in c["opens"]:
