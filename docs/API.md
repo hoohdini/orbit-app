@@ -63,7 +63,7 @@
 | ops | /api/ops/reset-pin | POST | participant_id | { pin } 새 무작위 4자리를 한 번만 돌려준다 | 있음 |
 | ops | /api/ops/add-participant | POST | display_name, affiliation?, role, cohort?, is_host?, pin?, offer_text?, seek_text?, topic_tags?, assign_seat?(기본 true) | { participant, pin, seat: {version, table_no, seat_no} 또는 null } 워크인 추가. 공개된 테이블토크가 있으면 고정 테이블을 뺀 가장 적은 테이블의 끝 좌석에 바로 넣는다(v0.2 A-05) | 있음 |
 | ops | /api/ops/compute | GET | 없음 | { reachable, model_loaded?, version? } 계산 서비스 상태. 운영자만 | 있음 |
-| ops | /api/ops/compute | POST | job: precompute(전날) · checkin(체크인 마감) · coffeechat(포스터세션 중) | { job, ms, result } result 는 계산 서비스 응답(초안 version 등. checkin 은 새 초안이 없어 version 이 null). 거절이면 409 COMPUTE_REFUSED. 운영자만 | 있음 |
+| ops | /api/ops/compute | POST | job: precompute(전날) · checkin(체크인 마감) · coffeechat(포스터세션 중) · final(시상 · 폐회 뒤 행사 직후 추천, 계산 서비스 /coffeechat {final:true}) | { job, ms, result } result 는 계산 서비스 응답(초안 version 등. checkin 은 새 초안이 없어 version 이 null. final 은 late = 커피챗 뒤에 들어와 자리 없이 추천만 받은 사람 수). 거절이면 409 COMPUTE_REFUSED. final 을 모르는 예전 계산 서비스면 409 COMPUTE_OLD. 운영자만 | 있음 |
 | ops | /api/ops/participants | GET | 없음 | { participants: [{id, display_name, affiliation, role, cohort, is_host, is_admin, consented, consent_refused, has_sid, checked_at, is_late}] } 이 행사 전원. 운영자만 | 있음 |
 | ops | /api/ops/checkin | POST | participant_id, is_late? | { checked_at, is_late, already } 수동 체크인. 이미 돼 있으면 already true. 운영자만 | 있음 |
 | ops | /api/ops/labels | GET | 없음 | { codebook_version, labels: [{prefix, label, members}] } 활성 코드북의 이름표. 운영자만 | 있음 |
