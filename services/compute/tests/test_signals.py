@@ -126,6 +126,9 @@ def test_query_targets_and_apply():
                           (3, 0, None, round(0.3 * dec(300), 4)), (1, 2, None, round(0.2 * dec(100), 4)),
                           (3, None, "LLM", round(0.1 * dec(600), 4))], key=repr), got     # 5분 전 첫 'LLM' 은 따로 센 검색(열어 봄 없음)
     assert st["chained"] == 1 and st["zero_hit"] == 1 and st["opened"] == 2 and st["opened_exchanged"] == 1
+    # 행사 직후 추천(decay_on=False): 몇 시간 뒤에 돌려도 그날 검색이 같은 무게
+    later, _ = search.query_targets(logs, IDX, at, now + 5 * 3600, decay_on=False)
+    assert sorted(round(it["beta"], 4) for it in later) == sorted([0.2, 0.1, 0.3, 0.2, 0.1])
     # 적용: 목표를 지나치지 않고, 행사 전 Seek 와 cos 0.85 아래로 안 감
     S = unit(np.array([[1.0, 0, 0, 0], [0, 1.0, 0, 0]]))
     O = unit(np.array([[0, 0, 1.0, 0], [0.99, 0.14, 0, 0]]))

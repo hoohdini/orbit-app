@@ -128,5 +128,6 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 | /precompute | POST | 행사 전날 | 사전 등록자 전원 임베딩·코드북·주소·라벨 발급, 테이블토크 배정 · 좌석 draft(1번 고정 + 2~9번), 전날 추천 목록. reuse_codebook=true 면 현장 등록자 주소만 |
 | /search | POST | 사람 찾기 때(시제품) | q(2~30자), viewer_id, aliases?(웹 줄임말 사전의 같은 뜻 다른 표기, 최대 20) → { q, people: [{id, score}], all_scores } 하는 일 문장 · 관심 태그 중 검색어와 가장 가까운 것의 cos 를 그 사람 점수로(문장별 최고), 평균 + 1 표준편차 이상 최대 10. aliases 는 검색어 뒤 괄호로 붙여 벡터로 바꿈. score 는 웹 정렬 · 거르기용, 화면에 안 냄. WARM_MODEL=1 이면 켤 때 모델을 미리 올림 |
 | /coffeechat | POST | 포스터 응답 마감 뒤(16:45) | 체크인 명단 + 명함 교환 + 테이블토크 만족도 + 포스터 응답(docs/DATA_SPEC.md 규칙) 으로 점수 재계산, 3~4명 그룹 draft, 그룹 카드 근거 한 줄, 자유 이동 추천 목록 |
+| /coffeechat { final: true } | POST | 행사 직후(시상 · 폐회 뒤) | 행사 직후 추천(10/6). 한 번이라도 공개된 커피챗 버전(final 제외, retired 포함)의 그룹을 그대로 두고 커피챗 계산과 같은 신호(검색은 감쇠 없이 그날 것 전부)로 추천 목록만 다시 만든다. 테이블토크 · 커피챗 동석자와 이미 교환한 사람은 빠진다(오늘 못 만났지만 연락해 볼 만한 사람). 커피챗 뒤에 들어온 사람은 자리 없이 추천만 받는다(응답 late). 새 draft(round=coffeechat, params.kind=final, source_version)로 저장하고 운영자가 공개하면 원래 커피챗 버전은 retired 가 되고 H-04 추천(/api/card/recs)이 이 목록을 쓴다. 공개된 커피챗 배정이 없으면 409 |
 
 호출자는 헤더 `X-Compute-Secret` 을 보낸다. 결과는 계산 서비스가 DB 에 직접 쓰고 `assign_versions.version` 만 돌려준다.
