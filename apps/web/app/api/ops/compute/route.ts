@@ -4,6 +4,7 @@
 //   precompute  행사 전날. 새 코드북 · 전원 주소 · 테이블토크 배정
 //   checkin     체크인 마감. 저장된 코드북으로 현장 등록자에게 주소만 붙인다(테이블토크는 전날 확정, 새 초안 없음)
 //   coffeechat  포스터세션 중. 만남 · 만족도 · 포스터 관심도를 반영해 커피챗 배정 · 추천
+//   final       시상 · 폐회 뒤. 행사 직후 추천: 공개된 커피챗 그룹은 그대로 두고 추천 목록만 다시(동석자 · 교환한 사람 제외)
 // 계산 서비스 주소와 비밀키(COMPUTE_URL · COMPUTE_SECRET)는 서버에만 있고 브라우저에는 가지 않는다.
 import { z } from "zod";
 import { ok, fail, handle, eventId } from "@/lib/api";
@@ -19,9 +20,10 @@ const JOBS = {
   precompute: { path: "/precompute", body: {} },
   checkin: { path: "/precompute", body: { reuse_codebook: true } },
   coffeechat: { path: "/coffeechat", body: {} },
+  final: { path: "/coffeechat", body: { final: true } },
 } as const;
 
-const Body = z.object({ job: z.enum(["precompute", "checkin", "coffeechat"]) });
+const Body = z.object({ job: z.enum(["precompute", "checkin", "coffeechat", "final"]) });
 
 function computeUrl(): string | null {
   const u = (process.env.COMPUTE_URL ?? "").trim().replace(/\/+$/, "");
@@ -79,6 +81,9 @@ export async function POST(req: Request) {
     // 409 = 계산 서비스가 거절한 경우(사람 부족, 저장된 코드북 없음 등). 이유를 그대로 보여 준다
     if (r.status === 409) return fail("COMPUTE_REFUSED", typeof detail === "string" ? detail : "계산 서비스가 거절했다", 409);
     if (r.status !== 200) return fail("COMPUTE_FAILED", `계산 서비스 오류(${r.status})`, 500);
+    // 행사 직후 추천을 모르는 예전 계산 서비스는 final 을 무시하고 커피챗을 새로 배정한다. 응답에 final 이 없으면 막는다
+    if (b.job === "final" && (r.body as { final?: unknown } | null)?.final !== true)
+      return fail("COMPUTE_OLD", "계산 서비스가 행사 직후 추천을 모르는 예전 버전이다. 방금 생긴 커피챗 초안은 공개하지 말고 계산 서비스를 새로 받는다", 409);
     return ok({ job: b.job, ms, result: r.body });
   });
 }
