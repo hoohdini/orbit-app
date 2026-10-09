@@ -1,7 +1,8 @@
 "use client";
 // 라운드 만족도 전면 카드(개발 지시서 v0.2 N-03). 단계가 tabletalk_end(테이블토크 뒤) · wrapup(커피챗 뒤)로 바뀌면 어느 탭에 있든 한 번 뜬다.
-// 1문항 3지선다 + 선택 질문 '이런 분을 더 만나 보고 싶다' 싶었던 분 고르기(같은 테이블 · 같은 그룹, 여러 명, 안 골라도 됨, 고른 분에게 알리지 않음).
-// 답을 고른 뒤 보내기를 누른다. 질문이 뜬 뒤 답을 고르기까지 걸린 시간(elapsed_ms)을 같이 보낸다(계산 서비스가 1초 미만 답을 거른다).
+// "배정은 어땠나요?" 따봉 3단계(10/9 민찬) + 선택 질문 '이런 분을 더 만나 보고 싶다' 싶었던 분 고르기(여러 명, 안 골라도 됨, 고른 분에게 알리지 않음).
+// 고를 수 있는 사람은 GET /api/tabletalk/satisfaction 의 candidates(같은 테이블 · 그룹에서 나 · 동의 거부자 뺌). 없으면 고르기 칸을 숨긴다.
+// 답을 고른 뒤 보내기를 누른다. 질문이 뜬 뒤 보내기까지 걸린 시간(elapsed_ms)을 같이 보낸다(계산 서비스가 2초 미만 답을 거른다).
 // 건너뛰기 가능. 이미 답했거나 이 기기에서 건너뛰었으면 다시 띄우지 않는다. 동의하지 않은 사람에게는 띄우지 않는다.
 // 응답 여부는 미션 조건이 아니다. 선택지 정본은 app/api/tabletalk/_choices.ts.
 import { useEffect, useRef, useState } from "react";
@@ -13,7 +14,8 @@ type Round = "tabletalk" | "coffeechat";
 type Mate = { id: string; display_name: string };
 
 const ROUND_OF: Record<string, Round> = { tabletalk_end: "tabletalk", wrapup: "coffeechat" };
-const TITLE = { tabletalk: "이번 테이블에서 새로 얻은 게 있었나요?", coffeechat: "이번 커피챗 그룹에서 새로 얻은 게 있었나요?" };
+const TITLE = { tabletalk: "이번 테이블 배정은 어땠나요?", coffeechat: "이번 커피챗 그룹 배정은 어땠나요?" };
+const ICON: Record<string, string> = { gained: "👍👍", different: "👍", mismatch: "👎" };
 const PICK_Q = "'이런 분을 더 만나 보고 싶다' 싶었던 분이 있나요?";
 const PICK_NOTE = "고른 분과 비슷한 분을 커피챗 · 추천에 더 넣어 드려요. 고른 분에게는 알리지 않아요. 안 골라도 돼요";
 const skipKey = (round: string) => `orbit:satisfaction-skip:${round}`;
@@ -36,11 +38,11 @@ export default function SatisfactionGate() {
       if (sessionStorage.getItem(skipKey(round))) return;
     } catch {}
     let alive = true;
-    api<{ answered: boolean }>(`/api/tabletalk/satisfaction?round=${round}`).then((r) => {
+    api<{ answered: boolean; candidates?: Mate[] }>(`/api/tabletalk/satisfaction?round=${round}`).then((r) => {
       if (!alive || !r.ok || r.data.answered) return;
       setChoice(null);
       setPicks(new Set());
-      setMates([]);
+      setMates(r.data.candidates ?? []);
       elapsed.current = null;
       shownAt.current = performance.now(); // 클릭 이벤트의 timeStamp 와 같은 기준 시계
       setOpen(round);
@@ -49,20 +51,6 @@ export default function SatisfactionGate() {
       alive = false;
     };
   }, [round]);
-
-  // 카드가 뜨면 고를 수 있는 사람(그 라운드 같은 테이블 · 그룹, 나 빼고)을 불러온다. 못 불러오면 고르기 칸만 숨긴다
-  useEffect(() => {
-    if (!open) return;
-    let alive = true;
-    // 두 API 모두 members 맨 앞이 나다(테이블토크는 좌석 순서 나부터, 커피챗은 나 먼저 정렬). 그래서 첫 사람을 뺀다
-    api<{ members: Mate[] }>(`/api/${open}/table`).then((t) => {
-      if (!alive || !t.ok) return;
-      setMates(t.data.members.slice(1).map((m) => ({ id: m.id, display_name: m.display_name })));
-    });
-    return () => {
-      alive = false;
-    };
-  }, [open]);
 
   if (!open) return null;
 
@@ -73,9 +61,8 @@ export default function SatisfactionGate() {
     setOpen(null);
   }
 
-  function pickChoice(c: SatisfactionChoice, at: number) {
+  function pickChoice(c: SatisfactionChoice) {
     setChoice(c);
-    elapsed.current = Math.max(0, Math.round(at - shownAt.current)); // 보낸 답을 고른 시점까지
   }
 
   function togglePick(id: string) {
@@ -87,8 +74,9 @@ export default function SatisfactionGate() {
     });
   }
 
-  async function send() {
+  async function send(at: number) {
     if (!choice) return;
+    elapsed.current = Math.max(0, Math.round(at - shownAt.current)); // 질문이 뜬 뒤 보내기까지(실수로 골라 놓고 고민하는 시간 포함)
     setBusy(true);
     setError(null);
     const r = await api("/api/tabletalk/satisfaction", {
@@ -110,10 +98,11 @@ export default function SatisfactionGate() {
               key={c.key}
               type="button"
               disabled={busy}
-              onClick={(e) => pickChoice(c.key, e.timeStamp)}
+              onClick={() => pickChoice(c.key)}
               aria-pressed={choice === c.key}
               className={`rounded-xl border px-4 py-3 text-left text-sm ${choice === c.key ? "border-black bg-black text-white" : "border-gray-300"}`}
             >
+              <span className="mr-2">{ICON[c.key] ?? ""}</span>
               {c.label}
             </button>
           ))}
@@ -142,7 +131,7 @@ export default function SatisfactionGate() {
         <button
           type="button"
           disabled={!choice || busy}
-          onClick={send}
+          onClick={(e) => send(e.timeStamp)}
           className="mt-5 w-full rounded-xl bg-black py-3 text-sm font-semibold text-white disabled:bg-gray-300"
         >
           {busy ? "보내는 중" : "보내기"}
