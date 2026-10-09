@@ -32,7 +32,7 @@ insert into posters (code, title, presenter, tags, booth) values
   ('P04', 'LLM 기반 문서 요약', '팀 Y', '{NLP·LLM}', 'B2'),
   ('P05', '인과추론으로 본 마케팅 효과', '팀 Z', '{인과추론,광고·마케팅}', 'C1');
 
--- 퀴즈는 이지선다(10/5 회의), 시도는 포스터마다 1번(POSTER_MAX_ATTEMPTS)
+-- 퀴즈는 이지선다(10/5 회의)
 -- 정답 칸(answer_index)이 전부 0 쪽에 몰리지 않게 선택지 순서를 섞는다(3 · 5번은 정답을 뒤로)
 insert into poster_quizzes (poster_id, question, choices, answer_index) values
   (1, '이 연구에서 그래프 정보는 어디에 주입되는가', '["임베딩 벡터","손실 함수"]', 0),

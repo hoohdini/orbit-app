@@ -16,10 +16,10 @@ export function parsePosterCode(raw: string): string | null {
   }
 }
 
-// 환경변수 POSTER_MAX_ATTEMPTS. 기본 1(10/5 회의: 퀴즈를 이지선다로 바꿔 두 번째 시도는 무조건 정답이 되므로)
+// 환경변수 POSTER_MAX_ATTEMPTS. 기본 3
 export function parseMaxAttempts(raw: string | undefined): number {
   const n = Number.parseInt((raw ?? "").trim(), 10);
-  return Number.isFinite(n) && n > 0 ? n : 1;
+  return Number.isFinite(n) && n > 0 ? n : 3;
 }
 
 // 환경변수 POSTER_RAFFLE_THRESHOLDS. 쉼표로 구분된 스탬프 개수 목록. 기본 "5"
