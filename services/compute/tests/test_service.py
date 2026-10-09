@@ -260,6 +260,51 @@ def test_picks_move_seek_toward_picked_person():
     assert picked[0] @ O[1] > table[0] @ O[1] and picked[0] @ O[2] < table[0] @ O[2]
 
 
+def _pair_score(pairs, x, y):
+    """pair_scores 행에서 x 의 seek · y 의 offer 방향 점수(a[x, y])를 찾는다. a 필드가 x 면 score_ab, y 면 score_ba."""
+    row = next(p for p in pairs if {p["a"], p["b"]} == {x, y})
+    return row["score_ab"] if row["a"] == x else row["score_ba"]
+
+
+def _run_pick_scenario(choice, pick):
+    """40명 중 me(x)만 만족도 choice 를 바꾸고, pick=True 면 같은 테이블 한 명(y)을 고른다. x → y 점수를 돌려준다."""
+    repo, enc = seed_repo(n=40, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    v1 = repo.t["assign_versions"][-1]["version"]
+    t1 = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == v1}
+    for pid in ids:
+        repo.t["checkins"].append({"participant_id": pid})
+    x = ids[0]
+    y = next(q for q in ids if q != x and t1[q] == t1[x])
+    for pid in ids:
+        row = {"participant_id": pid, "round": "tabletalk", "choice": "gained", "picks": [], "elapsed_ms": 4000}
+        if pid == x:
+            row.update(choice=choice, picks=[y] if pick else [])
+        repo.t["satisfaction"].append(row)
+    r = service.coffeechat(repo, enc, iters=500)
+    pairs = [p for p in repo.t["pair_scores"] if p["version"] == r["version"]]
+    return _pair_score(pairs, x, y)
+
+
+def test_satisfaction_picks_increase_seek_offer_score():
+    """만족도에서 동석자 한 명(y)을 고르면 테이블 평균이 아니라 y 쪽으로 Seek 가 옮겨 x → y(x 의 seek, y 의 offer) 점수가 커진다.
+    service.coffeechat 이 scoring.seek_shift 에 고른 사람(targets)을 안 넘기고 예전처럼 테이블 전체(mates)로 되돌리면
+    choice 가 똑같이 'gained' 라서 pick 유무가 결과에 영향을 못 미쳐 이 시험이 걸린다."""
+    without_pick = _run_pick_scenario("gained", pick=False)
+    with_pick = _run_pick_scenario("gained", pick=True)
+    assert with_pick > without_pick
+
+
+def test_mismatch_pick_still_pulls_toward_picked_person():
+    """테이블이 '잘 맞지 않았어요'(-0.2)여도 한 명을 골랐으면 0.33 바닥값(SAT_PICK_MIN_WEIGHT)으로 그 사람 쪽을 당긴다
+    (안 고르면 테이블 평균에서 밀어내기만 하는 것과 달리, 고른 사람 쪽은 밀어내지 않고 당긴다)."""
+    mismatch_no_pick = _run_pick_scenario("mismatch", pick=False)
+    mismatch_with_pick = _run_pick_scenario("mismatch", pick=True)
+    assert mismatch_with_pick > mismatch_no_pick
+
+
 def test_search_and_query_shift():
     repo, enc = seed_repo(n=30, n_staff=0), FakeEncoder()
     service.precompute(repo, enc, iters=300)

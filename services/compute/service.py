@@ -94,6 +94,7 @@ def _labels(codes: np.ndarray, tags: list[list[str]], version: str) -> list[dict
 SAT_TEXT = {"gained": "많이 얻었어요", "different": "조금 얻었어요",          # 0012 부터 3지선다(키는 그대로 문구만 바꿈)
             "unsure": "잘 모르겠다", "mismatch": "잘 맞지 않았어요"}         # unsure 는 예전 답(더 받지 않음)
 SAT_MIN_ELAPSED_MS = 1000   # 질문이 뜬 뒤 1초도 안 돼 낸 답은 대충 누른 것으로 보고 반영하지 않는다(10/6 민찬)
+SAT_PICK_MIN_WEIGHT = 0.33  # 고른 사람이 있으면 적어도 이 무게로는 당긴다. SAT_WEIGHTS 환경변수로 바닥값이 바뀌지 않게 상수로 뺀다(코드리뷰)
 
 
 def _reasons(P, table, A, random_seat, prev: dict[int, int] | None = None,
@@ -333,7 +334,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
         if ps:
             picked[i] = ps
     targets = [picked.get(i, mates[i]) for i in range(n)]
-    sat_w = np.array([max(sw.get(sat.get(i), 0.0), sw.get("different", 0.33)) if i in picked else sw.get(sat.get(i), 0.0)
+    sat_w = np.array([max(sw.get(sat.get(i), 0.0), SAT_PICK_MIN_WEIGHT) if i in picked else sw.get(sat.get(i), 0.0)
                       for i in range(n)])
     if fallback:                                                         # 대체 경로 = 만남 반영 없이 텍스트만
         O2, S2 = O, S
@@ -393,6 +394,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2), "cards": card_stat,
               "sat_weights": sw, "sat_counts": dict(Counter(sat.values())), "sat_fast": sat_fast,
               "sat_picks": {"people": len(picked), "picked": sum(len(v) for v in picked.values())},
+              "sat_legacy_columns": bool(getattr(repo, "sat_legacy_columns", False)),   # picks · elapsed_ms 칸 없는 예전 DB 로 대체했는지(코드리뷰)
               "poster_source": poster_source, "poster_weights": pw, "poster_beta": poster_beta, "poster_filter": poster_stat,
               "poster_answers": len(rows), "poster_people": len(set(poster_n) | set(poster_not)), "search": query_stat,
               "forbid_hits": r.forbid_hits, "cohort_over": r.cohort_over, "n": n, "groups": len(sizes),

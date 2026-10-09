@@ -87,7 +87,8 @@ def per_person_accuracy(pair_scores, members, picks: set[tuple[str, str]], rater
     return out
 
 
-POS, NEG = {"gained"}, {"different", "mismatch"}   # unsure(예전 답)는 어느 쪽도 아니라 뺀다. 0012 부터 different = 조금 얻었어요
+POS, NEG = {"gained"}, {"different", "mismatch"}   # 0012 부터 3지선다라 '많이 얻었어요' vs 나머지(조금 얻었어요 · 잘 맞지 않았어요)로 가른다
+                                                     # unsure(예전 답)는 어느 쪽도 아니라 뺀다
 
 
 def satisfaction_auc(pair_scores, members, satisfaction: dict[str, str]) -> dict:
