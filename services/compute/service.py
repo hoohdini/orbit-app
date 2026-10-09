@@ -91,10 +91,11 @@ def _labels(codes: np.ndarray, tags: list[list[str]], version: str) -> list[dict
     return rows
 
 
-SAT_TEXT = {"gained": "많이 얻었어요", "different": "조금 얻었어요",          # 0012 부터 3지선다(키는 그대로 문구만 바꿈)
-            "unsure": "잘 모르겠다", "mismatch": "잘 맞지 않았어요"}         # unsure 는 예전 답(더 받지 않음)
-SAT_MIN_ELAPSED_MS = 1000   # 질문이 뜬 뒤 1초도 안 돼 낸 답은 대충 누른 것으로 보고 반영하지 않는다(10/6 민찬)
-SAT_PICK_MIN_WEIGHT = 0.33  # 고른 사람이 있으면 적어도 이 무게로는 당긴다. SAT_WEIGHTS 환경변수로 바닥값이 바뀌지 않게 상수로 뺀다(코드리뷰)
+SAT_TEXT = {"gained": "최고였어요", "different": "좋았어요",                # 10/9 부터 "배정은 어땠나요?" 따봉 3단계(키는 그대로 문구만 바꿈)
+            "unsure": "잘 모르겠다", "mismatch": "별로였어요"}               # unsure 는 예전 답(더 받지 않음)
+SAT_MIN_ELAPSED_MS = 2000   # 질문이 뜬 뒤 제출까지 2초도 안 걸린 답은 읽지 않고 누른 것으로 보고 반영하지 않는다(10/9 민찬: 1초 → 2초, 제출까지)
+SAT_PICK_MIN_WEIGHT = 0.33  # '별로였어요'인데 고른 사람이 있으면 그 사람 쪽으로만 이 무게로 당긴다(민찬 제안 아님, 구현 판단). 환경변수와 무관한 상수
+SAT_PICK_SHARE = 0.5        # 고른 사람이 있으면 목표 방향 = 고른 사람 평균 50% + 나머지 동석자 평균 50%(10/9 민찬, 리허설 뒤 다시)
 
 
 def _reasons(P, table, A, random_seat, prev: dict[int, int] | None = None,
@@ -315,8 +316,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     mates = [[j for j in groups.get(prev[i], []) if j != i] if i in prev else [] for i in range(n)]
 
     # 만족도(0012): 3지선다 + 고른 사람(picks). 고른 사람이 있으면 테이블 전체 평균 대신 그 사람들의 하는 일 쪽으로 옮긴다.
-    #   고른 사람이 있으면 테이블 답이 '잘 맞지 않았어요'여도 고른 사람 쪽으로는 약하게(조금 얻었어요 무게) 당긴다.
-    #   안 고른 사람은 감점하지 않는다. 1초도 안 돼 낸 답은 응답률에는 세고 반영에서는 뺀다
+    #   안 고른 사람은 감점하지 않는다. 제출까지 2초도 안 걸린 답은 응답률에는 세고 반영에서는 뺀다
     sat_rows = [r for r in repo.satisfaction_rows("tabletalk", ids) if r["participant_id"] in idx]
     rate = len(sat_rows) / n
     fallback = rate < min_response_rate
@@ -333,14 +333,32 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
         ps = [idx[p] for p in dict.fromkeys(r.get("picks") or []) if p in idx and idx[p] in mates[i]]
         if ps:
             picked[i] = ps
-    targets = [picked.get(i, mates[i]) for i in range(n)]
-    sat_w = np.array([max(sw.get(sat.get(i), 0.0), SAT_PICK_MIN_WEIGHT) if i in picked else sw.get(sat.get(i), 0.0)
-                      for i in range(n)])
+    # 목표 방향 T · 무게 sat_w (사람마다)
+    #   고른 사람 없음          T = 동석자 평균, 무게 = 답 무게(최고였어요 1 · 좋았어요 0.33 · 별로였어요 −0.2 → 밀어냄)
+    #   고른 사람 있음 · 답 > 0  T = 고른 사람 평균 × 50% + 나머지 동석자 평균 × 50%(나머지가 없으면 고른 사람만), 무게 = 답 무게
+    #   고른 사람 있음 · 답 ≤ 0  T = 고른 사람 평균, 무게 = 0.33(테이블은 밀어내지 않고 고른 사람 쪽으로만 당김)
+    d = O.shape[1]
+    T = np.zeros((n, d))
+    sat_w = np.zeros(n)
+    for i in range(n):
+        if not mates[i]:
+            continue
+        a = sw.get(sat.get(i), 0.0)
+        if i not in picked:
+            T[i], sat_w[i] = O[mates[i]].mean(0), a
+            continue
+        tp = O[picked[i]].mean(0)
+        rest = [j for j in mates[i] if j not in picked[i]]
+        if a > 0:
+            T[i] = SAT_PICK_SHARE * tp + (1 - SAT_PICK_SHARE) * O[rest].mean(0) if rest else tp
+            sat_w[i] = a
+        else:
+            T[i], sat_w[i] = tp, SAT_PICK_MIN_WEIGHT
     if fallback:                                                         # 대체 경로 = 만남 반영 없이 텍스트만
         O2, S2 = O, S
     else:
         O2 = O
-        S2 = scoring.seek_shift(S, O, targets, sat_w, beta)           # 만족도 · 고른 사람 → Seek
+        S2 = scoring.seek_toward(S, T, sat_w, beta)                    # 만족도 · 고른 사람 → Seek
         S2 = scoring.card_shift(S2, O, W, beta, by_weight=True)          # 명함 교환 → Seek
 
     a_np = scoring.directional(S2, O2)                                   # 포스터 반영 전 점수(B-05 검증용으로 같이 저장)

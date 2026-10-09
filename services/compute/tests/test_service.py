@@ -158,7 +158,7 @@ def test_full_loop():
     assert all(m["reason"]["table_no"] == m["table_no"] and m["reason"]["text"] for m in cm)
     assert all(m["reason"]["from_table"] == t2[m["participant_id"]] for m in cm)          # 이전 테이블
     by_pid = {m["participant_id"]: m["reason"] for m in cm}
-    assert by_pid[checked[0]]["satisfaction"] == "gained" and "많이 얻었어요" in by_pid[checked[0]]["text"]
+    assert by_pid[checked[0]]["satisfaction"] == "gained" and "최고였어요" in by_pid[checked[0]]["text"]
     assert all(r.get("exchanges", 0) >= 1 for r in by_pid.values())                        # 테이블토크 동석자와 전부 교환함
     assert all(m.get("reason") and "from_table" not in m["reason"] for m in tab)          # 테이블토크 배정은 이전 테이블 없음
     assert by_pid[checked[0]]["posters"] == 2 and "관심 포스터 2개 반영" in by_pid[checked[0]]["text"]
@@ -223,7 +223,7 @@ def test_v02_signals_recs_reasons():
 
 
 def test_satisfaction_picks_and_fast_answers():
-    """만족도 사람 고르기(0012): 고른 동석자 쪽으로 Seek 를 옮긴다. 다른 테이블 id 는 무시, 1초 안에 낸 답은 반영에서 뺀다."""
+    """만족도 사람 고르기(0012): 고른 동석자 쪽으로 Seek 를 옮긴다. 다른 테이블 id 는 무시, 제출까지 2초 안에 낸 답은 반영에서 뺀다."""
     repo, enc = seed_repo(n=40, n_staff=0), FakeEncoder()
     ids = [p["id"] for p in repo.t["participants"]]
     service.precompute(repo, enc, iters=300)
@@ -289,9 +289,8 @@ def _run_pick_scenario(choice, pick):
 
 
 def test_satisfaction_picks_increase_seek_offer_score():
-    """만족도에서 동석자 한 명(y)을 고르면 테이블 평균이 아니라 y 쪽으로 Seek 가 옮겨 x → y(x 의 seek, y 의 offer) 점수가 커진다.
-    service.coffeechat 이 scoring.seek_shift 에 고른 사람(targets)을 안 넘기고 예전처럼 테이블 전체(mates)로 되돌리면
-    choice 가 똑같이 'gained' 라서 pick 유무가 결과에 영향을 못 미쳐 이 시험이 걸린다."""
+    """만족도에서 동석자 한 명(y)을 고르면 목표 방향의 50% 가 y 쪽이 되어 x → y(x 의 seek, y 의 offer) 점수가 커진다.
+    고른 사람을 무시하고 예전처럼 테이블 전체 평균으로만 옮기면 choice 가 똑같이 'gained' 라서 pick 유무가 결과에 영향을 못 미쳐 이 시험이 걸린다."""
     without_pick = _run_pick_scenario("gained", pick=False)
     with_pick = _run_pick_scenario("gained", pick=True)
     assert with_pick > without_pick
