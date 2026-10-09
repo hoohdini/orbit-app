@@ -1,10 +1,10 @@
-// POST /api/tabletalk/satisfaction { choice, picks?, elapsed_ms?, comment?, round? }  라운드가 끝날 때 만족도 3지선다 + 사람 고르기. 선택지는 _choices.ts
-// GET  /api/tabletalk/satisfaction?round=tabletalk|coffeechat  내가 이미 답했는지(전면 카드를 다시 띄우지 않으려고)
+// POST /api/tabletalk/satisfaction { choice, picks?, elapsed_ms?, comment?, round? }  라운드가 끝날 때 만족도 따봉 3단계 + 사람 고르기. 선택지는 _choices.ts
+// GET  /api/tabletalk/satisfaction?round=tabletalk|coffeechat  내가 이미 답했는지(전면 카드를 다시 띄우지 않으려고) + 고를 수 있는 사람(candidates)
 // 개발 지시서 v0.2 N-03: 테이블토크 뒤 · 커피챗 뒤 두 번 묻는다. round 를 안 보내면 tabletalk.
 // picks = 같은 테이블(커피챗은 같은 그룹)에서 '이런 분을 더 만나 보고 싶다' 싶었던 사람(선택, 여러 명). 고른 사람에게는 알리지 않는다.
 //   그 라운드 최신 공개 배정에서 나와 같은 테이블인 사람만 받는다(아니면 400). 본인 · 중복은 빼고 저장한다
 //   동의 거부자(H-00)는 조용히 빼고 저장한다(400 아님. 행사 중 수집 대상이 아닐 뿐 같은 테이블인 건 맞다)
-// elapsed_ms = 화면에 질문이 뜬 뒤 제출까지 걸린 시간(화면이 잰다). 반올림 · [0, 3_600_000]로 잘라 저장한다. 계산 서비스가 1초 미만 답을 뺀다
+// elapsed_ms = 화면에 질문이 뜬 뒤 제출까지 걸린 시간(화면이 잰다). 반올림 · [0, 3_600_000]로 잘라 저장한다. 계산 서비스가 2초 미만 답을 뺀다
 // 다시 내면 덮어쓴다. picks · elapsed_ms · comment 는 보낸 경우에만 덮어쓴다(답만 바꿀 때 지워지지 않게)
 // 답하지 않은 사람은 행이 없다(무응답 = 중립, 계산에 반영하지 않음).
 import { z } from "zod";
@@ -102,11 +102,27 @@ export async function GET(req: Request) {
       .eq("round", round)
       .maybeSingle();
     if (error) throw error;
+    // 고를 수 있는 사람: 그 라운드 최신 공개 배정에서 같은 테이블(나 · 동의 거부자 빼고). 배정이 없으면 빈 목록
+    const mates = await tablemates(s.pid, round);
+    let candidates: { id: string; display_name: string }[] = [];
+    if (mates && mates.size > 0) {
+      const ids = [...mates];
+      const refused = await refusedAmong(ids);
+      const keep = ids.filter((id) => !refused.has(id));
+      if (keep.length > 0) {
+        const { data: people, error: e2 } = await db().from("participants").select("id, display_name").in("id", keep);
+        if (e2) throw e2;
+        candidates = (people ?? [])
+          .map((p) => ({ id: p.id as string, display_name: p.display_name as string }))
+          .sort((a, b) => a.display_name.localeCompare(b.display_name, "ko"));
+      }
+    }
     return ok({
       round,
       answered: !!data,
       choice: (data?.choice as string | undefined) ?? null,
       picks: (data?.picks as string[] | undefined) ?? [],
+      candidates,
     });
   });
 }

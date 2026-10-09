@@ -49,9 +49,9 @@
 | card | /api/card/tags | GET | q?(자동완성) | { tags: [{tag, count}] } 다른 참가자들의 관심 태그와 사람 수(검색과 같은 범위). 눌러서 찾기용. q 를 주면 그 글자(또는 같은 뜻 다른 표기)가 든 태그만 사람 많은 순 8개. 동의 · 체크인 전이면 403 | 시제품(민찬 제안 10/5, 회의 채택 전) |
 | card | /api/card/settings | POST | visibility?(all·scanned), links?({linkedin, github, email, url}) | { visibility, links } | 있음 |
 | tabletalk | /api/tabletalk/table | GET | 없음 | { table_no, label, members: [{id, display_name, affiliation, role, cohort, seat_no, topic_tags, career_line, offer_text}] } 좌석 순서(나부터 시계 방향). career_line = 하는 일 첫 문장(v0.2 N-02) | 있음 |
-| tabletalk | /api/tabletalk/satisfaction | POST | choice(아래 선택지), picks?(uuid 배열), elapsed_ms?, comment?, round?(tabletalk 기본 · coffeechat) | { saved: true, round } 라운드마다 1건, 다시 내면 덮어씀(v0.2 N-03). 화면 질문은 '이번 테이블에서 새로 얻은 게 있었나요?'. picks 는 같은 화면 아래 선택 질문(이런 분을 더 만나 보고 싶다 싶었던 분이 있나요?)의 답으로, 그 라운드에 나와 같은 테이블인 사람만 받는다(아니면 400, 배정이 없으면 409 NOT_SEATED). 고른 사람에게는 알리지 않는다. elapsed_ms 는 질문이 뜬 뒤 답을 고르기까지 걸린 시간(화면이 잼, 1초 미만은 계산에서 뺌). 띄우는 방식: 라운드가 끝나면 전면 카드로 바로 띄우고 작은 '나중에'를 두며, 나중에를 누르면 포스터 스탬프판에서 한 번 더(최대 2번). 미리 선택된 칸 없음. 다시 내면 덮어쓰되 picks · elapsed_ms · comment 는 보낸 경우에만 바꾼다(10/6). picks 의 동의 거부자는 오류 없이 뺀다. elapsed_ms 는 소수도 받고 반올림해 0 ~ 3,600,000 으로 자른다 | 있음 |
+| tabletalk | /api/tabletalk/satisfaction | POST | choice(아래 선택지), picks?(uuid 배열), elapsed_ms?, comment?, round?(tabletalk 기본 · coffeechat) | { saved: true, round } 라운드마다 1건, 다시 내면 덮어씀(v0.2 N-03). 화면 질문은 '이번 테이블 배정은 어땠나요?' / '이번 커피챗 그룹 배정은 어땠나요?'(_choices.ts SATISFACTION_QUESTION). picks 는 같은 화면 아래 선택 질문(이런 분을 더 만나 보고 싶다 싶었던 분이 있나요?)의 답으로, 그 라운드에 나와 같은 테이블인 사람만 받는다(아니면 400, 배정이 없으면 409 NOT_SEATED). 고른 사람에게는 알리지 않는다. elapsed_ms 는 질문이 뜬 뒤 제출까지 걸린 시간(화면이 잼, 2초 미만은 계산에서 뺌). 미리 선택된 칸 없음. 넘기기 방식(건너뛰기 · 나중에 · 강제)은 팀 결정 대기. 다시 내면 덮어쓰되 picks · elapsed_ms · comment 는 보낸 경우에만 바꾼다(10/6). picks 의 동의 거부자는 오류 없이 뺀다. elapsed_ms 는 소수도 받고 반올림해 0 ~ 3,600,000 으로 자른다 | 있음 |
+| tabletalk | /api/tabletalk/satisfaction | GET | round?(tabletalk 기본 · coffeechat) | { round, answered, choice, picks, candidates: [{id, display_name}] } answered 는 전면 카드를 다시 띄우지 않으려고. candidates = 고를 수 있는 사람(그 라운드 같은 테이블에서 나 · 동의 거부자 뺌, 이름순). 배정이 없으면 빈 목록 | 있음 |
 | tabletalk | /api/tabletalk/orbit | GET | round?(tabletalk 기본 · coffeechat) | { round, version, me: {table_no, grid}, inner: [{id, display_name, affiliation}], outer: [{table_no, label, grid}] } 궤도(v0.2 N-01 · N-05). inner 는 같은 테이블 사람을 나와 가까운 순서로(최대 9, 점수는 안 줌, 동의 거부자 제외). outer 는 다른 테이블의 대표 라벨만(개인 이름 없음). grid 는 3×3 배치 위치 {row, col}(1번 왼쪽 위), 커피챗은 null 이고 그룹이 8개 넘으면 나와 가까운 8개만. 배정 공개 전 404 NOT_PUBLISHED | 있음 |
-| tabletalk | /api/tabletalk/satisfaction | GET | round?(tabletalk 기본 · coffeechat) | { round, answered, choice, picks } 전면 카드를 다시 띄우지 않으려고 | 있음 |
 | coffeechat | /api/coffeechat/table | GET | 없음 | { group_no, table_no(같은 값), label, talk_prompts(예전 화면용), members: [{id, display_name, affiliation, role, cohort, topic_tags, career_line, offer_text, reason}] } reason = 근거 한 줄 또는 null(v0.2 N-04 · B-07) | 있음 |
 | coffeechat | /api/coffeechat/recs | GET | 없음 | { recs: [{rank, target: {id, display_name, affiliation}, current_table_no, reason}] } | 있음 |
 | poster | /api/poster/scan | POST | qr_payload | { poster: {id, code, title, presenter}, reasons: [{key, label}](흥미 3단계, 고정 순서), my_reason, quiz: {id, question, choices} 또는 null } 퀴즈 없는 포스터도 스캔된다(v0.2 E-02). 화면 질문은 '오늘 이 분야와 관련된 분을 더 만나 보고 싶나요?', 선택지 아래 '어떤 답이든 스탬프는 받아요' | 있음 |
@@ -110,9 +110,9 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 
 | 경로 | 키 | 화면 문구 |
 |---|---|---|
-| /api/tabletalk/satisfaction(0012 부터, 키는 그대로 문구만 바꿈) | gained | 많이 얻었어요 |
-| | different | 조금 얻었어요 |
-| | mismatch | 잘 맞지 않았어요 |
+| /api/tabletalk/satisfaction(10/9 따봉 3단계, 키는 그대로 문구만 바꿈) | gained | 👍👍 최고였어요 |
+| | different | 👍 좋았어요 |
+| | mismatch | 👎 별로였어요 |
 | /api/poster/response(0011 부터) | want | 꼭 만나 보고 싶어요 |
 | | maybe | 기회가 되면 좋아요 |
 | | not_mine | 제 관심 분야는 아니에요 |
