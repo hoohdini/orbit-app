@@ -105,12 +105,11 @@ def satisfaction_auc(pair_scores, members, satisfaction: dict[str, str]) -> dict
 
 
 def picks_from_exchanges(card_rows: list[dict], members: list[dict]) -> set[tuple[str, str]]:
-    """같은 테이블 동석자와 명함을 교환한 쌍 → {(사람, 동석자)} 양방향. first_meet 칸이 있는 행이 하나라도 있으면
-    첫 대화로 체크된 교환만 쓴다(명찰 QR 을 찍기만 해도 교환이 늘어서). 확인 대기(status=pending)는 뺀다."""
+    """같은 테이블 동석자와 명함을 교환한 쌍 → {(사람, 동석자)} 양방향. 확인 대기(status=pending)는 뺀다.
+    첫 대화 체크(first_meet)로 거르지 않는다. 0010 부터 모든 행에 그 칸이 있고 질문은 건너뛸 수 있어서, 거르면 아무도 안 답한 행사에서
+    쌍이 0이 된다(10/9 개발 DB 시험에서 발견). 계산 서비스도 체크 여부와 상관없이 교환을 같게 본다(10/5 민찬 결정)."""
     mates = _tables(members)
     rows = [r for r in card_rows if (r.get("status") or "confirmed") != "pending"]
-    if any("first_meet" in r for r in rows):
-        rows = [r for r in rows if r.get("first_meet")]
     out = set()
     for r in rows:
         a, b = r["scanner_id"], r["scanned_id"]

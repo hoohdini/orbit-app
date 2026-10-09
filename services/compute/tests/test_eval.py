@@ -65,6 +65,8 @@ def test_no_poster_and_concentration():
             {"scanner_id": "p0", "scanned_id": "p9"},                                        # 다른 테이블 → 양성 아님
             {"scanner_id": "p2", "scanned_id": "p3", "status": "pending"}]
     assert picks_from_exchanges(rows, members) == {("p0", "p1"), ("p1", "p0")}
+    # 0010 뒤에는 모든 행에 first_meet 칸이 있고 대부분 null(질문 건너뜀) → 그래도 교환은 센다
+    assert picks_from_exchanges([{**r, "first_meet": None} for r in rows], members) == {("p0", "p1"), ("p1", "p0")}
     c = concentration(rows, ids)
     assert c["사람"] == 20 and c["못 받은 사람"] == 17
     # A-01(apps/web/.../ops/status/route.ts) 과 같은 정의: source='auto' 는 안 세고, status 는 confirmed 만 센다
