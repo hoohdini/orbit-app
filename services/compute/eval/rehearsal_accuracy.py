@@ -11,7 +11,9 @@
 커피챗 버전에 score_no_poster(포스터 반영 없이 낸 점수, 0009)가 있으면 no_poster 도 나란히 → 포스터 반영이 맞히는 데 도왔는지(v0.2 B-05 · B-13).
 
 v0.2 B-13 에서 더한 것
-  picks_from_exchanges  동석자와 명함을 교환했으면 '얻은 게 있었던 분' 대신 쓸 수 있는 양성 쌍. 첫 대화 체크(first_meet)가 생기면 그것만
+  picks_from_satisfaction  만족도 화면의 사람 고르기(0012, '이런 분을 더 만나 보고 싶다' 싶었던 분). A 의 picks 로 바로 쓴다(10/6)
+  picks_from_exchanges  동석자와 명함을 교환했으면 '얻은 게 있었던 분' 대신 쓸 수 있는 양성 쌍. 첫 대화 체크(first_meet)가 생기면 그것만.
+                        사람 고르기가 있으면 그쪽이 우선(명함은 미션 · 예의상 교환이 섞인다)
   concentration         쏠림 지표. 받은 명함 수의 지니 계수(0 = 고르게, 1 = 한 사람에게 몰림)와 한 장도 못 받은 사람 수
   추천 수락률을 미션 ② 완료 전후로 나눠 보는 것은 추천 노출 기록(rec_impressions, B-10)이 생긴 뒤에 더한다
 
@@ -85,7 +87,8 @@ def per_person_accuracy(pair_scores, members, picks: set[tuple[str, str]], rater
     return out
 
 
-POS, NEG = {"gained"}, {"different", "mismatch"}   # unsure 는 어느 쪽도 아니라 뺀다
+POS, NEG = {"gained"}, {"different", "mismatch"}   # 따봉 3단계라 '최고였어요' vs 나머지(좋았어요 · 별로였어요)로 가른다
+                                                     # unsure(예전 답)는 어느 쪽도 아니라 뺀다
 
 
 def satisfaction_auc(pair_scores, members, satisfaction: dict[str, str]) -> dict:
@@ -102,6 +105,22 @@ def satisfaction_auc(pair_scores, members, satisfaction: dict[str, str]) -> dict
         auc = float(np.mean([(x > y) + 0.5 * (x == y) for x in pos for y in neg])) if pos and neg else float("nan")
         out[kind] = {"구분 정확도": auc, "얻음": len(pos), "못 얻음": len(neg)}
     return out
+
+
+def picks_from_satisfaction(sat_rows: list[dict], members: list[dict], min_elapsed_ms: int = 2000) -> tuple[set[tuple[str, str]], set[str]]:
+    """만족도 행([{participant_id, picks, elapsed_ms}]) → (고른 쌍 {(사람, 고른 동석자)}, 답한 사람). 한 방향이다(고른 사람 기준).
+    같은 테이블이 아닌 id 와 제출까지 2초 안에 낸 답은 뺀다. 답한 사람은 per_person_accuracy 의 raters 로 넘긴다(안 고른 사람도 비교에 들어감)"""
+    mates = _tables(members)
+    out, raters = set(), set()
+    for r in sat_rows:
+        p = r["participant_id"]
+        if r.get("elapsed_ms") is not None and r["elapsed_ms"] < min_elapsed_ms:
+            continue
+        raters.add(p)
+        for q in r.get("picks") or []:
+            if q in mates.get(p, []):
+                out.add((p, q))
+    return out, raters
 
 
 def picks_from_exchanges(card_rows: list[dict], members: list[dict]) -> set[tuple[str, str]]:

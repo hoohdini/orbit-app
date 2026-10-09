@@ -24,6 +24,7 @@ class MemoryRepo:
             "table_members", "pair_scores", "recs", "card_exchanges", "satisfaction", "ops_state",
             "posters", "poster_interest", "codebooks", "poster_responses", "group_reasons", "event_log")}
         self._version = itertools.count(1)
+        self.sat_legacy_columns = False   # MemoryRepo 는 항상 최신 칸(picks · elapsed_ms)을 갖고 있다. SupabaseRepo 와 자리 맞춤용
 
     # ---------- 읽기 ----------
     def participants(self, event_id: str) -> list[dict]:
@@ -79,6 +80,12 @@ class MemoryRepo:
         """{사람: 선택지 키}. 키는 0005 마이그레이션의 gained · different · unsure · mismatch."""
         s = set(ids)
         return {r["participant_id"]: r["choice"] for r in self.t["satisfaction"] if r["round"] == round_ and r["participant_id"] in s}
+
+    def satisfaction_rows(self, round_: str, ids: list[str]) -> list[dict]:
+        """[{participant_id, choice, picks, elapsed_ms}]. picks · elapsed_ms 는 0012(고른 사람, 답하는 데 걸린 시간)."""
+        s = set(ids)
+        return [{"participant_id": r["participant_id"], "choice": r["choice"], "picks": r.get("picks") or [],
+                 "elapsed_ms": r.get("elapsed_ms")} for r in self.t["satisfaction"] if r["round"] == round_ and r["participant_id"] in s]
 
     def latest_tables(self, round_: str, ids: list[str], event_id: str = "dev") -> list[dict]:
         """이 행사의 라운드별 최신 배정(공개된 것 우선, 없으면 최신 초안)에서 이 사람들의 자리."""
@@ -139,6 +146,7 @@ class SupabaseRepo:
         from urllib.parse import urlparse
         u = urlparse(url)
         self.db = create_client(f"{u.scheme}://{u.netloc}", key)        # /rest/v1/ 가 붙어 있어도 되게
+        self.sat_legacy_columns = False   # satisfaction_rows 가 picks · elapsed_ms 없는 예전 DB 로 대체했는지(코드리뷰)
 
     def _all(self, make) -> list[dict]:
         """make() 는 매번 새 쿼리를 만든다. 같은 쿼리 객체에 range 를 거듭 걸면 조건이 쌓일 수 있어서."""
@@ -201,6 +209,21 @@ class SupabaseRepo:
     def satisfaction(self, round_, ids):
         rows = self._in("satisfaction", "participant_id, round, choice", "participant_id", ids)
         return {r["participant_id"]: r["choice"] for r in rows if r["round"] == round_}
+
+    def satisfaction_rows(self, round_, ids):
+        from postgrest.exceptions import APIError
+        self.sat_legacy_columns = False
+        try:
+            rows = self._in("satisfaction", "participant_id, round, choice, picks, elapsed_ms", "participant_id", ids)
+        except APIError as e:
+            # 0012 전 DB(picks · elapsed_ms 칸 없음)만 예전 칸으로 대체한다. 42703 = 없는 칸, PGRST204 = 스키마 캐시에 없음
+            # (PostgREST 가 새 마이그레이션을 아직 못 읽었을 때도 씀). 그 밖의 오류(네트워크 등)는 picks 가 조용히 빠지지 않게 그대로 올린다
+            if e.code not in ("42703", "PGRST204"):         # 권한 오류 등 칸 이름이 들어간 다른 오류까지 대체로 넘기지 않게 코드로만 가른다
+                raise
+            self.sat_legacy_columns = True
+            rows = self._in("satisfaction", "participant_id, round, choice", "participant_id", ids)
+        return [{"participant_id": r["participant_id"], "choice": r["choice"], "picks": r.get("picks") or [],
+                 "elapsed_ms": r.get("elapsed_ms")} for r in rows if r["round"] == round_]
 
     def latest_tables(self, round_, ids, event_id="dev"):
         vs = self._all(lambda: self.db.table("assign_versions").select("version, status").eq("round", round_)
