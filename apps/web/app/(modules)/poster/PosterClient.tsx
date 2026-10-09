@@ -1,6 +1,6 @@
 "use client";
 // 포스터 응답 화면. 그 포스터의 응답(흥미 3단계) → (선택) 퀴즈 순서로 간다(개발 지시서 v0.2 E-02). 미션 현황판은 이벤트 탭(/event)이다.
-// 응답을 내면 어떤 답이든 그 포스터 스탬프를 받는다(미션 ①: 서로 다른 포스터 2개). 퀴즈는 이지선다 · 한 번만이고 스탬프 · 응모권과 무관하다.
+// 응답을 내면 어떤 답이든 그 포스터 스탬프를 받는다(미션 ①: 서로 다른 포스터 2개). 퀴즈는 선택이고 스탬프 · 응모권과 무관하다.
 // 정답은 서버만 안다. 이 화면은 고른 보기 번호만 보낸다. 데모 화면이라 프론트엔드가 E-01 · E-02 화면을 만들면 바뀐다.
 // 오류 처리: 불러오기 실패는 로딩 대신 문구와 다시 시도 버튼, 저장 실패는 그 카드 안 문구로 보여 준다. 화면 전체를 오류로 바꾸는 것은 스캔 실패뿐이다.
 import { useEffect, useState } from "react";
@@ -153,14 +153,14 @@ function PosterFlow({ code, via }: { code: string; via: "card" | "event" | null 
 
         {quiz && (
           <section className="rounded-2xl border border-gray-200 bg-white p-4">
-            <p className="text-xs text-gray-500">퀴즈(선택 · 한 번만)</p>
+            <p className="text-xs text-gray-500">퀴즈(선택)</p>
             <h2 className="mt-1 text-base font-semibold">{quiz.question}</h2>
             <div className="mt-3 grid gap-2">
               {quiz.choices.map((c, i) => (
                 <button
                   key={i}
                   type="button"
-                  disabled={!!result || sending || !!quizClosed}
+                  disabled={!!result?.correct || sending || !!quizClosed}
                   onClick={() => {
                     setPicked(i);
                     setResult(null);
@@ -172,7 +172,7 @@ function PosterFlow({ code, via }: { code: string; via: "card" | "event" | null 
                 </button>
               ))}
             </div>
-            {!result && !quizClosed && (
+            {!result?.correct && !quizClosed && (
               <button
                 type="button"
                 disabled={picked == null || sending}
@@ -183,7 +183,7 @@ function PosterFlow({ code, via }: { code: string; via: "card" | "event" | null 
               </button>
             )}
             {result?.correct && <p className="mt-2 text-sm text-green-700">정답이다</p>}
-            {result && !result.correct && <p className="mt-2 text-sm text-gray-600">아쉽게도 오답이다. 퀴즈는 한 번만 풀 수 있다</p>}
+            {result && !result.correct && <p className="mt-2 text-sm text-red-600">다른 보기를 골라 다시 제출할 수 있다(시도 횟수에 한도가 있다)</p>}
             {quizError && <p className="mt-2 text-sm text-red-600">{quizError}</p>}
             {quizClosed && <p className="mt-2 text-sm text-gray-600">{quizClosed}</p>}
           </section>
