@@ -1,7 +1,8 @@
 // POST /api/poster/answer { quiz_id, choice_index }  서버 판정. 원격 풀이 방지 · 시도 상한을 여기서 처리한다
 // 개발 지시서 v0.2 E-02: 퀴즈는 선택이고 미션과 무관하다. 정답이어도 스탬프 · 응모권을 주지 않는다
-// (스탬프 = 관심 이유 제출, /api/poster/response. 응모권은 명찰 번호로 앱 밖, v0.2 결정 6).
-// 풀어 본 기록은 그 포스터 관심 이유 응답의 quiz_attempted 에 남긴다(계산 서비스가 가중치 × 1.2)
+// (스탬프 = 포스터 응답 제출, /api/poster/response. 응모권은 명찰 번호로 앱 밖, v0.2 결정 6).
+// 퀴즈는 이지선다(10/5 회의). 시도 횟수는 POSTER_MAX_ATTEMPTS(기본 3, 그대로 둠).
+// 풀어 본 기록은 그 포스터 응답의 quiz_attempted 에 남긴다(집계용. 계산 서비스는 10/6 부터 반영하지 않는다)
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ok, fail, handle } from "@/lib/api";
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
       .insert({ participant_id: s.pid, poster_id: posterId, choice_index: b.choice_index, is_correct: correct });
     if (attemptErr) throw attemptErr;
 
-    // 관심 이유를 먼저 냈으면 그 응답에 '퀴즈 풀어 봄' 표시. 아직 안 냈으면 응답 API 가 제출할 때 퀴즈 시도 기록을 보고 채운다
+    // 포스터 응답(흥미 3단계)을 먼저 냈으면 그 응답에 '퀴즈 풀어 봄' 표시. 아직 안 냈으면 응답 API 가 제출할 때 퀴즈 시도 기록을 보고 채운다
     const { error: flagErr } = await db()
       .from("poster_responses")
       .update({ quiz_attempted: true })

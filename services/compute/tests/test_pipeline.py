@@ -12,7 +12,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from pipeline import codebook, recs, scoring, seating  # noqa: E402
-from pipeline.embed import split_items, offer_items, seek_items, unit  # noqa: E402
+from pipeline.embed import clean_prefix, split_items, offer_items, seek_items, unit  # noqa: E402
 
 N, DIM, N_HOST = 70, 64, 8
 
@@ -36,6 +36,13 @@ def test_split_items():
     assert split_items("추천을 연구한다. 파이썬을 쓴다\n축구 동아리") == ["추천을 연구한다.", "파이썬을 쓴다", "축구 동아리"]
     assert offer_items("", ["추천"]) == ["관심 주제: 추천"]
     assert seek_items("", ["멘토링"]) == []                      # 빈 Seek 는 태그만으로 만들지 않는다
+
+
+def test_clean_prefix():
+    """.env 를 읽는 방식(source · docker --env-file)에 따라 끝 공백이 달라도 접두사는 하나로 맞춘다."""
+    assert clean_prefix("query:") == clean_prefix("query: ") == clean_prefix(" query:  ") == "query: "
+    assert clean_prefix("passage:") == "passage: "
+    assert clean_prefix("") == ""
 
 
 def test_table_sizes():

@@ -1,6 +1,6 @@
 "use client";
-// 포스터 응답 화면. 그 포스터의 관심 이유 → (선택) 퀴즈 순서로 간다(개발 지시서 v0.2 E-02). 미션 현황판은 이벤트 탭(/event)이다.
-// 관심 이유를 내면 그 포스터 스탬프를 받는다(미션 ①: 서로 다른 포스터 2개). 퀴즈는 선택이고 스탬프 · 응모권과 무관하다.
+// 포스터 응답 화면. 그 포스터의 응답(흥미 3단계) → (선택) 퀴즈 순서로 간다(개발 지시서 v0.2 E-02). 미션 현황판은 이벤트 탭(/event)이다.
+// 응답을 내면 어떤 답이든 그 포스터 스탬프를 받는다(미션 ①: 서로 다른 포스터 2개). 퀴즈는 선택이고 스탬프 · 응모권과 무관하다.
 // 정답은 서버만 안다. 이 화면은 고른 보기 번호만 보낸다. 데모 화면이라 프론트엔드가 E-01 · E-02 화면을 만들면 바뀐다.
 // 오류 처리: 불러오기 실패는 로딩 대신 문구와 다시 시도 버튼, 저장 실패는 그 카드 안 문구로 보여 준다. 화면 전체를 오류로 바꾸는 것은 스캔 실패뿐이다.
 import { useEffect, useState } from "react";
@@ -38,7 +38,7 @@ function PosterFlow({ code, via }: { code: string; via: "card" | "event" | null 
   const [result, setResult] = useState<Answer | null>(null);
   const [sending, setSending] = useState(false);
   const [quizError, setQuizError] = useState<string | null>(null); // 퀴즈 제출 실패. 퀴즈 카드 안 문구
-  const [quizClosed, setQuizClosed] = useState<string | null>(null); // 시도 횟수를 다 쓴 경우 등. 관심 이유는 계속 낼 수 있다
+  const [quizClosed, setQuizClosed] = useState<string | null>(null); // 시도 횟수를 다 쓴 경우 등. 포스터 응답은 계속 낼 수 있다
 
   useEffect(() => {
     let alive = true;
@@ -127,7 +127,8 @@ function PosterFlow({ code, via }: { code: string; via: "card" | "event" | null 
         <section className="rounded-2xl border border-gray-200 bg-white p-4">
           <p className="text-xs text-gray-500">{scan.poster.code}{scan.poster.presenter ? ` · ${scan.poster.presenter}` : ""}</p>
           <h2 className="mt-1 text-base font-semibold">{scan.poster.title}</h2>
-          <p className="mt-3 text-sm">어떤 점이 눈에 들어왔나요?</p>
+          <p className="mt-3 text-sm">오늘 이 분야와 관련된 분을 더 만나 보고 싶나요?</p>
+          <p className="mt-0.5 text-xs text-gray-500">어떤 답이든 스탬프는 받아요</p>
           <div className="mt-2 grid gap-2">
             {scan.reasons.map((c) => (
               <button
@@ -147,7 +148,7 @@ function PosterFlow({ code, via }: { code: string; via: "card" | "event" | null 
               {saved.done ? `미션 ① 완료 (포스터 ${saved.count}개)` : `제출했다. 포스터 ${saved.count}/${saved.goal}`}
             </p>
           )}
-          {!saved && reason && <p className="mt-2 text-xs text-gray-500">이미 고른 이유다. 다른 것을 누르면 바꾼다</p>}
+          {!saved && reason && <p className="mt-2 text-xs text-gray-500">이미 답했다. 다른 것을 누르면 바꾼다</p>}
         </section>
 
         {quiz && (

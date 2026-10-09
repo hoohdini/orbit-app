@@ -1,12 +1,12 @@
-// POST /api/poster/scan { qr_payload }  포스터 QR 스캔 → 포스터 정보, 관심 이유 선택지(사람마다 무작위 순서), 퀴즈(있으면). 정답 인덱스는 절대 넣지 않는다
-// 개발 지시서 v0.2 E-02: 관심 이유 제출이 미션 ①이고 퀴즈는 선택이다. 퀴즈가 없는 포스터도 스캔된다(quiz: null)
+// POST /api/poster/scan { qr_payload }  포스터 QR 스캔 → 포스터 정보, 응답 선택지(흥미 3단계, 고정 순서), 퀴즈(있으면). 정답 인덱스는 절대 넣지 않는다
+// 개발 지시서 v0.2 E-02: 응답 제출이 미션 ①이고 퀴즈(이지선다)는 선택이다. 퀴즈가 없는 포스터도 스캔된다(quiz: null)
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ok, fail, handle } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 import { logEvent } from "@/lib/log";
 import { collectGuard } from "@/lib/consent";
-import { parsePosterCode, shuffledReasons } from "../_lib";
+import { parsePosterCode, reasonChoices } from "../_lib";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     await logEvent("poster_scan", s.pid, { poster_id: poster.id, via: b.via ?? null });
     return ok({
       poster: { id: poster.id, code: poster.code, title: poster.title, presenter: poster.presenter ?? null },
-      reasons: shuffledReasons(),
+      reasons: reasonChoices(),
       my_reason: (mineRes.data?.reason as string | undefined) ?? null,
       quiz: quizRes.data ? { id: quizRes.data.id, question: quizRes.data.question, choices: quizRes.data.choices } : null,
     });

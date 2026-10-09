@@ -37,26 +37,29 @@ def test_poster_signal_rules():
     posters = {1: {"presenter_ids": ["d"]}, 2: {"presenter_ids": []}, 3: {"presenter_ids": []}, 4: {"presenter_ids": []}}
     aff = {"a": "연세대", "b": "카카오", "c": None, "d": "카카오"}
     rows = [
-        # a: 3건 모두 그대로(미션 할인 없음, 5분 간격), 3건째는 퀴즈 × 1.2
-        _resp("a", 2, "topic", 1, 0), _resp("a", 3, "method", 2, 300), _resp("a", 4, "experience", 3, 600, quiz=True),
+        # a: 흥미 3단계 그대로(5분 간격). 퀴즈는 반영 안 함(10/6), 관심 분야 아님은 음수로 남김
+        _resp("a", 2, "want", 1, 0), _resp("a", 3, "maybe", 2, 300), _resp("a", 4, "not_mine", 3, 600, quiz=True),
         # b: 1번 포스터 발표자(d)와 같은 소속 → 뺌. 남은 1건뿐이라 b 는 반영 안 함
-        _resp("b", 1, "topic", 1, 0), _resp("b", 2, "topic", 2, 400),
+        _resp("b", 1, "want", 1, 0), _resp("b", 2, "want", 2, 400),
         # c: 너무 빠른 응답 1건(버림) + 직전과 30초 안 3건(각각 × 0.5. 버린 응답 시각도 직전으로 침)
-        _resp("c", 2, "topic", 1, 0, lat=3000), _resp("c", 3, "topic", 2, 10), _resp("c", 4, "new_field", 3, 30),
-        _resp("c", 1, "topic", 4, 50),
+        _resp("c", 2, "want", 1, 0, lat=3000), _resp("c", 3, "want", 2, 10), _resp("c", 4, "maybe", 3, 30),
+        _resp("c", 1, "want", 4, 50),
         # e: 처음 응답은 그대로, 20초 뒤 응답만 × 0.5, 그다음은 2분 뒤라 그대로
-        _resp("e", 2, "topic", 1, 0), _resp("e", 3, "topic", 2, 20), _resp("e", 4, "topic", 3, 140),
+        _resp("e", 2, "want", 1, 0), _resp("e", 3, "want", 2, 20), _resp("e", 4, "want", 3, 140),
         # d: 자기 포스터 → 뺌
-        _resp("d", 1, "topic", 1, 0),
+        _resp("d", 1, "want", 1, 0),
     ]
     out, st = signals.poster_signal(rows, {**IDX, "e": 4}, posters, aff)
     got = {(i, p): round(w, 4) for i, p, w in out}
-    assert got[(0, 2)] == 1.0 and got[(0, 3)] == 0.7 and got[(0, 4)] == round(0.3 * 1.2, 4)
+    assert got[(0, 2)] == 1.0 and got[(0, 3)] == 0.33 and got[(0, 4)] == -0.2     # 퀴즈 풀었어도 × 1.2 없음
     assert not any(i == 1 for i, _, _ in out)                       # b 는 남은 응답 1건
-    assert got[(2, 3)] == 0.5 and got[(2, 4)] == 0.25 and got[(2, 1)] == 0.5   # c: 빠른 연속 × 0.5
+    assert got[(2, 3)] == 0.5 and got[(2, 4)] == 0.165 and got[(2, 1)] == 0.5   # c: 빠른 연속 × 0.5
     assert got[(4, 2)] == 1.0 and got[(4, 3)] == 0.5 and got[(4, 4)] == 1.0      # e: 20초 뒤 응답만
     assert not any(i == 3 for i, _, _ in out)
     assert st["fast"] == 1 and st["presenter"] == 1 and st["same_affiliation"] == 1 and st["quick"] == 4
+    # 예전 관심 이유 키(topic 등)는 무게가 없어 쓰지 않는다
+    old, _ = signals.poster_signal([_resp("a", 2, "topic", 1, 0), _resp("a", 3, "topic", 2, 300)], IDX, posters, aff)
+    assert old == []
 
 
 def test_sentences_and_label():

@@ -158,7 +158,7 @@ def test_full_loop():
     assert all(m["reason"]["table_no"] == m["table_no"] and m["reason"]["text"] for m in cm)
     assert all(m["reason"]["from_table"] == t2[m["participant_id"]] for m in cm)          # 이전 테이블
     by_pid = {m["participant_id"]: m["reason"] for m in cm}
-    assert by_pid[checked[0]]["satisfaction"] == "gained" and "새로 얻은 게 있었다" in by_pid[checked[0]]["text"]
+    assert by_pid[checked[0]]["satisfaction"] == "gained" and "최고였어요" in by_pid[checked[0]]["text"]
     assert all(r.get("exchanges", 0) >= 1 for r in by_pid.values())                        # 테이블토크 동석자와 전부 교환함
     assert all(m.get("reason") and "from_table" not in m["reason"] for m in tab)          # 테이블토크 배정은 이전 테이블 없음
     assert by_pid[checked[0]]["posters"] == 2 and "관심 포스터 2개 반영" in by_pid[checked[0]]["text"]
@@ -199,12 +199,18 @@ def test_v02_signals_recs_reasons():
                           "presenter_ids": [ids[39]] if q == 1 else []} for q in range(1, 5)]
     for k, pid in enumerate(ids[:20]):                                # 20명이 포스터 3개씩
         for seq, q in enumerate((1, 2, 3), start=1):
-            repo.t["poster_responses"].append({"participant_id": pid, "poster_id": q, "reason": "topic", "seq_no": seq,
+            repo.t["poster_responses"].append({"participant_id": pid, "poster_id": q, "reason": "want", "seq_no": seq,
                                                "latency_ms": 30000, "quiz_attempted": seq == 3,
                                                "created_at": f"2026-10-31T16:{20 + seq * 5:02d}:00+09:00"})
+    for seq, q in enumerate((2, 3), start=1):                         # 21번째 사람은 관심 분야 아님 2건 → 밀어내기만
+        repo.t["poster_responses"].append({"participant_id": ids[20], "poster_id": q, "reason": "not_mine", "seq_no": seq,
+                                           "latency_ms": 30000, "quiz_attempted": False,
+                                           "created_at": f"2026-10-31T16:{20 + seq * 5:02d}:00+09:00"})
     r3 = service.coffeechat(repo, enc, iters=2000)
     v3 = next(v for v in repo.t["assign_versions"] if v["version"] == r3["version"])
-    assert v3["params"]["poster_source"] == {"poster_responses": 20, "poster_interest": 0} and v3["params"]["poster_people"] == 20
+    assert v3["params"]["poster_source"] == {"poster_responses": 21, "poster_interest": 0} and v3["params"]["poster_people"] == 21
+    nm = next(m["reason"] for m in repo.t["table_members"] if m["version"] == r3["version"] and m["participant_id"] == ids[20])
+    assert nm.get("posters_not") == 2 and "posters" not in nm             # 관심 분야 아님은 밀어내는 쪽으로만
     assert r3["groups"] == 10 and r3["forbid_hits"] == 0                # 40명 → 4명 그룹 10개
     cm = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == r3["version"]}
     gr = [g for g in repo.t["group_reasons"] if g["version"] == r3["version"]]
@@ -214,6 +220,88 @@ def test_v02_signals_recs_reasons():
     ps = [p for p in repo.t["pair_scores"] if p["version"] == r3["version"]]
     assert all("score_no_poster" in p for p in ps) and any(abs(p["score"] - p["score_no_poster"]) > 1e-6 for p in ps)
     print("  근거 예:", gr[0]["text"])
+
+
+def test_satisfaction_picks_and_fast_answers():
+    """만족도 사람 고르기(0012): 고른 동석자 쪽으로 Seek 를 옮긴다. 다른 테이블 id 는 무시, 제출까지 2초 안에 낸 답은 반영에서 뺀다."""
+    repo, enc = seed_repo(n=40, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    v1 = repo.t["assign_versions"][-1]["version"]
+    t1 = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == v1}
+    for pid in ids:
+        repo.t["checkins"].append({"participant_id": pid})
+    me = ids[0]
+    mates = [q for q in ids if q != me and t1[q] == t1[me]]
+    other = next(q for q in ids if t1[q] != t1[me])
+    for k, pid in enumerate(ids[:30]):
+        row = {"participant_id": pid, "round": "tabletalk", "choice": "gained", "picks": [], "elapsed_ms": 4000}
+        if pid == me:
+            row.update(choice="mismatch", picks=[mates[0], other])          # 테이블은 별로였지만 한 명은 골랐다 + 다른 테이블 id
+        if k in (5, 6):
+            row["elapsed_ms"] = 300                                          # 0.3초 만에 낸 답
+        repo.t["satisfaction"].append(row)
+    r = service.coffeechat(repo, enc, iters=500)
+    v = next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])
+    assert v["params"]["sat_fast"] == 2 and v["params"]["sat_picks"] == {"people": 1, "picked": 1}
+    assert v["params"]["response_rate"] == round(30 / 40, 3)               # 빠른 답도 응답률에는 센다
+    assert sum(v["params"]["sat_counts"].values()) == 28
+
+
+def test_picks_move_seek_toward_picked_person():
+    """고른 사람이 있으면 테이블 전체 평균이 아니라 그 사람의 하는 일 쪽으로 옮긴다(scoring.seek_shift 에 넘기는 목표)."""
+    from pipeline import scoring
+    from pipeline.embed import unit
+    O = unit(np.array([[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0], [0.6, 0.8, 0]]))
+    S = unit(np.array([[1.0, 0, 0], [1.0, 0, 0], [1.0, 0, 0], [1.0, 0, 0]]))
+    table = scoring.seek_shift(S, O, [[1, 2], [], [], []], np.array([1.0, 0, 0, 0]), 0.5)
+    picked = scoring.seek_shift(S, O, [[1], [], [], []], np.array([1.0, 0, 0, 0]), 0.5)
+    assert picked[0] @ O[1] > table[0] @ O[1] and picked[0] @ O[2] < table[0] @ O[2]
+
+
+def _pair_score(pairs, x, y):
+    """pair_scores 행에서 x 의 seek · y 의 offer 방향 점수(a[x, y])를 찾는다. a 필드가 x 면 score_ab, y 면 score_ba."""
+    row = next(p for p in pairs if {p["a"], p["b"]} == {x, y})
+    return row["score_ab"] if row["a"] == x else row["score_ba"]
+
+
+def _run_pick_scenario(choice, pick):
+    """40명 중 me(x)만 만족도 choice 를 바꾸고, pick=True 면 같은 테이블 한 명(y)을 고른다. x → y 점수를 돌려준다."""
+    repo, enc = seed_repo(n=40, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    v1 = repo.t["assign_versions"][-1]["version"]
+    t1 = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == v1}
+    for pid in ids:
+        repo.t["checkins"].append({"participant_id": pid})
+    x = ids[0]
+    y = next(q for q in ids if q != x and t1[q] == t1[x])
+    for pid in ids:
+        row = {"participant_id": pid, "round": "tabletalk", "choice": "gained", "picks": [], "elapsed_ms": 4000}
+        if pid == x:
+            row.update(choice=choice, picks=[y] if pick else [])
+        repo.t["satisfaction"].append(row)
+    r = service.coffeechat(repo, enc, iters=500)
+    pairs = [p for p in repo.t["pair_scores"] if p["version"] == r["version"]]
+    return _pair_score(pairs, x, y)
+
+
+def test_satisfaction_picks_increase_seek_offer_score():
+    """만족도에서 동석자 한 명(y)을 고르면 목표 방향의 50% 가 y 쪽이 되어 x → y(x 의 seek, y 의 offer) 점수가 커진다.
+    고른 사람을 무시하고 예전처럼 테이블 전체 평균으로만 옮기면 choice 가 똑같이 'gained' 라서 pick 유무가 결과에 영향을 못 미쳐 이 시험이 걸린다."""
+    without_pick = _run_pick_scenario("gained", pick=False)
+    with_pick = _run_pick_scenario("gained", pick=True)
+    assert with_pick > without_pick
+
+
+def test_mismatch_pick_still_pulls_toward_picked_person():
+    """테이블이 '잘 맞지 않았어요'(-0.2)여도 한 명을 골랐으면 0.33 바닥값(SAT_PICK_MIN_WEIGHT)으로 그 사람 쪽을 당긴다
+    (안 고르면 테이블 평균에서 밀어내기만 하는 것과 달리, 고른 사람 쪽은 밀어내지 않고 당긴다)."""
+    mismatch_no_pick = _run_pick_scenario("mismatch", pick=False)
+    mismatch_with_pick = _run_pick_scenario("mismatch", pick=True)
+    assert mismatch_with_pick > mismatch_no_pick
 
 
 def test_final_recs_keep_groups():
