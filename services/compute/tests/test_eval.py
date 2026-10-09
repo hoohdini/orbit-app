@@ -67,6 +67,11 @@ def test_no_poster_and_concentration():
     assert picks_from_exchanges(rows, members) == {("p0", "p1"), ("p1", "p0")}
     c = concentration(rows, ids)
     assert c["사람"] == 20 and c["못 받은 사람"] == 17
+    # A-01(apps/web/.../ops/status/route.ts) 과 같은 정의: source='auto' 는 안 세고, status 는 confirmed 만 센다
+    rows_auto = rows + [{"scanner_id": "p5", "scanned_id": "p6", "source": "auto"},          # 명찰 QR 만 찍음 → 안 셈
+                        {"scanner_id": "p5", "scanned_id": "p7", "status": "declined"}]      # confirmed 아님 → 안 셈
+    c2 = concentration(rows_auto, ids)
+    assert c2["못 받은 사람"] == 17 and c2 == c
 
 
 
@@ -83,6 +88,31 @@ def test_report_helpers():
     picks, raters = picks_from_satisfaction_rows([{"participant_id": "a", "picks": ["b", "c"]}, {"participant_id": "b", "picks": []},
                                                   {"participant_id": "c", "choice": "gained"}], members)
     assert picks == {("a", "b")} and raters == {"a", "b"}                 # 다른 테이블 c 는 뺌, picks 칸 없는 행은 무시
+
+
+def test_drop_quick_answers():
+    from eval.rehearsal_report import _drop_quick_answers
+    rows = [{"participant_id": "a", "elapsed_ms": 3000}, {"participant_id": "b", "elapsed_ms": 200},    # 0.2초 → 뺌
+            {"participant_id": "c", "elapsed_ms": None}, {"participant_id": "d"}]                        # 없으면 그대로 둠
+    kept, dropped = _drop_quick_answers(rows)
+    assert dropped == 1 and [r["participant_id"] for r in kept] == ["a", "c", "d"]
+
+
+def test_select_version():
+    from eval.rehearsal_report import select_version
+    vers = [
+        {"version": 1, "round": "coffeechat", "status": "retired", "params": {"kind": "coffeechat"}},
+        {"version": 2, "round": "coffeechat", "status": "published", "params": {"kind": "final"}},      # 행사 직후 추천 → 평가 제외
+        {"version": 1, "round": "tabletalk", "status": "draft", "params": {}},                          # draft → 제외
+        {"version": 2, "round": "tabletalk", "status": "retired", "params": {}},
+    ]
+    picked, final = select_version(vers, "coffeechat")
+    assert picked["version"] == 1 and final["version"] == 2 and final["status"] == "published"
+    vers.append({"version": 3, "round": "coffeechat", "status": "published", "params": {"kind": "swap"}})   # 운영 콘솔 수동 교체본
+    picked, _ = select_version(vers, "coffeechat")
+    assert picked["version"] == 3                                     # 실제로 앉은 교체본을 평가
+    picked_tt, final_tt = select_version(vers, "tabletalk")
+    assert picked_tt["version"] == 2 and final_tt is None
 
 
 if __name__ == "__main__":

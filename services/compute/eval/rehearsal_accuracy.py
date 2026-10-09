@@ -130,10 +130,15 @@ def gini(x) -> float:
 
 
 def concentration(card_rows: list[dict], ids: list[str]) -> dict:
-    """받은 명함 수(받은 쪽 = scanned_id, 확인 대기 제외)의 쏠림. v0.2 A-01 운영 지표와 같은 정의."""
+    """받은 명함 수(받은 쪽 = scanned_id)의 쏠림. v0.2 A-01 운영 지표(apps/web/app/api/ops/status/route.ts)와 정확히 같은 정의 —
+    source='auto'(명찰 QR 찍기만 해도 생기는 행) 는 빼고, status == 'confirmed' 인 것만 받은 것으로 센다."""
     got = {p: 0 for p in ids}
     for r in card_rows:
-        if (r.get("status") or "confirmed") != "pending" and r.get("scanned_id") in got:
+        if r.get("source") == "auto":
+            continue
+        if (r.get("status") or "confirmed") != "confirmed":
+            continue
+        if r.get("scanned_id") in got:
             got[r["scanned_id"]] += 1
     vals = list(got.values())
     return {"지니": round(gini(vals), 3), "못 받은 사람": sum(1 for v in vals if v == 0), "사람": len(vals)}
