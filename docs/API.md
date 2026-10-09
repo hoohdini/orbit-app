@@ -55,7 +55,7 @@
 | coffeechat | /api/coffeechat/table | GET | 없음 | { group_no, table_no(같은 값), label, talk_prompts(예전 화면용), members: [{id, display_name, affiliation, role, cohort, topic_tags, career_line, offer_text, reason}] } reason = 근거 한 줄 또는 null(v0.2 N-04 · B-07) | 있음 |
 | coffeechat | /api/coffeechat/recs | GET | 없음 | { recs: [{rank, target: {id, display_name, affiliation}, current_table_no, reason}] } | 있음 |
 | poster | /api/poster/scan | POST | qr_payload | { poster: {id, code, title, presenter}, reasons: [{key, label}](흥미 3단계, 고정 순서), my_reason, quiz: {id, question, choices} 또는 null } 퀴즈 없는 포스터도 스캔된다(v0.2 E-02). 화면 질문은 '오늘 이 분야와 관련된 분을 더 만나 보고 싶나요?', 선택지 아래 '어떤 답이든 스탬프는 받아요' | 있음 |
-| poster | /api/poster/response | POST | poster_id, reason(아래 선택지), shown_order | { saved, count, goal: 2, done } 최근 15분 스캔 필요, 재응답은 덮어씀, 어떤 답이든 제출하면 그 포스터 스탬프(미션 ①). **배포 순서: DB 에 0011 · 0012 먼저 적용 → be/ 머지 → compute/ 머지**(0011 의 check 는 배포 간극을 덮으려고 예전 값도 받지만, 이 API 는 새 3개만 받는다) | 있음 |
+| poster | /api/poster/response | POST | poster_id, reason(아래 선택지), shown_order | { saved, count, goal: 2, done } 최근 15분 스캔 필요, 재응답은 덮어씀, 어떤 답이든 제출하면 그 포스터 스탬프(미션 ①). **배포 순서: DB 에 0011 · 0012 적용과 be/ 머지를 같이 → compute/ 머지** | 있음 |
 | poster | /api/poster/answer | POST | quiz_id, choice_index | { correct: bool, stamp_count, ticket_issued: false } 퀴즈는 선택이고 이지선다(10/5 회의). 시도 횟수는 POSTER_MAX_ATTEMPTS(기본 3). 정답이어도 스탬프 · 응모권 없음(v0.2 E-02 · 결정 6) | 있음 |
 | poster | /api/poster/interest | POST | poster_id, choice(아래 선택지) | { saved: true } 예전 화면용. v0.2 부터는 /api/poster/response | 있음 |
 | poster | /api/poster/stamps | GET | 없음 | { stamps: [...], total, tickets: [...] } | 있음 |
