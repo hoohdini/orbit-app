@@ -67,7 +67,7 @@ export async function POST(req: Request) {
       .insert({ participant_id: s.pid, poster_id: posterId, choice_index: b.choice_index, is_correct: correct });
     if (attemptErr) throw attemptErr;
 
-    // 관심 이유를 먼저 냈으면 그 응답에 '퀴즈 풀어 봄' 표시. 아직 안 냈으면 응답 API 가 제출할 때 퀴즈 시도 기록을 보고 채운다
+    // 포스터 응답(흥미 3단계)을 먼저 냈으면 그 응답에 '퀴즈 풀어 봄' 표시. 아직 안 냈으면 응답 API 가 제출할 때 퀴즈 시도 기록을 보고 채운다
     const { error: flagErr } = await db()
       .from("poster_responses")
       .update({ quiz_attempted: true })

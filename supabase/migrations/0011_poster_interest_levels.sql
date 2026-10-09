@@ -8,6 +8,15 @@
 -- 칸 이름 reason 은 그대로 둔다(API 입력 이름 · 계산 서비스가 이 이름으로 읽는다). 값만 바꾼다.
 -- 예전 값(topic · method · experience · new_field)은 모두 긍정이었으므로 want 로 옮긴다(개발 DB 시험 응답만 해당).
 -- shown_order 는 남긴다. 정도를 묻는 선택지라 이제 순서를 섞지 않으므로 늘 want, maybe, not_mine 이다.
+--
+-- 배포 순서(중요): 이 브랜치(be/)를 머지하기 전에 0011 · 0012 를 DB 에 먼저 적용한다.
+--   0012 는 칸만 추가(satisfaction.picks · elapsed_ms)라 예전 웹이 계속 동작한다.
+--   이 check 는 예전 값(topic · method · experience · new_field)과 새 값(want · maybe · not_mine)을 둘 다 허용한다.
+--   DB 적용과 웹 배포가 동시가 아니면, DB 가 새 값만 받을 때 예전 웹이 보내는 topic 등이 거부되거나(500),
+--   반대로 새 웹이 보내는 want 등을 예전 check 가 거부해 포스터 응답과 미션 ①이 깨진다.
+--   예전 값은 이 배포 간극만 덮으려고 남겨 둔다. API(zod REASON_KEYS)는 새 3개만 받는다.
+--   be/ 배포 뒤 한 번 더: 간극에 들어온 예전 값은 계산에서 무게 0 이 되므로 아래 update 줄을 다시 돌려 want 로 옮긴다.
 alter table poster_responses drop constraint if exists poster_responses_reason_check;
 update poster_responses set reason = 'want' where reason in ('topic', 'method', 'experience', 'new_field');
-alter table poster_responses add constraint poster_responses_reason_check check (reason in ('want', 'maybe', 'not_mine'));
+alter table poster_responses add constraint poster_responses_reason_check
+  check (reason in ('want', 'maybe', 'not_mine', 'topic', 'method', 'experience', 'new_field'));
