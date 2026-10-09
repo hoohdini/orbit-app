@@ -8,7 +8,7 @@
   2. 답 분포           만족도 · 포스터 답이 한 칸에 몰리지 않았나(몰리면 구분이 안 돼 반영 효과가 없다)
   3. 배정이 맞았나      같은 테이블에서 고른 사람(만족도 사람 고르기, 없으면 동석자와의 명함 교환)의 점수가 안 고른 사람보다 높았나
                        (rehearsal_accuracy.per_person_accuracy, 0.5 보다 확실히 높아야 함) · 만족도 답으로 본 구분(satisfaction_auc,
-                       0012 이후 'different' = 조금 얻었어요 라서 이 구분은 '많이 얻었어요' vs 나머지)
+                       10/9 따봉 3단계라 이 구분은 '최고였어요' vs 나머지(좋았어요 · 별로였어요))
   4. 쏠림              받은 명함 수의 지니 계수(0 고르게, 1 한 사람에게 몰림)와 한 장도 못 받은 사람 수(운영 콘솔 A-01 과 같은 정의)
   5. 포스터 응답 간격   같은 사람의 연속 응답 사이 초. 빠른 연속 기준(지금 30초)을 다시 정할 때 본다
   6. 커피챗 계산 기록   걸러진 포스터 응답 수 · 만족도 답 수 등(assign_versions.params). 행사 직후 추천(final) 버전이
@@ -33,7 +33,7 @@ from eval.rehearsal_accuracy import (concentration, per_person_accuracy, picks_f
                                      satisfaction_auc)
 
 QUICK_GAP_S = 30
-SAT_MIN_ELAPSED_MS = 1000   # 질문이 뜬 뒤 1초도 안 돼 낸 답은 대충 누른 것으로 보고 반영하지 않는다(계산 서비스 SAT_MIN_ELAPSED_MS 와 같음)
+SAT_MIN_ELAPSED_MS = 2000   # 질문이 뜬 뒤 제출까지 2초도 안 걸린 답은 읽지 않고 누른 것으로 보고 반영하지 않는다(계산 서비스 SAT_MIN_ELAPSED_MS 와 같음)
 
 
 def _ts(v) -> float:
@@ -56,7 +56,7 @@ def poster_gaps(rows: list[dict]) -> dict:
 
 def picks_from_satisfaction_rows(rows: list[dict], members: list[dict]) -> tuple[set[tuple[str, str]], set[str]]:
     """만족도 행에 picks 칸이 있으면(0012) 같은 테이블 안에서 고른 쌍과 답한 사람. 없으면 빈 집합.
-    rows 는 main() 에서 1초 미만 답을 이미 뺀 것을 넘겨준다(계산 서비스 SAT_MIN_ELAPSED_MS 와 같은 기준)."""
+    rows 는 main() 에서 2초 미만 답을 이미 뺀 것을 넘겨준다(계산 서비스 SAT_MIN_ELAPSED_MS 와 같은 기준)."""
     mates: dict[int, set[str]] = {}
     table_of = {m["participant_id"]: m["table_no"] for m in members}
     for m in members:
@@ -141,7 +141,7 @@ def main(event: str) -> None:
         source = "만족도 사람 고르기"
         if not picks:
             picks, raters, source = picks_from_exchanges(cards, members), None, "동석자와 명함 교환"
-        acc[rd] = {"버전": v["version"], "고른 쌍 출처": source, "고른 쌍": len(picks), "1초 미만 답 뺌": dropped,
+        acc[rd] = {"버전": v["version"], "고른 쌍 출처": source, "고른 쌍": len(picks), "2초 미만 답 뺌": dropped,
                    "사람별 정확도": per_person_accuracy(pairs, members, picks, raters),
                    "만족도 구분": satisfaction_auc(pairs, members, {s["participant_id"]: s["choice"] for s in rows})}
     out["3. 배정이 맞았나"] = acc
