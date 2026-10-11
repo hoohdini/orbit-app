@@ -11,7 +11,8 @@ const row = "relative flex h-[70px] items-center rounded-[25px] border border-li
 
 export default function MyCard() {
   const state = useOrbitState();
-  const refused = state?.consent === "refused";
+  // 이용 동의(collect)나 명함 공개(share)를 거부하면 교환 · 추천을 쓰지 않는다(0014)
+  const refused = state?.consent === "refused" || state?.share === "refused";
 
   return (
     <main className="px-[9px]">
@@ -40,7 +41,7 @@ export default function MyCard() {
       {refused ? (
         <p className="mt-2 rounded-[25px] border border-line bg-white p-5 text-sm text-ink-2">
           이용 동의를 하지 않아 명함 교환과 추천을 쓸 수 없어요.{" "}
-          <Link href="/my" className="underline">
+          <Link href="/my/info" className="underline">
             마이페이지
           </Link>
           에서 다시 동의할 수 있어요

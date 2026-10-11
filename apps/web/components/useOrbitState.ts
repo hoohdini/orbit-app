@@ -11,6 +11,7 @@ export type OrbitState = {
   phase_at: string | null;
   notice: { text: string; expires_at: string } | null;
   consent: "agreed" | "refused" | "pending";
+  share?: "agreed" | "refused" | "pending"; // 명함 공개 및 추천 활용(0014)
   tabletalk: { version: number; table_no: number; seat_no: number | null } | null;
   coffeechat: { version: number; group_no: number } | null;
   published: { tabletalk: number | null; coffeechat: number | null };

@@ -27,7 +27,7 @@ export default function StatusBand({ showMission = false }: { showMission?: bool
 
   const parts = [s.phase_label ? `${s.phase_label} 진행 중` : "The ORBIT", where(s)].filter(Boolean);
   return (
-    <div className={`${place} flex h-9 items-center gap-2 bg-strip px-5 text-[13px] font-medium text-brand`}>
+    <div className={`${place} flex h-9 items-center gap-2 border-b border-navy/80 bg-strip px-5 text-[13px] font-medium text-brand`}>
       <span className="size-2 shrink-0 rounded-full bg-accent" aria-hidden />
       <span className="flex-1 truncate">{parts.join(" · ")}</span>
       {showMission && s.mission.window !== "not_started" && (
