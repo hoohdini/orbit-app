@@ -119,7 +119,7 @@ export default function NetworkingClient() {
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-navy">나의 궤도</h2>
               {canSwitch ? (
-                <button type="button" onClick={() => setRound(isTT ? "coffeechat" : "tabletalk")} className="h-6 rounded-full bg-[#eef1f7] px-2 text-xs font-medium text-brand" aria-label="테이블토크 · 커피챗 바꿔 보기">
+                <button type="button" onClick={() => setRound(isTT ? "coffeechat" : "tabletalk")} className="h-9 rounded-full border border-navy bg-[#eef1f7] px-3 text-xs font-medium text-brand" aria-label="테이블토크 · 커피챗 바꿔 보기">
                   {isTT ? "테이블토크" : "커피챗"} ⇄
                 </button>
               ) : (

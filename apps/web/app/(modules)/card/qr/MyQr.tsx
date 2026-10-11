@@ -22,14 +22,21 @@ export default function MyQr() {
   }, []);
 
   return (
-    <DarkScreen title="내 명함 QR" close="/card">
+    <DarkScreen
+      title="내 명함 QR"
+      close="/card"
+      footer={
+        <div className="pb-6 text-center">
+          <p className="text-[15px] font-medium">내 QR을 상대에게 공유해요</p>
+          <p className="mt-2 text-sm text-muted">상대가 찍으면 서로 명함을 주고받아요</p>
+        </div>
+      }
+    >
       <Eclipse variant="qr" guide={false}>
         <div className="flex size-[190px] items-center justify-center rounded-2xl bg-white">
           {payload ? <QRCodeSVG value={payload} size={168} level="M" /> : <span className="text-xs text-ink-3">불러오는 중</span>}
         </div>
       </Eclipse>
-      <p className="mt-[55px] text-center text-[15px] font-medium">내 QR을 상대에게 공유해요</p>
-      <p className="mt-2 text-center text-sm text-muted">상대가 찍으면 서로 명함을 주고받아요</p>
     </DarkScreen>
   );
 }

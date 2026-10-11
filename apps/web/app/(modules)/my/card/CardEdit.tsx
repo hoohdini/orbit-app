@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import Loading from "@/components/Loading";
 import type { Card } from "@/app/api/card/_lib";
+import Pass from "@/components/figma/Pass";
 import { Notice, Row, RowGroup, Section, bigBtn } from "../ui";
 
 type Profile = { offer_text: string; seek_text: string; topic_tags: string[]; edited: boolean; visibility: string; links: Record<string, string> };
@@ -70,38 +71,5 @@ export default function CardEdit() {
         {state === "saving" ? "저장 중" : state === "saved" ? "저장했어요" : state === "error" ? "저장하지 못했어요. 다시 누르기" : "저장하기"}
       </button>
     </main>
-  );
-}
-
-// 피그마 Pass(내 명함 = 여권 신원정보면). 남색 카드, 한글/영문 병기 라벨
-function Pass({ card }: { card: Card }) {
-  const field = card.label || card.offer_text.split(/[.\n]/)[0] || "-";
-  return (
-    <div className="mx-auto w-[251px] rounded-[18px] bg-brand p-[15px] shadow-[0_6px_9px_rgba(12,23,51,0.1)]">
-      <div className="flex justify-between font-mono text-[6px] uppercase tracking-[0.45px] text-muted">
-        <span>ORBIT PASS</span>
-        <span>P / ORB / 2026</span>
-      </div>
-      <div className="mt-3 flex gap-3">
-        <span className="flex h-[72px] w-[57px] shrink-0 items-center justify-center rounded-[9px] bg-[#1b2f5e] font-mono text-[9px] text-muted">{card.display_name.slice(0, 2)}</span>
-        <div className="min-w-0 space-y-2">
-          <div>
-            <p className="text-[7px] text-muted">성명 / NAME</p>
-            <p className="text-[10px] font-medium text-white">{card.display_name}</p>
-          </div>
-          <div className="flex gap-4">
-            <div className="min-w-0">
-              <p className="text-[7px] text-muted">분야 / FIELD</p>
-              <p className="truncate text-[8px] font-medium text-white">{field}</p>
-            </div>
-            <div className="min-w-0">
-              <p className="text-[7px] text-muted">소속 / ORG</p>
-              <p className="truncate text-[8px] font-medium text-white">{card.affiliation ?? "-"}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="mt-3 h-px bg-[#3a4f86]" />
-    </div>
   );
 }

@@ -9,8 +9,8 @@ import type { Card } from "@/app/api/card/_lib";
 import { hhmm, metLabel } from "../../walletText";
 
 const LINKS: { key: "email" | "linkedin" | "github" | "url"; label: string }[] = [
-  { key: "email", label: "email" },
-  { key: "linkedin", label: "Linkedin" },
+  { key: "email", label: "이메일" },
+  { key: "linkedin", label: "LinkedIn" },
   { key: "github", label: "GitHub" },
   { key: "url", label: "링크" },
 ];
@@ -51,7 +51,7 @@ export default function CardDetail({ id }: { id: string }) {
 
   const field = card.label || firstSentence(card.offer_text) || "-";
   const links = LINKS.filter((l) => card.links?.[l.key]);
-  const box = "rounded-xl border border-line p-[13px]";
+  const box = "rounded-2xl border border-navy p-[13px]";
 
   return (
     <main className="space-y-[14px] px-4 pt-[5px]">
@@ -77,13 +77,13 @@ export default function CardDetail({ id }: { id: string }) {
       </section>
 
       <div className="grid grid-cols-2 gap-2">
-        <TextBox label="seek" text={card.seek_text} />
-        <TextBox label="offer" text={card.offer_text} />
+        <TextBox label="Seek · 찾는 분" text={card.seek_text} />
+        <TextBox label="Offer · 하는 일" text={card.offer_text} />
       </div>
 
       <div className="grid grid-cols-2 gap-2">
         <section className={`${box} min-h-[117px]`}>
-          <p className="text-base tracking-[-0.24px] text-black">함께 있던 자리</p>
+          <p className="text-base font-bold text-navy">함께 있던 자리</p>
           <div className="mt-2 pl-[9px] text-sm leading-[26px] text-black">
             {card.together?.table_no ? <p>테이블 {card.together.table_no}번</p> : null}
             {card.together?.group_no ? <p>커피챗 {card.together.group_no}그룹</p> : null}
@@ -91,13 +91,13 @@ export default function CardDetail({ id }: { id: string }) {
           </div>
         </section>
         <section className={`${box} min-h-[117px]`}>
-          <p className="text-base tracking-[-0.24px] text-black">연락처</p>
+          <p className="text-base font-bold text-navy">연락처</p>
           {links.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-2">
               {links.map((l) => {
                 const v = card.links![l.key]!;
                 return (
-                  <a key={l.key} href={l.key === "email" ? `mailto:${v}` : v} target={l.key === "email" ? undefined : "_blank"} rel="noreferrer" className="rounded-[10px] border border-[#c5c5c5] px-[5px] py-[3px] text-[13px] leading-[26px] text-black">
+                  <a key={l.key} href={l.key === "email" ? `mailto:${v}` : v} target={l.key === "email" ? undefined : "_blank"} rel="noreferrer" className="flex h-9 items-center rounded-full border border-navy px-3 text-[13px] text-ink">
                     {l.label}
                   </a>
                 );
@@ -110,8 +110,8 @@ export default function CardDetail({ id }: { id: string }) {
       </div>
 
       <section className={box}>
-        <label htmlFor="memo" className="block px-[6px] text-lg tracking-[-0.27px] text-black">
-          memo
+        <label htmlFor="memo" className="block px-[6px] text-base font-bold text-navy">
+          메모
         </label>
         <textarea
           id="memo"
@@ -123,11 +123,11 @@ export default function CardDetail({ id }: { id: string }) {
           maxLength={200}
           rows={3}
           placeholder="이 분과 나눈 이야기를 적어 두세요(나만 봐요)"
-          className="mt-1 w-full resize-none px-[6px] text-sm text-ink outline-none placeholder:text-ink-3"
+          className="mt-1 w-full resize-none px-[6px] text-base text-ink outline-none placeholder:text-ink-3"
         />
         <p className="text-right text-[11px] text-ink-3">{note.length}/200</p>
       </section>
-      <button type="button" onClick={save} disabled={saved === "saving"} className="flex h-[46px] w-full items-center justify-center rounded-[14px] border border-line text-[15px] tracking-[-0.225px] text-black">
+      <button type="button" onClick={save} disabled={saved === "saving"} className="flex h-14 w-full items-center justify-center rounded-2xl bg-navy text-base font-bold text-white disabled:bg-field disabled:text-ink-3">
         {saved === "saving" ? "저장 중" : saved === "saved" ? "저장했어요" : saved === "error" ? "저장하지 못했어요. 다시 누르기" : "메모 저장"}
       </button>
       <p className="text-center text-[11px] text-ink-3">
@@ -148,8 +148,8 @@ function Field({ k, v, cls }: { k: string; v: string; cls: string }) {
 
 function TextBox({ label, text }: { label: string; text: string }) {
   return (
-    <section className="min-h-[105px] rounded-xl bg-line px-5 py-[14px] shadow-[0_2px_2px_rgba(0,0,0,0.25)]">
-      <p className="text-lg leading-[26px] tracking-[-0.27px] text-black">{label}</p>
+    <section className="min-h-[105px] rounded-2xl border border-navy bg-strip px-4 py-[14px]">
+      <p className="text-[13px] font-bold text-navy">{label}</p>
       <p className="mt-1 line-clamp-4 text-[13px] leading-[18px] text-ink">{text || "비어 있어요"}</p>
     </section>
   );

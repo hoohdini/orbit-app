@@ -60,11 +60,11 @@ export default function ScanClient({ via }: { via: "card" | "event" }) {
   };
 
   return (
-    <DarkScreen title="QR 스캔" close={via === "event" ? "/event" : "/card"}>
-      <Eclipse>
-        <QrScanner onDecode={onDecode} onDenied={() => setDenied(true)} paused={busy} />
-      </Eclipse>
-      <div className="mt-[18px] w-[353px]">
+    <DarkScreen
+      title="QR 스캔"
+      close={via === "event" ? "/event" : "/card"}
+      footer={
+        <div className="pb-2">
         {target ? (
           <ExchangeResult key={target.n} payload={target.payload} source={target.source} via={via} onDone={reset} />
         ) : notQr ? (
@@ -81,7 +81,7 @@ export default function ScanClient({ via }: { via: "card" | "event" }) {
             </div>
             <p className="mt-1 text-xs text-ink-3">이름으로 교환하면 상대가 확인해야 교환이 끝나요</p>
             <input
-              className="mt-3 w-full rounded-xl bg-field px-4 py-3 text-sm text-ink outline-none ring-navy placeholder:text-ink-3 focus:ring-1"
+              className="mt-3 w-full rounded-xl bg-field px-4 py-3 text-base text-ink outline-none ring-navy placeholder:text-ink-3 focus:ring-1"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="이름 두 글자 이상"
@@ -105,14 +105,19 @@ export default function ScanClient({ via }: { via: "card" | "event" }) {
             )}
           </section>
         ) : (
-          <div className="pt-9 text-center">
+          <div className="pb-6 text-center">
             <p className="text-[15px] font-medium">명찰이나 포스터의 QR을 원 안에 맞춰 주세요</p>
             <button type="button" onClick={() => setSearchOpen(true)} className="mt-3 text-sm font-medium text-muted underline">
               카메라를 쓸 수 없나요? 이름으로 찾기
             </button>
           </div>
         )}
-      </div>
+        </div>
+      }
+    >
+      <Eclipse>
+        <QrScanner onDecode={onDecode} onDenied={() => setDenied(true)} paused={busy} />
+      </Eclipse>
     </DarkScreen>
   );
 }
