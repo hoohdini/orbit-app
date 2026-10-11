@@ -149,7 +149,7 @@ def test_full_loop():
     r3 = service.coffeechat(repo, enc, iters=5000)
     assert r3["forbid_hits"] == 0 and not r3["fallback"]                  # 테이블토크 동석자와 다시 안 앉음
     recs = [r for r in repo.t["recs"] if r["version"] == r3["version"]]
-    assert len(recs) == 62 * 12                                          # 체크인 60 + 현장 등록 2
+    assert len(recs) == 62 * 10                                          # 체크인 60 + 현장 등록 2, 1인 10명(정확 8 + 탐색 2)
     t2 = {m["participant_id"]: m["table_no"] for m in tab}
     assert all(t2[r["participant_id"]] != t2[r["target_id"]] for r in recs)   # 이미 만난 사람은 추천 안 함
     assert repo.ops_get("compute_heartbeat")["last"] == "coffeechat"
@@ -181,7 +181,7 @@ def test_v02_signals_recs_reasons():
     v1 = r1["version"]
     t1 = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == v1}
     recs1 = [r for r in repo.t["recs"] if r["version"] == v1]
-    assert len(recs1) == 40 * 12 and all(t1[r["participant_id"]] != t1[r["target_id"]] for r in recs1)   # 같은 테이블 사람 빼고
+    assert len(recs1) == 40 * 10 and all(t1[r["participant_id"]] != t1[r["target_id"]] for r in recs1)   # 같은 테이블 사람 빼고
     coh = {p["id"]: (p["cohort"], p["affiliation"]) for p in repo.t["participants"]}
     same = sum(1 for r in recs1 if coh[r["participant_id"]][0] is not None and coh[r["participant_id"]] == coh[r["target_id"]])
     assert same <= len(recs1) * 0.05                                 # 같은 기수 · 같은 소속은 거의 안 뜸(감점)

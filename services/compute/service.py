@@ -197,7 +197,7 @@ def _write_recs(repo, v: int, P, ids, a, met, tags, intents, prefix, rec_mode, n
 def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = None,
                reuse_codebook: bool = False, table_mode: str = "min", random_ratio: float = 0.0,
                K: int = 8, L: int = 3, iters: int = 20000, seed: int = 42, n_tables: int = TABLETALK_TABLES,
-               rec_mode: str | None = None, n_exact: int = 10, n_explore: int = 2) -> dict:
+               rec_mode: str | None = None, n_exact: int = recm.N_EXACT, n_explore: int = recm.N_EXPLORE) -> dict:
     P = _people(repo, event_id, only_checked_in=reuse_codebook)
     if len(P) < 5:
         raise ValueError(f"배정할 사람이 {len(P)}명뿐이다 (5명 이상 필요)")
@@ -314,7 +314,7 @@ def _keep_groups(repo, ids: list[str], idx: dict[str, int], event_id: str, forbi
 
 def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5, table_mode: str = "min",
                rec_mode: str | None = None, random_ratio: float = 0.0, beta: float = 0.5,
-               n_exact: int = 10, n_explore: int = 2, iters: int = 20000, seed: int = 43, final: bool = False) -> dict:
+               n_exact: int = recm.N_EXACT, n_explore: int = recm.N_EXPLORE, iters: int = 20000, seed: int = 43, final: bool = False) -> dict:
     """커피챗 계산(16:45 포스터 응답 마감 뒤). final=True 면 행사 직후 추천(10/6 민찬): 커피챗 계산과 같은 신호
     (테이블토크 만족도 · 그날 명함 교환 전부 · 포스터 응답 · 검색)를 반영해 추천 목록만 다시 만든다. 검색은 감쇠 없이 그날 것을 모두 쓴다.
     커피챗 뒤 만족도는 평가용이라 넣지 않는다(DATA_SPEC, 넣을지는 팀 결정 대기).

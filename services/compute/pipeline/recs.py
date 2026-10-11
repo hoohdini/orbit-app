@@ -14,8 +14,11 @@ from collections import Counter
 
 import numpy as np
 
+# 명함 탭 '오늘 만나면 좋을 분' = 정확 8 + 탐색 2 = 10명(10/10 전체 회의: 행사 전에 정해 두고 행사 중에는 바꾸지 않음)
+N_EXACT, N_EXPLORE = 8, 2
 
-def personal(a: np.ndarray, met: np.ndarray, n_exact: int = 10, n_explore: int = 2,
+
+def personal(a: np.ndarray, met: np.ndarray, n_exact: int = N_EXACT, n_explore: int = N_EXPLORE,
              cap: int | None = None, seed: int = 0,
              avoid: np.ndarray | None = None) -> tuple[list[list[tuple[int, str]]], np.ndarray]:
     """사람마다 [(상대 번호, 'exact'|'explore'), …] 와 사람별 노출 횟수.
