@@ -6,12 +6,14 @@
 //   확인 대기 중에 같은 사람을 QR 로 찍으면 바로 성립으로 바꾼다
 // - via(card · event)는 스캐너를 연 탭. 판정과 무관하고 운영 콘솔 탭 불일치 수(A-07)에만 쓴다
 // - 이용 동의를 거부한 사람은 교환할 수 없고, 거부한 사람의 명함도 교환되지 않는다(10/5 회의: 행사 중 수집 제외)
+// - phase 는 교환이 생긴 때의 행사 단계(0013). 명함 목록의 어디서 만났나 칩에 쓴다. 두 행에 같은 값
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ok, fail, handle } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 import { logEvent } from "@/lib/log";
 import { collectGuard, getConsent } from "@/lib/consent";
+import { opsSnapshot } from "@/lib/opsState";
 import { parseCardId } from "../_lib";
 import { buildCards, getParticipantInEvent } from "../_server";
 
@@ -80,12 +82,13 @@ export async function POST(req: Request) {
     } else {
       // 상대가 먼저 나를 찍었으면 상대→나 행은 이미 있다. unique 충돌은 무시한다
       const confirmed_at = status === "confirmed" ? now : null;
+      const { phase } = await opsSnapshot();
       const { error: insErr } = await db()
         .from("card_exchanges")
         .upsert(
           [
-            { scanner_id: s.pid, scanned_id: targetId, source: b.source, status, confirmed_at, via: b.via ?? null },
-            { scanner_id: targetId, scanned_id: s.pid, source: "auto", status, confirmed_at },
+            { scanner_id: s.pid, scanned_id: targetId, source: b.source, status, confirmed_at, via: b.via ?? null, phase },
+            { scanner_id: targetId, scanned_id: s.pid, source: "auto", status, confirmed_at, phase },
           ],
           { onConflict: "scanner_id,scanned_id", ignoreDuplicates: true },
         );

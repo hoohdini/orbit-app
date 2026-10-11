@@ -2,7 +2,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { eventId } from "@/lib/api";
-import { stageOf, themeOf, visibleLinks, type Card, type CardLinks, type CardSource } from "./_lib";
+import { metOf, stageOf, themeOf, visibleLinks, type Card, type CardLinks, type CardSource } from "./_lib";
 
 type Row = { id: string; display_name: string; affiliation: string | null; role: string; cohort: number | null; visibility: string; event_id: string };
 
@@ -88,21 +88,42 @@ export async function buildMyCard(id: string): Promise<Card | null> {
 
 export type ExchangeRow = {
   id: number; scanner_id: string; scanned_id: string; source: CardSource; seen_at: string | null; created_at: string;
-  status: "pending" | "confirmed"; first_meet: boolean | null; first_meet_at: string | null; note: string | null;
+  status: "pending" | "confirmed"; first_meet: boolean | null; first_meet_at: string | null; note: string | null; phase: string | null;
 };
 
 export async function myExchanges(me: string): Promise<ExchangeRow[]> {
   const { data, error } = await db()
     .from("card_exchanges")
-    .select("id, scanner_id, scanned_id, source, seen_at, created_at, status, first_meet, first_meet_at, note")
+    .select("id, scanner_id, scanned_id, source, seen_at, created_at, status, first_meet, first_meet_at, note, phase")
     .eq("scanner_id", me)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as ExchangeRow[];
 }
 
+// 함께 있던 자리. 공개된 배정(current_tables)에서 나와 같은 테이블토크 테이블 · 커피챗 그룹인 사람을 찾아 그 번호를 돌려준다
+export async function tablematesOf(me: string): Promise<Map<string, { table_no: number | null; group_no: number | null }>> {
+  const out = new Map<string, { table_no: number | null; group_no: number | null }>();
+  const { data: mine, error } = await db().from("current_tables").select("round, table_no").eq("participant_id", me).eq("event_id", eventId());
+  if (error) throw error;
+  for (const m of mine ?? []) {
+    const { data, error: e2 } = await db().from("current_tables").select("participant_id").eq("event_id", eventId()).eq("round", m.round).eq("table_no", m.table_no);
+    if (e2) throw e2;
+    for (const r of data ?? []) {
+      const id = r.participant_id as string;
+      if (id === me) continue;
+      const t = out.get(id) ?? { table_no: null, group_no: null };
+      if (m.round === "tabletalk") t.table_no = m.table_no as number;
+      else if (m.round === "coffeechat") t.group_no = m.table_no as number;
+      out.set(id, t);
+    }
+  }
+  return out;
+}
+
 // 교환 행 목록을 명함 목록으로. 내가 찍은 행(qr·manual)의 상대는 링크 공개 판정에서 "직접 찍음" 이다.
-export async function cardsOf(rows: ExchangeRow[]): Promise<Card[]> {
+// mates 를 주면 함께 있던 자리(together)를 붙인다(명함함)
+export async function cardsOf(rows: ExchangeRow[], mates?: Map<string, { table_no: number | null; group_no: number | null }>): Promise<Card[]> {
   const scannedByMe = new Set(rows.filter((r) => r.source !== "auto").map((r) => r.scanned_id));
   const cards = await buildCards(
     rows.map((r) => r.scanned_id),
@@ -111,7 +132,10 @@ export async function cardsOf(rows: ExchangeRow[]): Promise<Card[]> {
   const out: Card[] = [];
   for (const r of rows) {
     const c = cards.get(r.scanned_id);
-    if (c) out.push({ ...c, source: r.source, exchanged_at: r.created_at, status: r.status, first_meet: r.first_meet, note: r.note });
+    if (!c) continue;
+    const card: Card = { ...c, source: r.source, exchanged_at: r.created_at, status: r.status, first_meet: r.first_meet, note: r.note, met: metOf(r.phase) };
+    if (mates) card.together = mates.get(r.scanned_id) ?? { table_no: null, group_no: null };
+    out.push(card);
   }
   return out;
 }

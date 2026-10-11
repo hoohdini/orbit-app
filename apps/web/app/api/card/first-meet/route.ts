@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 const Body = z.object({
   target_id: z.string().regex(UUID, "uuid 형식"),
   first_meet: z.boolean().nullable(),
-  note: z.string().trim().max(100).optional(),
+  note: z.string().trim().max(200).optional(),
 });
 
 export async function POST(req: Request) {

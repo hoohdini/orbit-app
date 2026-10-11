@@ -27,7 +27,18 @@ export type Card = {
   status?: "pending" | "confirmed"; // 명함함·알림에서만. pending 은 이름 검색 교환의 상대 확인 전(v0.2 H-05-BE2)
   first_meet?: boolean | null; // 명함함에서만. 내가 고른 오늘 처음 대화한 분인가요? 의 답(null 은 아직 안 고름 · 건너뜀)
   note?: string | null; // 명함함에서만. 내가 남긴 한 줄
+  met?: MetAt; // 명함함에서만. 교환이 생긴 때의 단계로 나눈 어디서 만났나(0013). 칩 필터용
+  together?: { table_no: number | null; group_no: number | null }; // 명함함에서만. 함께 있던 자리(공개된 테이블토크 테이블 · 커피챗 그룹이 같으면 그 번호)
 };
+
+// 명함 목록의 어디서 만났나 칩(전체 · 테이블 · 포스터 · 커피챗). other 는 행사 전 · 등록 · 마무리 · 시상, 또는 단계 기록이 없는 교환(전체에만 보인다)
+export type MetAt = "table" | "poster" | "coffeechat" | "other";
+export function metOf(phase: string | null | undefined): MetAt {
+  if (phase === "tabletalk" || phase === "tabletalk_end") return "table";
+  if (phase === "poster") return "poster";
+  if (phase === "coffeechat_seated" || phase === "coffeechat_free") return "coffeechat";
+  return "other";
+}
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
