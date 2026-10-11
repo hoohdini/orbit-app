@@ -87,30 +87,24 @@ export default function SatisfactionGate() {
     close();
   }
 
+  // 모양은 피그마 라운드 만족도 조사 팝업(10/11). 선택지는 피그마의 1~5점 대신 팀 결정(10/9) 따봉 3단계를 쓴다
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/40 sm:items-center" role="dialog" aria-modal="true">
-      <div className="mx-auto max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 text-gray-900 sm:rounded-3xl">
-        <h2 className="text-lg font-bold">{TITLE[open]}</h2>
-        <p className="mt-1 text-xs text-gray-500">낮은 응답은 상대에게 어떤 형태로도 전달되지 않습니다</p>
-        <div className="mt-4 grid gap-2">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0c1733]/45 px-6" role="dialog" aria-modal="true">
+      <div className="max-h-[90vh] w-full max-w-[345px] overflow-y-auto rounded-3xl bg-white p-5 text-ink">
+        <span className="inline-flex h-6 items-center rounded-full bg-[#eef1f7] px-2 text-xs font-medium text-brand">{open === "tabletalk" ? "테이블토크 종료" : "커피챗 종료"}</span>
+        <h2 className="mt-3 text-lg font-bold text-ink">{TITLE[open]}</h2>
+        <div className="mt-4 flex justify-center gap-6">
           {SATISFACTION_CHOICES.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              disabled={busy}
-              onClick={() => pickChoice(c.key)}
-              aria-pressed={choice === c.key}
-              className={`rounded-xl border px-4 py-3 text-left text-sm ${choice === c.key ? "border-black bg-black text-white" : "border-gray-300"}`}
-            >
-              <span className="mr-2">{ICON[c.key] ?? ""}</span>
-              {c.label}
+            <button key={c.key} type="button" disabled={busy} onClick={() => pickChoice(c.key)} aria-pressed={choice === c.key} className="flex flex-col items-center gap-1.5">
+              <span className={`flex size-14 items-center justify-center rounded-full border text-xl ${choice === c.key ? "border-navy bg-navy" : "border-navy bg-white"}`}>{ICON[c.key] ?? ""}</span>
+              <span className={`text-xs ${choice === c.key ? "font-bold text-navy" : "text-ink-3"}`}>{c.label}</span>
             </button>
           ))}
         </div>
         {mates.length > 0 && (
           <div className="mt-5">
-            <p className="text-sm font-semibold">{PICK_Q}</p>
-            <p className="mt-1 text-xs text-gray-500">{PICK_NOTE}</p>
+            <p className="text-sm font-bold text-ink">{PICK_Q}</p>
+            <p className="mt-1 text-xs text-ink-3">{PICK_NOTE}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {mates.map((m) => (
                 <button
@@ -119,7 +113,7 @@ export default function SatisfactionGate() {
                   disabled={busy}
                   onClick={() => togglePick(m.id)}
                   aria-pressed={picks.has(m.id)}
-                  className={`rounded-full border px-3 py-1.5 text-sm ${picks.has(m.id) ? "border-black bg-black text-white" : "border-gray-300"}`}
+                  className={`rounded-full border px-3 py-1.5 text-sm ${picks.has(m.id) ? "border-navy bg-navy text-white" : "border-line text-ink"}`}
                 >
                   {m.display_name}
                 </button>
@@ -127,18 +121,16 @@ export default function SatisfactionGate() {
             </div>
           </div>
         )}
+        <p className="mt-4 rounded-xl bg-strip/70 px-3 py-2 text-center text-xs text-accent">응답 결과는 상대에게 어떤 형태로도 전달되지 않습니다</p>
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-        <button
-          type="button"
-          disabled={!choice || busy}
-          onClick={(e) => send(e.timeStamp)}
-          className="mt-5 w-full rounded-xl bg-black py-3 text-sm font-semibold text-white disabled:bg-gray-300"
-        >
-          {busy ? "보내는 중" : "보내기"}
-        </button>
-        <button type="button" onClick={close} className="mt-2 w-full py-2 text-sm text-gray-500">
-          건너뛰기
-        </button>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button type="button" onClick={close} className="h-[52px] rounded-2xl border border-navy bg-white text-base text-ink">
+            건너뛰기
+          </button>
+          <button type="button" disabled={!choice || busy} onClick={(e) => send(e.timeStamp)} className="h-[52px] rounded-2xl bg-navy text-base font-bold text-white disabled:bg-line">
+            {busy ? "저장 중" : "저장하기"}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,23 +1,16 @@
 "use client";
-// 미션 현황판(개발 지시서 v0.2 E-01 ~ E-06). 위에 진행 블록(n/4, 진행 바), 2×2 스탬프 그리드, 아래 고정 QR 버튼(공용 스캐너 /card/scan?via=event).
-// 완료 타일은 실선 테두리와 체크, 미완료 타일은 점선 테두리와 다음 행동 문구만. 미참여를 탓하는 문구(아직, 미완료, 실패)는 쓰지 않는다.
-// 서비스 소개 전에는 곧 시작됩니다로 덮고, 마감(wrapup) 뒤에는 읽기 전용이며 QR 버튼을 숨긴다. 판정은 서버가 한다(/api/poster/missions).
-// 응모권은 명찰 번호로 전원에게 준다(앱 밖). 미션은 특별 시상 집계에만 쓴다.
+// 이벤트·미션 탭 현황판(피그마 E-01 기본 · 진행 · 전체 완료 · 마감, 10/11). 포스터 미션 2개 타일, 네트워킹 미션 3줄, 미션 스탬프 5칸, 아래 QR 스캔하기.
+// 진행 중 타일을 누르면 ① ② 는 포스터 세션 목록, ③ ④ ⑤ 는 미션 상세로 간다. 완료 타일은 동작 없음(A01 ~ A05).
+// 다섯 미션을 모두 마치면 미션 완료! 모달을 한 번 띄운다(S02). 마감(wrapup 뒤)이면 읽기 전용이고 QR 버튼을 막는다(S01).
+// 탭은 처음부터 열려 있지만 미션 기록은 테이블토크부터 센다(10/11 성하 결정: 서버 미션 구간 그대로).
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/client";
 import Loading from "@/components/Loading";
+import Stamp from "@/components/figma/Stamp";
 import { useOrbitState } from "@/components/useOrbitState";
+import { HREF, NO, TODO, type Mission, type Missions } from "./missions";
 
-type Mission = { key: "poster" | "recommended" | "first_meet" | "generation"; label: string; goal: number; count: number; done: boolean; completed_at: string | null };
-type Missions = { window: "not_started" | "open" | "closed"; closed_at: string | null; missions: Mission[]; done_count: number; total: number; progress: number; completed_all_at: string | null };
-
-const NEXT_STEP: Record<Mission["key"], { text: string; href: string | null }> = {
-  poster: { text: "관심 있는 포스터의 QR 을 찍고 이유를 골라 주세요", href: null },
-  recommended: { text: "명함 탭의 오늘 만나면 좋을 분과 명함을 교환해 보세요", href: "/card" },
-  first_meet: { text: "처음 대화한 분과 명함을 교환하고 첫 대화를 체크해 주세요", href: "/card" },
-  generation: { text: "재학생은 졸업생 · 교수 · 외부 분과, 그 밖의 분은 재학생과 명함을 교환해 보세요", href: "/card" },
-};
 const doneKey = "orbit:mission-complete-shown";
 const POLL_MS = 15_000;
 
@@ -50,77 +43,115 @@ export default function MissionBoard() {
     };
   }, []);
 
-  if (!m) return <Loading text="미션 불러오는 중" />;
-
-  const allDone = m.done_count === m.total;
+  if (!m) return <Loading />;
+  const closed = m.window === "closed";
+  const by = (k: Mission["key"]) => m.missions.find((x) => x.key === k)!;
+  const posterSet = [by("poster"), by("quiz")];
+  const netSet = [by("recommended"), by("first_meet"), by("generation")];
 
   return (
-    <main className="relative space-y-4 p-4 pb-28">
-      <section className="rounded-2xl bg-gray-50 p-4">
-        {allDone && <p className="mb-2 rounded-lg bg-black px-3 py-1.5 text-center text-sm font-semibold text-white">미션 완료!</p>}
-        <div className="flex items-baseline justify-between">
-          <p className="text-sm font-semibold">미션</p>
-          <p className="text-2xl font-bold">
-            {m.done_count}/{m.total}
-          </p>
+    <main className="space-y-8 px-5 pt-4 pb-6">
+      {closed && <p className="rounded-2xl bg-strip px-4 py-3 text-center text-sm font-medium text-navy">미션 {m.done_count}/{m.total} · 마감되었습니다</p>}
+      {refused && <p className="rounded-2xl bg-field px-4 py-3 text-sm text-ink-2">이용 동의를 하지 않아 미션 기록이 남지 않아요. 마이페이지에서 다시 동의할 수 있어요</p>}
+
+      <section className="space-y-2.5">
+        <Head title="포스터 미션" done={posterSet.filter((x) => x.done).length} total={2} />
+        <div className="grid grid-cols-2 gap-3">
+          {posterSet.map((x) => (
+            <Tile key={x.key} m={x} closed={closed} tile />
+          ))}
         </div>
-        <div className="mt-2 h-2 rounded-full bg-gray-200">
-          <div className="h-2 rounded-full bg-black" style={{ width: `${Math.round(m.progress * 100)}%` }} />
-        </div>
-        {m.window === "closed" && !allDone && <p className="mt-2 text-xs text-gray-500">미션 {m.done_count}/4 · 마감되었습니다</p>}
-        {m.window === "closed" && allDone && <p className="mt-2 text-xs text-gray-500">마감되었습니다</p>}
       </section>
 
-      {refused && <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600">이용 동의를 하지 않아 미션은 기록되지 않는다. 마이페이지에서 다시 동의할 수 있다</p>}
-
-      <section className="grid grid-cols-2 gap-3">
-        {m.missions.map((x, i) => (
-          <div key={x.key} className={`min-h-36 rounded-2xl p-3 ${x.done ? "border-2 border-black bg-white" : "border-2 border-dashed border-gray-300 bg-white"}`}>
-            <div className="flex items-start justify-between">
-              <p className="text-xs text-gray-500">{["①", "②", "③", "④"][i]}</p>
-              {x.done ? <span className="text-lg">✓</span> : x.goal > 1 && <span className="text-xs text-gray-500">{x.count}/{x.goal}</span>}
-            </div>
-            <p className="mt-1 text-sm font-semibold">{x.label}</p>
-            {!x.done && m.window !== "closed" && (
-              <p className="mt-2 text-xs text-gray-600">
-                {NEXT_STEP[x.key].href ? (
-                  <Link href={NEXT_STEP[x.key].href!} className="underline">
-                    {NEXT_STEP[x.key].text}
-                  </Link>
-                ) : (
-                  NEXT_STEP[x.key].text
-                )}
-              </p>
-            )}
-          </div>
+      <section className="space-y-2.5">
+        <Head title="네트워킹 미션" done={netSet.filter((x) => x.done).length} total={3} />
+        {netSet.map((x) => (
+          <Tile key={x.key} m={x} closed={closed} />
         ))}
       </section>
 
-      {m.window === "open" && !refused && (
-        <div className="fixed inset-x-0 bottom-16 z-10 mx-auto max-w-md px-4">
-          <Link href="/card/scan?via=event" className="block rounded-2xl bg-black py-4 text-center text-base font-bold text-white shadow-lg">
-            QR 찍기
-          </Link>
+      <section className="rounded-3xl border border-navy bg-strip px-5 pt-3 pb-5">
+        <p className="text-[15px] font-bold tracking-[-0.15px] text-ink">미션 스탬프</p>
+        <div className="mt-2 flex justify-center gap-3">
+          {/* 모은 개수만큼 왼쪽부터 채운다 */}
+          {m.missions.map((x, i) => (
+            <Stamp key={x.key} on={i < m.done_count} size={53} />
+          ))}
         </div>
-      )}
+      </section>
 
-      {m.window === "not_started" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/85">
-          <p className="text-lg font-semibold text-gray-700">곧 시작됩니다</p>
-        </div>
+      {closed ? (
+        <span className="flex h-14 items-center justify-center rounded-2xl bg-line text-lg font-bold text-white">QR 스캔하기</span>
+      ) : (
+        <Link href="/card/scan?via=event" className="flex h-14 items-center justify-center rounded-2xl bg-navy text-lg font-bold text-white">
+          QR 스캔하기
+        </Link>
       )}
 
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" role="dialog" aria-modal="true" onClick={() => setModal(false)}>
-          <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center">
-            <p className="text-2xl font-bold">미션 완료!</p>
-            <p className="mt-2 text-sm text-gray-600">네 미션을 모두 마쳤어요. 특별 시상은 마무리 시간에 발표됩니다</p>
-            <button type="button" className="mt-5 w-full rounded-xl bg-black py-3 text-sm font-semibold text-white">
-              닫기
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#0c1733]/45 px-10" role="dialog" aria-modal="true">
+          <div className="w-full max-w-[313px] rounded-3xl bg-white px-6 pt-8 pb-6 text-center">
+            <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-navy text-white" aria-hidden>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12.5L10 17.5L19 7.5" />
+              </svg>
+            </span>
+            <p className="mt-3 text-lg font-bold text-ink">미션 완료!</p>
+            <button type="button" onClick={() => setModal(false)} className="mt-5 h-14 w-full rounded-2xl bg-navy text-base font-bold text-white">
+              확인
             </button>
           </div>
         </div>
       )}
     </main>
+  );
+}
+
+function Head({ title, done, total }: { title: string; done: number; total: number }) {
+  return (
+    <div className="flex items-center justify-between">
+      <h2 className="text-[17px] font-bold text-navy">{title}</h2>
+      <span className="text-[13px] font-medium text-ink-2">
+        {done}/{total}
+      </span>
+    </div>
+  );
+}
+
+// 미션 타일(포스터 미션은 2칸 타일, 네트워킹 미션은 한 줄). 완료는 연한 남색 바탕 · 진한 테두리 · 스탬프
+function Tile({ m, closed, tile = false }: { m: Mission; closed: boolean; tile?: boolean }) {
+  const body = tile ? (
+    <>
+      <p className="text-xs font-medium text-ink-2">미션 {NO[m.key]}</p>
+      <p className="mt-1 text-[17px] font-bold text-ink">{m.label}</p>
+      <p className={`mt-1 text-[13px] ${m.done ? "font-medium text-navy" : "text-ink-2"}`}>{m.done ? "완료" : TODO[m.key](m)}</p>
+    </>
+  ) : (
+    <>
+      <p className="flex items-center gap-2">
+        <span className="text-xs font-medium text-ink-2">미션 {NO[m.key]}</span>
+        <span className="text-base font-bold text-ink">{m.label}</span>
+      </p>
+      <p className={`text-[13px] ${m.done ? "font-medium text-navy" : "text-ink-2"}`}>{m.done ? "완료" : TODO[m.key](m)}</p>
+    </>
+  );
+  const cls = `relative block rounded-[20px] border-[1.5px] ${tile ? "px-4 py-[14px]" : "px-4 py-[11px] pr-16"} ${m.done ? "border-navy bg-strip" : "border-[#a6abb3] bg-white"}`;
+  const stamp = (
+    <span className={`absolute ${tile ? "right-3 top-2.5" : "right-4 top-1/2 -translate-y-1/2"}`}>
+      <Stamp on={m.done} />
+    </span>
+  );
+  if (m.done || closed)
+    return (
+      <div className={cls}>
+        {body}
+        {stamp}
+      </div>
+    );
+  return (
+    <Link href={HREF[m.key]} className={cls}>
+      {body}
+      {stamp}
+    </Link>
   );
 }

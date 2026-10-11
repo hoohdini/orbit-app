@@ -1,8 +1,6 @@
-// 포스터 화면 공통 틀. 이벤트 탭(/event)의 한 부분이라 같은 틀(미션 n/4 를 띠에 붙임)을 쓴다. 보호는 page 에서 requireOnboarded 로 한다(_guard.ts).
-import TabShell from "@/components/TabShell";
-
+// 포스터 화면(피그마 P-1 ~ P-3 · E-02). 이벤트 탭의 하위 화면이라 page 에서 이벤트 탭과 같은 틀(남색 뒤로가기 헤더 · 미션 n/5 띠)을 씌운다. 보호는 page 에서 requireOnboarded 로 한다(_guard.ts).
 export const dynamic = "force-dynamic";
 
 export default function PosterLayout({ children }: { children: React.ReactNode }) {
-  return <TabShell showMission>{children}</TabShell>;
+  return children;
 }
