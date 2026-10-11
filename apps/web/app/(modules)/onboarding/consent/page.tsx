@@ -62,34 +62,40 @@ function ConsentForm() {
   }
 
   return (
-    <OnboardingFrame wave="consent" step={1} back={withNext("/onboarding", next)} next={{ label: busy ? "저장 중" : "Next", onClick: submit, disabled: choice === null || busy || !ready }}>
-      <h1 className="absolute inset-x-0 top-[169px] text-center text-2xl font-medium text-white">개인정보 이용 동의</h1>
-      <section className="absolute left-[59px] top-[225px] h-[320px] w-[278px] overflow-y-auto rounded-xl bg-field p-4 shadow-[0_4px_4px_rgba(0,0,0,0.25)]">
+    <OnboardingFrame
+      wave="consent"
+      step={1}
+      stageH={215}
+      stage={<h1 className="absolute inset-x-0 top-[160px] text-center text-2xl font-medium text-white">개인정보 이용 동의</h1>}
+      back={withNext("/onboarding", next)}
+      next={{ label: busy ? "저장 중" : "다음", onClick: submit, disabled: choice === null || busy || !ready }}
+    >
+      <section className="mx-auto h-[min(320px,42dvh)] w-full max-w-[320px] overflow-y-auto rounded-xl bg-field p-4 shadow-[0_4px_4px_rgba(0,0,0,0.25)]">
         <ul className="space-y-3">
           {notices.map((n) => (
             <li key={n.title}>
               <p className="text-[13px] font-bold text-ink">{n.title}</p>
-              <p className="mt-0.5 text-xs leading-[18px] text-ink-2">{n.body}</p>
+              <p className="mt-0.5 text-[13px] leading-[19px] text-ink-2">{n.body}</p>
             </li>
           ))}
         </ul>
       </section>
-      <fieldset className="absolute left-[111px] top-[575px] space-y-5">
+      <fieldset className="mx-auto mt-6 w-full max-w-[320px] space-y-1">
         <legend className="sr-only">이용 동의</legend>
         {[
           { v: true, label: "동의합니다." },
           { v: false, label: "동의하지 않습니다." },
         ].map((o) => (
-          <label key={String(o.v)} className="flex cursor-pointer items-center gap-[15px] text-base">
+          <label key={String(o.v)} className="flex min-h-11 cursor-pointer items-center gap-[15px] px-2 text-base">
             <input type="radio" name="consent" className="peer sr-only" checked={choice === o.v} onChange={() => setChoice(o.v)} />
-            <span className="flex size-[23px] items-center justify-center rounded-full bg-line peer-checked:bg-navy peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
+            <span className="flex size-[23px] items-center justify-center rounded-full border border-[#a6abb3] bg-white peer-checked:border-navy peer-checked:bg-navy peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
               {choice === o.v && <span className="size-[9px] rounded-full bg-white" />}
             </span>
             {o.label}
           </label>
         ))}
       </fieldset>
-      {error && <p className="absolute inset-x-6 top-[690px] text-center text-sm text-[#d93025]">{error}</p>}
+      {error && <p className="mt-3 text-center text-sm text-[#c5221f]">{error}</p>}
     </OnboardingFrame>
   );
 }

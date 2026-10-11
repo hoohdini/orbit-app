@@ -72,16 +72,16 @@ export default function MissionBoard() {
 
       <section className="rounded-3xl border border-navy bg-strip px-5 pt-3 pb-5">
         <p className="text-[15px] font-bold tracking-[-0.15px] text-ink">미션 스탬프</p>
-        <div className="mt-2 flex justify-center gap-3">
-          {/* 모은 개수만큼 왼쪽부터 채운다 */}
+        <div className="mx-auto mt-2 grid max-w-[313px] grid-cols-5 gap-[min(12px,2.5vw)]">
+          {/* 모은 개수만큼 왼쪽부터 채운다. 칸은 폭에 맞춰 줄어든다(최대 53) */}
           {m.missions.map((x, i) => (
-            <Stamp key={x.key} on={i < m.done_count} size={53} />
+            <Stamp key={x.key} on={i < m.done_count} fluid />
           ))}
         </div>
       </section>
 
       {closed ? (
-        <span className="flex h-14 items-center justify-center rounded-2xl bg-line text-lg font-bold text-white">QR 스캔하기</span>
+        <span className="flex h-14 items-center justify-center rounded-2xl bg-field text-lg font-bold text-ink-3">QR 스캔하기</span>
       ) : (
         <Link href="/card/scan?via=event" className="flex h-14 items-center justify-center rounded-2xl bg-navy text-lg font-bold text-white">
           QR 스캔하기

@@ -41,8 +41,8 @@ export default function PosterList() {
               <>
                 <span className="w-6 shrink-0 text-sm font-medium text-navy">{String(i + 1).padStart(2, "0")}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] font-bold text-ink">{p.title}</span>
-                  <span className="block truncate text-xs text-ink-2">{[p.tags[0], p.presenter].filter(Boolean).join(" · ")}</span>
+                  <span className={`block truncate text-[15px] font-bold ${p.scanned ? "text-ink" : "text-ink-3"}`}>{p.title}</span>
+                  <span className="block truncate text-xs text-ink-3">{p.scanned ? [p.tags[0], p.presenter].filter(Boolean).join(" · ") : "QR을 찍으면 열려요"}</span>
                 </span>
                 <Stamp on={p.quiz_solved} size={32} />
               </>
@@ -55,7 +55,7 @@ export default function PosterList() {
                     {row}
                   </Link>
                 ) : (
-                  <div className={`${cls} opacity-45`} aria-disabled>
+                  <div className={`${cls} bg-field/60`} aria-disabled>
                     {row}
                   </div>
                 )}

@@ -7,7 +7,7 @@ import SatisfactionGate from "./SatisfactionGate";
 // header 를 주면 상태 띠 위에 둔다(피그마 하위 화면: Header 바로 아래 StatusStrip)
 export default function TabShell({ children, showMission = false, extra, header }: { children: React.ReactNode; showMission?: boolean; extra?: React.ReactNode; header?: React.ReactNode }) {
   return (
-    <div className="mx-auto min-h-screen w-full max-w-md bg-white pb-[120px] text-gray-900">
+    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-white pb-[100px] text-gray-900">
       {header}
       <StatusBand showMission={showMission} />
       {children}

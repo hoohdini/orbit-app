@@ -109,7 +109,7 @@ export default function PosterClient({ code, id, via }: { code: string | null; i
           </div>
         )}
         {v.my_reason ? (
-          <span className={`${btn} bg-line text-white`}>이미 고른 관심 포스터예요</span>
+          <span className={`${btn} bg-field text-ink-3`}>이미 고른 관심 포스터예요</span>
         ) : (
           <button type="button" onClick={() => setStep("interest")} className={`${btn} bg-navy text-white`}>
             관심 포스터로 선택하기
@@ -138,7 +138,7 @@ export default function PosterClient({ code, id, via }: { code: string | null; i
           <p className="mt-3 text-xs text-ink-3">어떤 답이든 스탬프는 받아요</p>
         </section>
         {note && <p className="rounded-2xl bg-field px-4 py-3 text-sm text-ink-2">{note}</p>}
-        <button type="button" onClick={submitReason} disabled={!reason || busy} className={`${btn} bg-navy text-white disabled:bg-line`}>
+        <button type="button" onClick={submitReason} disabled={!reason || busy} className={`${btn} bg-navy text-white disabled:bg-field disabled:text-ink-3`}>
           {busy ? "저장 중" : "제출하기"}
         </button>
       </main>,
@@ -174,7 +174,7 @@ export default function PosterClient({ code, id, via }: { code: string | null; i
       {note && <p className="rounded-2xl bg-field px-4 py-3 text-sm text-ink-2">{note}</p>}
       {step === "quiz" ? (
         <>
-          <button type="button" onClick={submitQuiz} disabled={picked == null || busy} className={`${btn} bg-navy text-white disabled:bg-line`}>
+          <button type="button" onClick={submitQuiz} disabled={picked == null || busy} className={`${btn} bg-navy text-white disabled:bg-field disabled:text-ink-3`}>
             {busy ? "확인 중" : "정답 확인"}
           </button>
           <p className="text-center text-xs text-ink-3">요약 다시 보기는 뒤로 가기</p>

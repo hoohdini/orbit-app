@@ -127,7 +127,7 @@ export default function SatisfactionGate() {
           <button type="button" onClick={close} className="h-[52px] rounded-2xl border border-navy bg-white text-base text-ink">
             건너뛰기
           </button>
-          <button type="button" disabled={!choice || busy} onClick={(e) => send(e.timeStamp)} className="h-[52px] rounded-2xl bg-navy text-base font-bold text-white disabled:bg-line">
+          <button type="button" disabled={!choice || busy} onClick={(e) => send(e.timeStamp)} className="h-[52px] rounded-2xl bg-navy text-base font-bold text-white disabled:bg-field disabled:text-ink-3">
             {busy ? "저장 중" : "저장하기"}
           </button>
         </div>

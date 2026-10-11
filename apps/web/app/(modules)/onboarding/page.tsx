@@ -6,7 +6,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/client";
-import { IconChevron } from "@/components/figma/Icons";
+import { useFit } from "@/components/figma/useFit";
 import { safeNext, withNext } from "./_next";
 import OnboardingFrame from "./_frame";
 
@@ -29,34 +29,41 @@ function Entry() {
   return started ? <LoginForm next={next} /> : <Splash onStart={() => setStarted(true)} />;
 }
 
-// 시작 화면(피그마 iPhone 16 - 9)
+// 시작 화면(피그마 iPhone 16 - 9). 장식은 폭에 맞춰 비율로, 시작하기는 화면 아래 큰 버튼(10/11)
 function Splash({ onStart }: { onStart: () => void }) {
+  const [ref, s] = useFit<HTMLDivElement>(393, 1.15);
   return (
-    <div className="flex min-h-screen justify-center overflow-clip bg-gradient-to-b from-navy to-navy-2 text-white">
-      <div className="relative min-h-[max(100dvh,740px)] w-full max-w-[393px] overflow-clip">
-        <h1 className="absolute inset-x-0 top-[122px] text-center text-[32px] font-semibold leading-[39px]">
-          2026
-          <br />
-          DSL Gathering Night
-          <br />: The ORBIT
-        </h1>
-        <p className="absolute inset-x-0 top-[282px] text-center text-base">
-          연세대학교 백양누리
-          <br />B110 최영홀 &amp; B111 김순전홀
-          <br />
-          2026. 10. 31. 15:00
-        </p>
-        {/* eslint-disable @next/next/no-img-element */}
-        <img alt="" src="/figma/splash-line1.svg" className="pointer-events-none absolute left-[31px] top-[496px] h-[57px] w-[334px] max-w-none -rotate-[44.08deg]" />
-        <img alt="" src="/figma/splash-line2.svg" className="pointer-events-none absolute left-[38px] top-[505px] h-[38px] w-[315px] max-w-none -rotate-[44.37deg]" />
-        <img alt="" src="/figma/splash-ring.svg" className="absolute left-[84px] top-[410.5px] size-[228px] max-w-none" />
-        <img alt="" src="/figma/splash-disc.svg" className="absolute left-[110px] top-[440.5px] size-[176px] max-w-none" />
-        {/* eslint-enable @next/next/no-img-element */}
-        <p className="absolute inset-x-0 bottom-[68px] text-center text-[13px]">The ORBIT에 오신 것을 환영합니다</p>
-        <button type="button" onClick={onStart} className="absolute bottom-[24px] right-[22px] flex items-center gap-2 text-xs font-medium">
-          START
-          <IconChevron dir="right" />
-        </button>
+    <div className="flex min-h-dvh justify-center overflow-clip bg-gradient-to-b from-navy to-navy-2 text-white">
+      <div ref={ref} className="flex w-full max-w-md flex-col">
+        <div className="relative w-full shrink-0" style={{ height: 660 * s }}>
+          <div className="absolute left-1/2 top-0 h-[660px] w-[393px] origin-top" style={{ transform: `translateX(-50%) scale(${s})` }}>
+            <h1 className="absolute inset-x-0 top-[100px] text-center text-[32px] font-semibold leading-[39px]">
+              2026
+              <br />
+              DSL Gathering Night
+              <br />: The ORBIT
+            </h1>
+            <p className="absolute inset-x-0 top-[260px] text-center text-base">
+              연세대학교 백양누리
+              <br />B110 최영홀 &amp; B111 김순전홀
+              <br />
+              2026. 10. 31. 15:00
+            </p>
+            {/* eslint-disable @next/next/no-img-element */}
+            <img alt="" src="/figma/splash-line1.svg" className="pointer-events-none absolute left-[31px] top-[474px] h-[57px] w-[334px] max-w-none -rotate-[44.08deg]" />
+            <img alt="" src="/figma/splash-line2.svg" className="pointer-events-none absolute left-[38px] top-[483px] h-[38px] w-[315px] max-w-none -rotate-[44.37deg]" />
+            <img alt="" src="/figma/splash-ring.svg" className="absolute left-[84px] top-[388.5px] size-[228px] max-w-none" />
+            <img alt="" src="/figma/splash-disc.svg" className="absolute left-[110px] top-[418.5px] size-[176px] max-w-none" />
+            {/* eslint-enable @next/next/no-img-element */}
+          </div>
+        </div>
+        <div className="flex-1" />
+        <div className="px-6 pt-3 pb-[max(20px,env(safe-area-inset-bottom))]">
+          <p className="mb-4 text-center text-[13px]">The ORBIT에 오신 것을 환영합니다</p>
+          <button type="button" onClick={onStart} className="h-14 w-full rounded-2xl bg-white text-base font-bold text-navy">
+            시작하기
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -91,16 +98,26 @@ function LoginForm({ next }: { next: string | null }) {
   }
 
   const canSubmit = name.trim().length >= 1 && /^\d{4}$/.test(pin) && !busy;
-  const field = "h-[60px] w-[250px] rounded-xl bg-field px-[15px] text-sm text-black shadow-[0_4px_4px_rgba(0,0,0,0.25)] outline-none placeholder:text-[#6c6c6c] focus:ring-1 focus:ring-navy";
+  // 입력 글자는 16px(iOS 가 입력할 때 화면을 확대하지 않게)
+  const field = "h-[60px] w-full rounded-xl bg-field px-[15px] text-base text-ink shadow-[0_4px_4px_rgba(0,0,0,0.25)] outline-none placeholder:text-[#6c6c6c] focus:ring-1 focus:ring-navy";
 
   return (
-    <OnboardingFrame wave="login" step={0} next={{ label: busy ? "확인 중" : "Next", type: "submit", form: "login", disabled: !canSubmit }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img alt="" src="/figma/dsl-logo-white.svg" className="absolute left-[81px] top-[123px] h-[139px] w-[243px]" />
-      <p className="absolute inset-x-0 top-[181px] text-center text-2xl font-medium text-white">LOG IN</p>
+    <OnboardingFrame
+      wave="login"
+      step={0}
+      stageH={300}
+      stage={
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt="" src="/figma/dsl-logo-white.svg" className="absolute left-[81px] top-[123px] h-[139px] w-[243px]" />
+          <p className="absolute inset-x-0 top-[181px] text-center text-2xl font-medium text-white">로그인</p>
+        </>
+      }
+      next={{ label: busy ? "확인 중" : "입장하기", type: "submit", form: "login", disabled: !canSubmit }}
+    >
       <form
         id="login"
-        className="absolute inset-x-0 top-[330px] flex flex-col items-center gap-[15px]"
+        className="mx-auto flex w-full max-w-[300px] flex-col gap-[15px] pt-2"
         onSubmit={(e) => {
           e.preventDefault();
           if (canSubmit) submit();
@@ -132,18 +149,18 @@ function LoginForm({ next }: { next: string | null }) {
           aria-label="숫자 4자리"
         />
         {error && (
-          <p role="alert" className="mt-[28px] flex w-[341px] items-center justify-center gap-2 rounded-xl border border-[#f2b8b5] bg-white px-4 py-3 text-center text-xs text-[#d93025] shadow-[0_2px_4px_rgba(0,0,0,0.12)]">
-            <span aria-hidden className="flex size-4 shrink-0 items-center justify-center rounded-full border border-[#d93025] text-[10px] font-bold">!</span>
+          <p role="alert" className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-[#f2b8b5] bg-white px-4 py-3 text-center text-[13px] text-[#c5221f] shadow-[0_2px_4px_rgba(0,0,0,0.12)]">
+            <span aria-hidden className="flex size-4 shrink-0 items-center justify-center rounded-full border border-[#c5221f] text-[10px] font-bold">!</span>
             {error}
           </p>
         )}
         {choose && (
-          <div className="mt-4 w-[300px] rounded-xl border border-line bg-white p-3">
+          <div className="mt-2 rounded-xl border border-navy bg-white p-3">
             <p className="text-sm text-ink-2">같은 이름이 여러 명이에요. 본인을 골라 주세요</p>
             <ul className="mt-2 space-y-2">
               {choose.map((c) => (
                 <li key={c.id}>
-                  <button type="button" onClick={() => submit(c.id)} className="w-full rounded-lg border border-line px-3 py-2 text-left text-sm hover:border-navy">
+                  <button type="button" onClick={() => submit(c.id)} className="min-h-12 w-full rounded-lg border border-navy px-3 py-2 text-left text-sm">
                     <span className="font-bold">{c.display_name}</span>
                     <span className="ml-2 text-ink-2">
                       {c.affiliation ?? "소속 없음"} · {roleLabel[c.role] ?? c.role}
@@ -155,7 +172,7 @@ function LoginForm({ next }: { next: string | null }) {
             </ul>
           </div>
         )}
-        <p className="mt-6 w-[250px] text-center text-xs text-ink-3">숫자 4자리는 보통 휴대폰 번호 뒤 4자리예요. 기억나지 않으면 등록 데스크의 운영진에게 말씀해 주세요</p>
+        <p className="mt-3 text-center text-xs leading-relaxed text-ink-3">숫자 4자리는 보통 휴대폰 번호 뒤 4자리예요. 기억나지 않으면 등록 데스크의 운영진에게 말씀해 주세요</p>
       </form>
     </OnboardingFrame>
   );

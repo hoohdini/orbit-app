@@ -38,7 +38,7 @@ export default function RecsList() {
     };
   }, [open]);
 
-  const box = "mx-5 mt-[7px] overflow-hidden rounded-3xl border border-line bg-white";
+  const box = "mx-5 mt-[7px] overflow-hidden rounded-3xl border border-navy bg-white";
   if (error) return <p className={`${box} p-6 text-center text-sm text-ink-2`}>{error}</p>;
   if (!recs) return <p className={`${box} p-6 text-center text-sm text-ink-3`}>불러오는 중</p>;
   if (recs.folded) return <p className={`${box} p-6 text-center text-sm text-ink-2`}>지금은 앞에 계신 분과 대화하는 시간이에요. 세션이 끝나면 다시 볼 수 있어요</p>;
@@ -46,10 +46,11 @@ export default function RecsList() {
 
   return (
     <>
+      <p className="mx-5 mt-3 text-xs text-ink-2">번호는 나와 가까운 순서예요. 행사 내내 같은 목록이에요</p>
       <ol className={`${box} py-1`}>
         {recs.people.map((p, i) => (
-          <li key={p.id} className={`flex items-start gap-[14px] px-5 py-[14px] ${i < recs.people.length - 1 ? "border-b border-line" : ""} ${p.exchanged ? "opacity-60" : ""}`}>
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-2xl bg-strip text-xs font-medium text-navy">{String(p.rank).padStart(2, "0")}</span>
+          <li key={p.id} className={`flex items-start gap-[14px] px-5 py-[14px] ${i < recs.people.length - 1 ? "border-b border-navy" : ""}`}>
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-2xl border-[1.5px] border-accent bg-white text-xs font-bold text-accent" aria-label={`가까운 순서 ${p.rank}`}>{String(p.rank).padStart(2, "0")}</span>
             <div className="min-w-0 flex-1 space-y-[3px]">
               <p className="flex items-center gap-2">
                 <span className="text-[15px] font-bold text-ink">{p.display_name}</span>

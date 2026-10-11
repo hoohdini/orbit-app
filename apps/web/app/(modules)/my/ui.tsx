@@ -36,5 +36,5 @@ export function Notice({ children }: { children: React.ReactNode }) {
   return <p className="rounded-2xl border border-navy bg-strip px-5 py-3.5 text-[13px] font-medium leading-normal text-accent">{children}</p>;
 }
 
-export const bigBtn = "flex h-14 w-full items-center justify-center rounded-2xl bg-brand text-base font-medium text-white disabled:bg-line";
+export const bigBtn = "flex h-14 w-full items-center justify-center rounded-2xl bg-brand text-base font-medium text-white disabled:bg-field disabled:text-ink-3";
 export const ghostBtn = "flex h-14 w-full items-center justify-center rounded-2xl border border-navy bg-white text-base font-medium text-ink";

@@ -14,11 +14,8 @@ export default async function CardPage({ searchParams }: { searchParams: Promise
   await requireOnboarded(next);
   if (p) {
     return (
-      <DarkScreen title="명함 교환" close="/card">
+      <DarkScreen title="명함 교환" close="/card" footer={<ExchangeResult payload={p} />}>
         <Eclipse guide={false} />
-        <div className="mt-[18px] w-[353px]">
-          <ExchangeResult payload={p} />
-        </div>
       </DarkScreen>
     );
   }
