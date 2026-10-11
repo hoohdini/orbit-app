@@ -1,0 +1,12 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="384" height="384" viewBox="0 0 384 384" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Corona Glow" filter="url(#filter0_f_0_7)">
+<circle cx="192" cy="192" r="158" fill="#2F8BEA" fill-opacity="0.75"/>
+</g>
+<defs>
+<filter id="filter0_f_0_7" x="0" y="0" width="384" height="384" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="17" result="effect1_foregroundBlur_0_7"/>
+</filter>
+</defs>
+</svg>

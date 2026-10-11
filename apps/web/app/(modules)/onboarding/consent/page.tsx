@@ -1,97 +1,93 @@
-// 첫 진입 카드(개발 지시서 v0.2 H-00). 로그인 직후 한 장: 내 테이블 · 좌석 번호, 명찰 착용 안내, 이용 동의 4항목, 확인하고 시작하기.
+// 개인정보 이용 동의(피그마 iPhone 16 - 5, 개발 지시서 v0.2 H-00). 로그인 직후 한 번. 동의 · 동의하지 않음 중 하나를 고르고 Next.
 // 동의하지 않아도 시작할 수 있다(10/5 회의): 자리는 사전 등록 정보로 이미 배정돼 있고, 행사 중 기록(명함 교환, 만족도, 포스터 응답)만 하지 않는다.
-// 한 번 고르면 다시 뜨지 않는다. 마이페이지에서 바꿀 수 있다. 명함 · 포스터 QR 로 들어온 사람은 next 로 돌아갈 곳이 넘어온다(없으면 명함 탭).
+// 다음은 좌석 안내(/onboarding/table). 이미 골랐으면 건너뛴다(?redo=1 이면 다시 고른다). 마이페이지에서도 바꿀 수 있다.
+// 피그마 메모의 카메라 사용 동의는 브라우저가 QR 을 찍을 때 따로 묻기 때문에 저장하지 않고 안내만 한다(10/11 검토).
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, type Me } from "@/lib/client";
-import Loading from "@/components/Loading";
-import { safeNext } from "../_next";
+import { safeNext, withNext } from "../_next";
+import OnboardingFrame from "../_frame";
 
-type Entry = Me & { consent?: "agreed" | "refused" | "pending"; table: (Me["table"] & { seat_no?: number | null }) | null };
+type Entry = Me & { consent?: "agreed" | "refused" | "pending" };
 
 const notices = [
   { title: "수집·이용 목적", body: "행사 참가자 간 네트워킹(테이블 배정, 명함 교환, 추천, 미션 운영)" },
   { title: "수집 항목", body: "사전 등록 정보(이름, 소속, 구분, 기수, 관심 태그, 하는 일 · 찾는 사람), 행사 중 앱 사용 기록(명함 교환, 만족도, 포스터 응답)" },
   { title: "보유 기간", body: "행사 종료 후 30일까지. 이후 즉시 파기" },
-  { title: "거부할 권리", body: "동의하지 않아도 자리 안내와 식순은 볼 수 있다. 다만 명함 교환, 추천, 미션은 쓸 수 없다" },
+  { title: "거부할 권리", body: "동의하지 않아도 자리 안내와 식순은 볼 수 있어요. 다만 명함 교환, 추천, 미션은 쓸 수 없어요" },
+  { title: "카메라", body: "QR을 찍을 때 브라우저가 카메라 권한을 따로 물어봐요. 영상은 저장하지 않아요" },
 ];
 
 export default function ConsentPage() {
   return (
-    <Suspense fallback={<Loading />}>
-      <EntryCard />
+    <Suspense fallback={null}>
+      <ConsentForm />
     </Suspense>
   );
 }
 
-function EntryCard() {
+function ConsentForm() {
   const router = useRouter();
-  const next = safeNext(useSearchParams().get("next"));
-  const after = next ?? "/card";
-  const [me, setMe] = useState<Entry | null>(null);
+  const params = useSearchParams();
+  const next = safeNext(params.get("next"));
+  const redo = params.get("redo") === "1";
+  const after = withNext("/onboarding/table", next);
+  const [ready, setReady] = useState(false);
+  const [choice, setChoice] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api<Entry>("/api/onboarding/me").then((r) => {
-      if (!r.ok) return router.replace("/onboarding");
-      if (r.data.consent && r.data.consent !== "pending") return router.replace(after);
-      setMe(r.data);
+      if (!r.ok) return router.replace(withNext("/onboarding", next));
+      if (!redo && r.data.consent && r.data.consent !== "pending") return router.replace(after);
+      if (r.data.consent === "agreed") setChoice(true);
+      if (r.data.consent === "refused") setChoice(false);
+      setReady(true);
     });
-  }, [router, after]);
+  }, [router, after, next, redo]);
 
-  async function submit(agreed: boolean) {
+  async function submit() {
+    if (choice === null) return;
     setBusy(true);
     setError(null);
-    try {
-      const r = await api("/api/onboarding/consent", { json: { agreed } });
-      if (!r.ok) return setError(r.message);
-      router.replace(after);
-    } finally {
-      setBusy(false);
-    }
+    const r = await api("/api/onboarding/consent", { json: { agreed: choice } });
+    setBusy(false);
+    if (!r.ok) return setError(r.message);
+    router.replace(after);
   }
 
-  if (!me) return <Loading />;
-
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col px-6 pt-10 pb-10 text-gray-900">
-      <p className="text-sm text-gray-500">{me.participant.display_name} 님, 환영합니다</p>
-      <div className="mt-3 rounded-3xl bg-black px-6 py-8 text-center text-white">
-        {me.table ? (
-          <>
-            <p className="text-sm opacity-70">내 자리</p>
-            <p className="mt-1 text-5xl font-bold">
-              {me.table.table_no}번 테이블
-              {me.table.seat_no ? <span className="mt-2 block text-3xl">{me.table.seat_no}번 좌석</span> : null}
-            </p>
-          </>
-        ) : (
-          <p className="text-base">자리 배정은 곧 공개됩니다</p>
-        )}
-      </div>
-      <p className="mt-4 rounded-xl bg-gray-50 px-4 py-3 text-sm">테이블 위에 놓인 내 명찰을 착용해 주세요</p>
-
-      <h2 className="mt-6 text-base font-bold">이용 동의</h2>
-      <ul className="mt-2 space-y-2">
-        {notices.map((n) => (
-          <li key={n.title} className="rounded-xl border border-gray-200 p-3">
-            <p className="text-sm font-semibold">{n.title}</p>
-            <p className="mt-1 text-sm text-gray-700">{n.body}</p>
-          </li>
+    <OnboardingFrame wave="consent" step={1} back={withNext("/onboarding", next)} next={{ label: busy ? "저장 중" : "Next", onClick: submit, disabled: choice === null || busy || !ready }}>
+      <h1 className="absolute inset-x-0 top-[169px] text-center text-2xl font-medium text-white">개인정보 이용 동의</h1>
+      <section className="absolute left-[59px] top-[225px] h-[320px] w-[278px] overflow-y-auto rounded-xl bg-field p-4 shadow-[0_4px_4px_rgba(0,0,0,0.25)]">
+        <ul className="space-y-3">
+          {notices.map((n) => (
+            <li key={n.title}>
+              <p className="text-[13px] font-bold text-ink">{n.title}</p>
+              <p className="mt-0.5 text-xs leading-[18px] text-ink-2">{n.body}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <fieldset className="absolute left-[111px] top-[575px] space-y-5">
+        <legend className="sr-only">이용 동의</legend>
+        {[
+          { v: true, label: "동의합니다." },
+          { v: false, label: "동의하지 않습니다." },
+        ].map((o) => (
+          <label key={String(o.v)} className="flex cursor-pointer items-center gap-[15px] text-base">
+            <input type="radio" name="consent" className="peer sr-only" checked={choice === o.v} onChange={() => setChoice(o.v)} />
+            <span className="flex size-[23px] items-center justify-center rounded-full bg-line peer-checked:bg-navy peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
+              {choice === o.v && <span className="size-[9px] rounded-full bg-white" />}
+            </span>
+            {o.label}
+          </label>
         ))}
-      </ul>
-
-      {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-
-      <button onClick={() => submit(true)} disabled={busy} className="mt-6 w-full rounded-xl bg-black py-3 text-lg font-semibold text-white disabled:bg-gray-300">
-        동의하고 시작하기
-      </button>
-      <button onClick={() => submit(false)} disabled={busy} className="mt-2 w-full rounded-xl py-3 text-sm text-gray-500">
-        동의하지 않고 시작하기
-      </button>
-    </main>
+      </fieldset>
+      {error && <p className="absolute inset-x-6 top-[690px] text-center text-sm text-[#d93025]">{error}</p>}
+    </OnboardingFrame>
   );
 }

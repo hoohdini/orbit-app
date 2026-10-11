@@ -37,7 +37,7 @@ export default function QrScanner({ onDecode, onDenied, paused = false, cooldown
         scanner = s;
         await s.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: (w, h) => ({ width: Math.min(w, h) * 0.75, height: Math.min(w, h) * 0.75 }) },
+          { fps: 10, qrbox: (w, h) => ({ width: Math.min(w, h) * 0.63, height: Math.min(w, h) * 0.63 }) },
           (text) => {
             if (pausedRef.current) return;
             const now = Date.now();
@@ -70,11 +70,15 @@ export default function QrScanner({ onDecode, onDenied, paused = false, cooldown
     };
   }, [cooldownMs]);
 
+  // 피그마 QR 스캔 화면의 원(280) 안에 꽉 차게 그린다. 바깥 장식은 화면(components/figma/Eclipse)이 그린다
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-black">
-      <div id={REGION_ID} className="aspect-square w-full" />
-      {status === "starting" && <p className="bg-white px-3 py-2 text-center text-xs text-gray-500">카메라를 여는 중</p>}
-      {status === "denied" && <p className="bg-white px-3 py-2 text-center text-xs text-red-600">카메라를 열 수 없다. 권한을 허용하거나 아래에서 이름으로 찾는다</p>}
+    <div className="relative size-full bg-black [&_video]:!h-full [&_video]:!w-full [&_video]:object-cover [&_#qr-shaded-region]:!hidden">
+      <div id={REGION_ID} className="size-full" />
+      {status !== "running" && (
+        <p className="absolute inset-0 flex items-center justify-center px-8 text-center text-xs text-muted">
+          {status === "starting" ? "카메라를 여는 중" : "카메라를 열 수 없어요. 권한을 허용하거나 아래에서 이름으로 찾아 주세요"}
+        </p>
+      )}
     </div>
   );
 }

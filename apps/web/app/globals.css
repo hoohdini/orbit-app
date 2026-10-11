@@ -1,3 +1,4 @@
+@import url("https://cdn.jsdelivr.net/gh/spoqa/spoqa-han-sans@latest/css/SpoqaHanSansNeo.css");
 @import "tailwindcss";
 
 /* 앱은 밝은 테마 하나만 쓴다. 화면이 전부 흰 카드 위 검은 글자로 설계되어 있어,
@@ -11,12 +12,29 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter), "Spoqa Han Sans Neo", system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+}
+
+/* 피그마 gathering-UI 토큰(10/11). 이름은 피그마 변수 이름을 따른다 */
+@theme {
+  --color-brand: #14234a; /* text-brand, 탭 활성 · 명함 라벨 */
+  --color-navy: #1c2a4f; /* 버튼 · 칩 활성 · 그라데이션 시작 */
+  --color-navy-2: #314b8b; /* 그라데이션 끝 */
+  --color-hero-from: #3f60b2;
+  --color-hero-to: #1b294c;
+  --color-accent: #4462ac; /* Offer 줄 · 라이브 점 */
+  --color-strip: #dae2f3; /* 상태 띠 · 번호 원 */
+  --color-ink: #15181e; /* 본문 진한 글자 */
+  --color-ink-2: #4e535c;
+  --color-ink-3: #686d76; /* 탭 비활성 */
+  --color-muted: #8e9cbf; /* 어두운 배경 위 보조 글자 */
+  --color-line: #d9d9d9;
+  --color-field: #f4f4f4; /* 입력 칸 */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }

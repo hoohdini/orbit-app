@@ -21,27 +21,27 @@ export default function FirstMeetAsk({ targetId, onDone }: { targetId: string; o
   }
 
   if (done !== undefined) {
-    return <p className="rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-500">{done ? "새로운 연결로 기록했다" : "기록했다"}</p>;
+    return <p className="rounded-xl bg-strip/50 px-3 py-2 text-xs text-ink-2">{done ? "새로운 연결로 기록했어요" : "기록했어요"}</p>;
   }
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-4">
-      <p className="text-sm font-semibold">오늘 처음 대화한 분인가요?</p>
+    <section className="rounded-2xl bg-strip/50 p-4 text-left">
+      <p className="text-sm font-bold text-navy">오늘 처음 대화한 분인가요?</p>
       <input
-        className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
+        className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-navy"
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        placeholder="한 줄 남기기(선택, 나만 본다)"
-        maxLength={100}
+        placeholder="메모 남기기(선택, 나만 봐요)"
+        maxLength={200}
       />
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <button type="button" disabled={busy} onClick={() => answer(true)} className="rounded-lg bg-black py-2 text-sm font-semibold text-white">
+        <button type="button" disabled={busy} onClick={() => answer(true)} className="rounded-xl bg-navy py-2 text-sm font-bold text-white">
           네
         </button>
-        <button type="button" disabled={busy} onClick={() => answer(false)} className="rounded-lg border border-gray-300 py-2 text-sm">
+        <button type="button" disabled={busy} onClick={() => answer(false)} className="rounded-xl border border-line bg-white py-2 text-sm">
           아니요
         </button>
-        <button type="button" disabled={busy} onClick={() => answer(null)} className="rounded-lg py-2 text-sm text-gray-500">
+        <button type="button" disabled={busy} onClick={() => answer(null)} className="rounded-xl py-2 text-sm text-ink-3">
           건너뛰기
         </button>
       </div>
