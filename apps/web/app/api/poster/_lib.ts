@@ -66,6 +66,9 @@ export const REASON_KEYS = REASON_CHOICES.map((c) => c.key) as [ReasonChoice, ..
 // 미션 ① 완료 기준: 서로 다른 포스터 2건
 export const POSTER_MISSION_GOAL = 2;
 
+// 미션 ② 완료 기준: 서로 다른 포스터 퀴즈 3개 정답(10/11 피그마). lib/missions.ts 의 quiz goal 과 같아야 한다
+export const QUIZ_MISSION_GOAL = 3;
+
 // 원격 응답 방지: 이 시간 안에 그 포스터를 스캔한 기록이 있어야 응답 · 퀴즈 답을 낼 수 있다
 export const SCAN_WINDOW_MIN = 15;
 

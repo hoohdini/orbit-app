@@ -1,13 +1,15 @@
-// 미션 4종 판정(개발 지시서 v0.2 E-01 ~ E-06, 결정 11 · 12). 참가자 화면(이벤트 탭, 상태 띠)과 운영 콘솔(시상 집계)이 같이 쓴다.
-// ① 관심 포스터 2건  ② 오늘 만나면 좋을 분에 떴던 사람 1명과 교환  ③ 첫 대화로 체크한 교환 2건  ④ 구분이 다른 사람 1명과 교환
+// 미션 5종 판정(개발 지시서 v0.2 E-01 ~ E-06, 결정 11 · 12, 10/11 피그마 이벤트·미션). 참가자 화면(이벤트 탭, 상태 띠)과 운영 콘솔(시상 집계)이 같이 쓴다.
+// ① 관심 포스터 2건(포스터 응답, 흥미 3단계 어떤 답이든)  ② 퀴즈 3개 맞히기(서로 다른 포스터)  ③ 오늘 만나면 좋을 분에 떴던 사람 1명과 교환
+// ④ 첫 대화로 체크한 교환 2건  ⑤ 구분이 다른 사람 1명과 교환. 10/11 성하 결정: 미션은 피그마대로 5개, 퀴즈는 정답이면 스탬프 · 재시도 무제한
 // 교환은 성립한 것(status confirmed)만 센다. 마감(ops_state mission_closed_at) 뒤의 기록은 세지 않는다.
-// 진행도 = 네 미션의 min(달성 수 / 목표 수, 1) 평균. 포스터 1/2 이면 0.5.
+// 진행도 = 다섯 미션의 min(달성 수 / 목표 수, 1) 평균. 포스터 1/2 이면 0.5.
 import "server-only";
 import { db } from "./db";
 
 export const MISSIONS = [
-  { key: "poster", label: "관심 포스터 발견하기", goal: 2 },
-  { key: "recommended", label: "추천 인물 만나기", goal: 1 },
+  { key: "poster", label: "관심 포스터", goal: 2 },
+  { key: "quiz", label: "퀴즈", goal: 3 },
+  { key: "recommended", label: "추천 인물", goal: 1 },
   { key: "first_meet", label: "새로운 연결", goal: 2 },
   { key: "generation", label: "세대 연결", goal: 1 },
 ] as const;
@@ -45,6 +47,7 @@ export function generationOf(role: string | null | undefined): "student" | "othe
 }
 
 type Resp = { participant_id: string; poster_id: number; created_at: string; latency_ms: number | null };
+type Att = { participant_id: string; poster_id: number; created_at: string };
 type Ex = { scanner_id: string; scanned_id: string; confirmed_at: string | null; first_meet: boolean | null; first_meet_at: string | null };
 type Imp = { participant_id: string; target_id: string; first_shown_at: string };
 
@@ -62,8 +65,9 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
   if (pids.length === 0) return out;
   const inTime = (t: string | null | undefined): t is string => !!t && (!closedAt || t <= closedAt);
 
-  const [resps, exs, imps] = await Promise.all([
+  const [resps, atts, exs, imps] = await Promise.all([
     rowsIn<Resp>("poster_responses", "participant_id, poster_id, created_at, latency_ms", "participant_id", pids),
+    rowsIn<Att>("quiz_attempts", "participant_id, poster_id, created_at", "participant_id", pids, (q) => q.eq("is_correct", true)),
     rowsIn<Ex>("card_exchanges", "scanner_id, scanned_id, confirmed_at, first_meet, first_meet_at", "scanner_id", pids, (q) => q.eq("status", "confirmed")),
     rowsIn<Imp>("rec_impressions", "participant_id, target_id, first_shown_at", "participant_id", pids),
   ]);
@@ -82,6 +86,7 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
     return m;
   };
   const respOf = by(resps, "participant_id");
+  const attOf = by(atts, "participant_id");
   const exOf = by(exs, "scanner_id");
   const impOf = by(imps, "participant_id");
 
@@ -91,6 +96,10 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
     const shownAt = new Map((impOf.get(pid) ?? []).map((i) => [i.target_id, i.first_shown_at]));
 
     const posterTimes = myResp.map((r) => r.created_at);
+    // 퀴즈: 포스터마다 처음 맞힌 시각
+    const firstCorrect = new Map<number, string>();
+    for (const a of attOf.get(pid) ?? []) if (inTime(a.created_at) && (!firstCorrect.has(a.poster_id) || a.created_at < firstCorrect.get(a.poster_id)!)) firstCorrect.set(a.poster_id, a.created_at);
+    const quizTimes = [...firstCorrect.values()];
     const recTimes = myEx.filter((e) => {
       const s = shownAt.get(e.scanned_id);
       return !!s && s <= e.confirmed_at!;
@@ -102,7 +111,7 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
     const myGen = generationOf(roleOf.get(pid));
     const genTimes = myEx.filter((e) => roleOf.has(e.scanned_id) && generationOf(roleOf.get(e.scanned_id)) !== myGen).map((e) => e.confirmed_at!);
 
-    const timesOf: Record<MissionKey, string[]> = { poster: posterTimes, recommended: recTimes, first_meet: firstMeetTimes, generation: genTimes };
+    const timesOf: Record<MissionKey, string[]> = { poster: posterTimes, quiz: quizTimes, recommended: recTimes, first_meet: firstMeetTimes, generation: genTimes };
     const missions: MissionItem[] = MISSIONS.map((m) => {
       const t = timesOf[m.key];
       const at = kth(t, m.goal);

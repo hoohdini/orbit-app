@@ -15,8 +15,8 @@
 
 | 테이블 | 무엇 | 누가 쓰나 | 비고 |
 |---|---|---|---|
-| participants | 참가자 기본 정보, 로그인 숫자 4자리의 해시(사전 적재 때 휴대폰 뒤 4자리 또는 무작위로 정함. null 이면 로그인 불가), 동의 시각, 고정 테이블 | 사전 적재(운영), 온보딩(consent_at), 운영 콘솔(login_pin_hash 재발급) | `is_host` 는 단방향 점수 대상, `is_admin` 은 콘솔. `fixed_table` 은 0008: 교수 · 운영진석처럼 미리 정한 테이블 번호(보통 1). 있으면 계산 서비스가 그 테이블에 고정한다. `teams` 도 0008: 같이 한 프로젝트 · 스터디 팀 이름 목록, 같으면 이미 아는 사이로 보고 추천에서 뒤로. `consent_refused_at` 은 0010: 이용 동의 거부 시각(v0.2 H-00). 거부자도 배정에는 들어가고 행사 중 수집과 남의 추천 · 검색 · 궤도에서만 빠진다. `entry_token` 은 예비 |
-| profiles | offer_text(하는 일), seek_text(찾는 사람), 주제 태그, 관계 태그, 링크 | 사전 적재, 온보딩 확인·수정 | 컬럼 이름은 have/want 로 바뀔 수 있다. 회의 확정 전 |
+| participants | 참가자 기본 정보, 로그인 숫자 4자리의 해시(사전 적재 때 휴대폰 뒤 4자리 또는 무작위로 정함. null 이면 로그인 불가), 동의 시각, 고정 테이블 | 사전 적재(운영), 온보딩(consent_at), 운영 콘솔(login_pin_hash 재발급) | `is_host` 는 단방향 점수 대상, `is_admin` 은 콘솔. `fixed_table` 은 0008: 교수 · 운영진석처럼 미리 정한 테이블 번호(보통 1). 있으면 계산 서비스가 그 테이블에 고정한다. `teams` 도 0008: 같이 한 프로젝트 · 스터디 팀 이름 목록, 같으면 이미 아는 사이로 보고 추천에서 뒤로. `consent_refused_at` 은 0010: 이용 동의 거부 시각(v0.2 H-00). `share_consent_at` · `share_refused_at` 은 0014: 명함 공개 및 추천 활용 동의(동의 두 번째 항목). 거부자도 배정에는 들어가고 행사 중 수집과 남의 추천 · 검색 · 궤도에서만 빠진다. `entry_token` 은 예비 |
+| profiles | offer_text(하는 일), seek_text(찾는 사람), 주제 태그, 관계 태그, 링크, card_edit(0014) | 사전 적재, 마이페이지 명함 편집(card_edit 만) | card_edit 은 마이페이지에서 고친 offer_text · seek_text · topic_tags. 명함에만 보이고 계산 서비스는 원래 칸만 읽는다 |
 | sids | 주소 두 개와 벡터 두 개, 코드북 버전 | 계산 서비스(전날 배치) | 당일 재발급 없음 |
 | labels | 주소 앞자리별 사람이 읽는 라벨 | 전날 배치, 운영 검수 | |
 | checkins | 체크인 시각, 지연 여부 | 첫 로그인이 자동 기록, 운영 콘솔은 지연 표시·수동 추가 | 배정과 궤도는 체크인 명단만 쓴다 |
@@ -33,7 +33,7 @@
 | rec_impressions | 오늘 만나면 좋을 분(H-04)에 처음 보인 시각(사람 쌍마다 한 행, version) | card 모듈 API(/api/card/recs) | 0010. 미션 ② 판정과 행사 뒤 분석. 다시 보여도 시각을 바꾸지 않는다 |
 | posters | 포스터 목록과 QR 코드, 요약 한 줄(summary), 발표자 참가자 id(presenter_ids) | 사전 적재 | summary · presenter_ids 는 0009. 포스터 벡터 = 제목 + tags + summary, 발표자 본인 · 같은 소속 응답은 계산에서 뺀다 |
 | poster_quizzes | 포스터별 퀴즈와 정답 | 사전 적재 | 정답은 서버만 본다 |
-| quiz_attempts | 퀴즈 시도 기록 | poster 모듈 API | 오답도 남긴다 |
+| quiz_attempts | 퀴즈 시도 기록 | poster 모듈 API | 오답도 남긴다. 10/11 부터 정답 기록이 포스터 퀴즈 스탬프(미션 ②)다(별도 표 없음) |
 | stamps | 포스터 스탬프 | poster 모듈 API | 포스터당 1개. v0.2 부터는 관심 이유를 내면 찍힌다(퀴즈 정답과 무관, /api/poster/response) |
 | poster_interest | 포스터 관심도. 문장 선택지 choice(learn_more, interesting, not_mine) | poster 모듈 API | 0005 에서 1~5 숫자를 선택지로 바꿨다. v0.2 부터는 poster_responses 를 쓴다(운영 콘솔 포스터 칸이 아직 읽어 남겨 둠) |
 | poster_responses | 포스터 응답(미션 ①). reason = 흥미 3단계(want, maybe, not_mine), 보여 준 순서, 소요 시간, 응답 순번, 퀴즈 시도 | poster 모듈 API | 0009. 0011 에서 관심 이유 4지선다(topic, method, experience, new_field)를 흥미 3단계로 바꿨다(칸 이름 reason 은 그대로). 계산 서비스가 B-05 전처리 뒤 커피챗에 반영(docs/DATA_SPEC.md). **배포 순서: DB 에 0011 · 0012 적용과 be/ 머지를 같이 → compute/ 머지** |

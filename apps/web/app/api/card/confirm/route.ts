@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { ok, fail, handle } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 import { logEvent } from "@/lib/log";
-import { collectGuard } from "@/lib/consent";
+import { collectGuard, shareGuard } from "@/lib/consent";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   return handle(async () => {
     const s = await requireSession();
     const b = Body.parse(await req.json());
-    const guard = await collectGuard(s.pid);
+    const guard = (await collectGuard(s.pid)) ?? (await shareGuard(s.pid));
     if (guard) return guard;
 
     const { data: row, error } = await db()

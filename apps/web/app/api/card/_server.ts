@@ -36,7 +36,7 @@ export async function buildCards(ids: string[], iScannedThem: (id: string) => bo
   const uniq = Array.from(new Set(ids));
   const [people, profiles, sids] = await Promise.all([
     db().from("participants").select("id, display_name, affiliation, role, cohort, visibility, event_id").in("id", uniq),
-    db().from("profiles").select("participant_id, offer_text, seek_text, topic_tags, links").in("participant_id", uniq),
+    db().from("profiles").select("participant_id, offer_text, seek_text, topic_tags, links, card_edit").in("participant_id", uniq),
     db().from("sids").select("participant_id, offer_sid, codebook_version").in("participant_id", uniq),
   ]);
   if (people.error) throw people.error;
@@ -57,7 +57,10 @@ export async function buildCards(ids: string[], iScannedThem: (id: string) => bo
   const sidOf = new Map((sids.data ?? []).map((s) => [s.participant_id as string, s]));
 
   for (const p of (people.data ?? []) as Row[]) {
-    const prof = profileOf.get(p.id);
+    const raw = profileOf.get(p.id);
+    // 마이페이지에서 고친 명함 내용(0014 card_edit)이 있으면 명함에는 그것을 보인다. 계산 서비스는 원래 칸만 읽는다
+    const edit = (raw?.card_edit ?? null) as { offer_text?: string; seek_text?: string; topic_tags?: string[] } | null;
+    const prof = raw ? { ...raw, ...(edit ?? {}) } : raw;
     const sidRow = sidOf.get(p.id);
     const sid = sidRow ? (sidRow.offer_sid as number[]) : null;
     const links = (prof?.links ?? null) as CardLinks | null;
