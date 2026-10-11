@@ -81,7 +81,7 @@ export default function ScanClient({ via }: { via: "card" | "event" }) {
             </div>
             <p className="mt-1 text-xs text-ink-3">이름으로 교환하면 상대가 확인해야 교환이 끝나요</p>
             <input
-              className="mt-3 w-full rounded-xl bg-field px-4 py-3 text-sm outline-none ring-navy focus:ring-1"
+              className="mt-3 w-full rounded-xl bg-field px-4 py-3 text-sm text-ink outline-none ring-navy placeholder:text-ink-3 focus:ring-1"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="이름 두 글자 이상"

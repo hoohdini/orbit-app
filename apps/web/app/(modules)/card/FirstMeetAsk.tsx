@@ -28,7 +28,7 @@ export default function FirstMeetAsk({ targetId, onDone }: { targetId: string; o
     <section className="rounded-2xl bg-strip/50 p-4 text-left">
       <p className="text-sm font-bold text-navy">오늘 처음 대화한 분인가요?</p>
       <input
-        className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none focus:border-navy"
+        className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-navy"
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="메모 남기기(선택, 나만 봐요)"

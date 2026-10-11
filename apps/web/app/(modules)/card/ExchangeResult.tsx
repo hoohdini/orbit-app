@@ -23,7 +23,7 @@ const ERRORS: Record<string, [string, string]> = {
 export function ResultCard({ title, body, children, action, onAction, actionHref, sub }: { title: string; body: string; children?: React.ReactNode; action: string; onAction?: () => void; actionHref?: string; sub?: React.ReactNode }) {
   const btn = "flex h-[52px] w-full items-center justify-center rounded-2xl bg-navy text-base font-bold text-white";
   return (
-    <div className="flex w-full flex-col items-center gap-2 rounded-3xl bg-white px-5 pt-[22px] pb-5 text-center">
+    <div className="flex w-full flex-col items-center gap-2 rounded-3xl bg-white px-5 pt-[22px] pb-5 text-center text-ink">
       <p className="text-lg font-bold text-navy">{title}</p>
       <p className="text-sm text-ink-2">{body}</p>
       {children && <div className="mt-1 w-full">{children}</div>}

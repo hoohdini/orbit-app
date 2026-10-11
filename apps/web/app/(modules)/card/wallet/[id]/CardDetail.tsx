@@ -123,7 +123,7 @@ export default function CardDetail({ id }: { id: string }) {
           maxLength={200}
           rows={3}
           placeholder="이 분과 나눈 이야기를 적어 두세요(나만 봐요)"
-          className="mt-1 w-full resize-none px-[6px] text-sm outline-none"
+          className="mt-1 w-full resize-none px-[6px] text-sm text-ink outline-none placeholder:text-ink-3"
         />
         <p className="text-right text-[11px] text-ink-3">{note.length}/200</p>
       </section>
