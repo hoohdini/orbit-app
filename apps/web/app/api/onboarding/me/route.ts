@@ -2,7 +2,7 @@
 import { ok, fail, handle } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 import { getParticipant, getProfile, getSidWithLabel, getMyTable } from "@/lib/participants";
-import { consentOf } from "@/lib/consent";
+import { consentOf, shareOf } from "@/lib/consent";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,11 @@ export async function GET() {
       profile,
       consented: !!p.consent_at,
       consent: consentOf(p),
+      // 동의 두 항목(0014). 마이페이지 내 정보가 날짜와 함께 보여 준다
+      consents: {
+        collect: { state: consentOf(p), at: (p.consent_at ?? p.consent_refused_at ?? null) as string | null },
+        share: { state: shareOf(p), at: (p.share_consent_at ?? p.share_refused_at ?? null) as string | null },
+      },
       sid,
       table: table ? { table_no: table.table_no, label: table.label, version: table.version, seat_no: (table.seat_no as number | null) ?? null } : null,
     });

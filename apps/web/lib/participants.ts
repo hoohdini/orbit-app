@@ -17,7 +17,7 @@ export const PUBLIC_COLS = "id, display_name, affiliation, role, cohort, is_host
 export async function getParticipant(id: string) {
   const { data, error } = await db()
     .from("participants")
-    .select("id, display_name, affiliation, role, cohort, is_host, is_admin, visibility, consent_at, consent_refused_at")
+    .select("id, display_name, affiliation, role, cohort, is_host, is_admin, visibility, consent_at, consent_refused_at, share_consent_at, share_refused_at")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;

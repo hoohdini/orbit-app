@@ -12,7 +12,7 @@ import { db } from "@/lib/db";
 import { ok, fail, handle } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 import { logEvent } from "@/lib/log";
-import { collectGuard, getConsent } from "@/lib/consent";
+import { collectGuard, getConsent, getShare, shareGuard } from "@/lib/consent";
 import { opsSnapshot } from "@/lib/opsState";
 import { parseCardId } from "../_lib";
 import { buildCards, getParticipantInEvent } from "../_server";
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   return handle(async () => {
     const s = await requireSession();
     const b = Body.parse(await req.json());
-    const guard = await collectGuard(s.pid);
+    const guard = (await collectGuard(s.pid)) ?? (await shareGuard(s.pid));
     if (guard) return guard;
 
     const targetId = parseCardId(b.qr_payload);
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       await logEvent("scan_fail", s.pid, { reason: "unknown", target_id: targetId, via: b.via ?? null });
       return fail("NOT_FOUND", "이 행사의 참가자가 아니다", 404);
     }
-    if ((await getConsent(targetId)) === "refused") {
+    if ((await getConsent(targetId)) === "refused" || (await getShare(targetId)) === "refused") {
       await logEvent("scan_fail", s.pid, { reason: "target_refused", target_id: targetId, via: b.via ?? null });
       return fail("TARGET_UNAVAILABLE", "이 분은 앱 명함 교환을 쓰지 않는다", 409);
     }

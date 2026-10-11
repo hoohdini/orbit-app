@@ -20,6 +20,7 @@ type Member = {
   topic_tags: string[];
   career_line: string;
   offer_text: string;
+  seek_text: string; // 10/11 피그마 네트워킹: 근거가 없는 구성원은 Seek 줄을 보인다
   reason: string | null;
 };
 
@@ -47,7 +48,7 @@ export async function GET() {
 
     const [people, profiles] = await Promise.all([
       db().from("participants").select("id, display_name, affiliation, role, cohort").in("id", ids),
-      db().from("profiles").select("participant_id, topic_tags, offer_text").in("participant_id", ids),
+      db().from("profiles").select("participant_id, topic_tags, offer_text, seek_text").in("participant_id", ids),
     ]);
     if (people.error) throw people.error;
     if (profiles.error) throw profiles.error;
@@ -65,6 +66,7 @@ export async function GET() {
         topic_tags: (prof?.topic_tags as string[]) ?? [],
         career_line: firstSentence(offer),
         offer_text: offer,
+        seek_text: (prof?.seek_text as string) ?? "",
         reason: p.id === s.pid ? null : reasonOf.get(p.id as string) ?? null,
       };
     });

@@ -3,7 +3,7 @@
 import { db } from "@/lib/db";
 import { ok, fail, handle, eventId } from "@/lib/api";
 import { requireSession } from "@/lib/session";
-import { consentOf } from "@/lib/consent";
+import { consentOf, shareOf } from "@/lib/consent";
 import { opsSnapshot } from "@/lib/opsState";
 import { phaseLabel, recsOpen, missionWindow } from "@/lib/phase";
 import { missionStatus } from "@/lib/missions";
@@ -14,7 +14,7 @@ export async function GET() {
   return handle(async () => {
     const s = await requireSession();
     const [me, ops, mine, published] = await Promise.all([
-      db().from("participants").select("consent_at, consent_refused_at").eq("id", s.pid).maybeSingle(),
+      db().from("participants").select("consent_at, consent_refused_at, share_consent_at, share_refused_at").eq("id", s.pid).maybeSingle(),
       opsSnapshot(),
       db().from("current_tables").select("round, version, table_no, seat_no").eq("participant_id", s.pid).eq("event_id", eventId()),
       db().from("assign_versions").select("round, version").eq("event_id", eventId()).eq("status", "published").order("version", { ascending: false }),
@@ -37,6 +37,7 @@ export async function GET() {
       phase_at: ops.phaseMeta?.at ?? null,
       notice: ops.notice ? { text: ops.notice.text, expires_at: ops.notice.expires_at } : null,
       consent: consentOf(me.data),
+      share: shareOf(me.data), // 명함 공개 및 추천 활용(0014)
       tabletalk: tt ? { version: tt.version as number, table_no: tt.table_no as number, seat_no: (tt.seat_no as number | null) ?? null } : null,
       coffeechat: cc ? { version: cc.version as number, group_no: cc.table_no as number } : null,
       published: { tabletalk: pub("tabletalk"), coffeechat: pub("coffeechat") },
