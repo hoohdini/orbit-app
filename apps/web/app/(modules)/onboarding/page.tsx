@@ -1,11 +1,14 @@
-// 온보딩 진입 화면 (담당: 성하). 공용 입장 QR 이 이 주소를 가리킨다.
+// 온보딩 진입 화면 (담당: 성하). 공용 입장 QR 이 이 주소를 가리킨다(피그마 iPhone 16 - 9 시작 화면 → 16 - 4 로그인).
 // 이름과 숫자 4자리를 입력하면 바로 로그인된다. 동명이인이면 소속 선택이 아래에 펼쳐진다.
+// 명함 · 포스터 QR 로 들어온 사람(next)은 시작 화면을 건너뛴다.
 "use client";
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/client";
+import { IconChevron } from "@/components/figma/Icons";
 import { safeNext, withNext } from "./_next";
+import OnboardingFrame from "./_frame";
 
 type Candidate = { id: string; display_name: string; affiliation: string | null; role: string; cohort: number | null };
 type LoginData = { participant?: { id: string; display_name: string }; consented?: boolean; choose?: Candidate[] };
@@ -15,14 +18,53 @@ const roleLabel: Record<string, string> = { student: "재학생", alumni: "졸�
 export default function OnboardingPage() {
   return (
     <Suspense fallback={null}>
-      <OnboardingForm />
+      <Entry />
     </Suspense>
   );
 }
 
-function OnboardingForm() {
-  const router = useRouter();
+function Entry() {
   const next = safeNext(useSearchParams().get("next"));
+  const [started, setStarted] = useState(next !== null);
+  return started ? <LoginForm next={next} /> : <Splash onStart={() => setStarted(true)} />;
+}
+
+// 시작 화면(피그마 iPhone 16 - 9)
+function Splash({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="flex min-h-screen justify-center overflow-clip bg-gradient-to-b from-navy to-navy-2 text-white">
+      <div className="relative min-h-[max(100dvh,740px)] w-full max-w-[393px] overflow-clip">
+        <h1 className="absolute inset-x-0 top-[122px] text-center text-[32px] font-semibold leading-[39px]">
+          2026
+          <br />
+          DSL Gathering Night
+          <br />: The ORBIT
+        </h1>
+        <p className="absolute inset-x-0 top-[282px] text-center text-base">
+          연세대학교 백양누리
+          <br />B110 최영홀 &amp; B111 김순전홀
+          <br />
+          2026. 10. 31. 15:00
+        </p>
+        {/* eslint-disable @next/next/no-img-element */}
+        <img alt="" src="/figma/splash-line1.svg" className="pointer-events-none absolute left-[31px] top-[496px] h-[57px] w-[334px] max-w-none -rotate-[44.08deg]" />
+        <img alt="" src="/figma/splash-line2.svg" className="pointer-events-none absolute left-[38px] top-[505px] h-[38px] w-[315px] max-w-none -rotate-[44.37deg]" />
+        <img alt="" src="/figma/splash-ring.svg" className="absolute left-[84px] top-[410.5px] size-[228px] max-w-none" />
+        <img alt="" src="/figma/splash-disc.svg" className="absolute left-[110px] top-[440.5px] size-[176px] max-w-none" />
+        {/* eslint-enable @next/next/no-img-element */}
+        <p className="absolute inset-x-0 bottom-[68px] text-center text-[13px]">The ORBIT에 오신 것을 환영합니다</p>
+        <button type="button" onClick={onStart} className="absolute bottom-[24px] right-[22px] flex items-center gap-2 text-xs font-medium">
+          START
+          <IconChevron dir="right" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// 로그인(피그마 iPhone 16 - 4, 오류는 16 - 11)
+function LoginForm({ next }: { next: string | null }) {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
@@ -37,73 +79,73 @@ function OnboardingForm() {
     setBusy(false);
     if (!r.ok) {
       setChoose(null);
-      setError(r.status === 423 ? "여러 번 틀려서 잠시 잠겼다. 10분 뒤에 다시 시도한다" : r.message);
+      setError(r.status === 423 ? "여러 번 틀려서 잠시 잠겼어요. 10분 뒤에 다시 시도해 주세요." : r.status === 401 ? "이름 혹은 숫자 4자리가 일치하지 않습니다. 다시 한 번 확인해 주세요." : r.message);
       return;
     }
     if (r.data.choose) {
       setChoose(r.data.choose);
       return;
     }
-    // 명함 · 포스터 QR 로 들어온 사람(next)은 로그인 뒤 제자리로. 첫 로그인이면 동의 화면을 거치되 next 를 이어 준다
+    // 명함 · 포스터 QR 로 들어온 사람(next)은 로그인 뒤 제자리로. 첫 로그인이면 동의 → 좌석 안내를 거치되 next 를 이어 준다
     router.replace(r.data.consented ? (next ?? "/card") : withNext("/onboarding/consent", next));
   }
 
   const canSubmit = name.trim().length >= 1 && /^\d{4}$/.test(pin) && !busy;
+  const field = "h-[60px] w-[250px] rounded-xl bg-field px-[15px] text-sm text-black shadow-[0_4px_4px_rgba(0,0,0,0.25)] outline-none placeholder:text-[#6c6c6c] focus:ring-1 focus:ring-navy";
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col px-6 pt-16 pb-10">
-      <p className="text-sm text-gray-500">2026 DSL Gathering</p>
-      <h1 className="mt-1 text-3xl font-bold">The ORBIT</h1>
-      <p className="mt-3 text-gray-600">사전 등록한 이름과 숫자 4자리(휴대폰 번호 뒤 4자리)를 입력한다.</p>
-
+    <OnboardingFrame wave="login" step={0} next={{ label: busy ? "확인 중" : "Next", type: "submit", form: "login", disabled: !canSubmit }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img alt="" src="/figma/dsl-logo-white.svg" className="absolute left-[81px] top-[123px] h-[139px] w-[243px]" />
+      <p className="absolute inset-x-0 top-[181px] text-center text-2xl font-medium text-white">LOG IN</p>
       <form
-        className="mt-8 space-y-4"
+        id="login"
+        className="absolute inset-x-0 top-[330px] flex flex-col items-center gap-[15px]"
         onSubmit={(e) => {
           e.preventDefault();
-          submit();
+          if (canSubmit) submit();
         }}
       >
-        <label className="block">
-          <span className="text-sm font-medium">이름</span>
-          <input
-            className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-3 text-lg outline-none focus:border-black"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setChoose(null);
-            }}
-            autoComplete="name"
-            maxLength={20}
-            placeholder="홍길동"
-          />
-        </label>
-        <label className="block">
-          <span className="text-sm font-medium">숫자 4자리</span>
-          <input
-            className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-3 font-mono text-2xl tracking-[0.5em] outline-none focus:border-black"
-            value={pin}
-            onChange={(e) => {
-              setPin(e.target.value.replace(/\D/g, "").slice(0, 4));
-              setChoose(null);
-            }}
-            inputMode="numeric"
-            pattern="\d*"
-            autoComplete="one-time-code"
-            placeholder="0000"
-          />
-        </label>
-
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-
+        <input
+          className={field}
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setChoose(null);
+          }}
+          autoComplete="name"
+          maxLength={20}
+          placeholder="이름"
+          aria-label="이름"
+        />
+        <input
+          className={`${field} tracking-wider`}
+          value={pin}
+          onChange={(e) => {
+            setPin(e.target.value.replace(/\D/g, "").slice(0, 4));
+            setChoose(null);
+          }}
+          inputMode="numeric"
+          pattern="\d*"
+          autoComplete="one-time-code"
+          placeholder="숫자 4자리"
+          aria-label="숫자 4자리"
+        />
+        {error && (
+          <p role="alert" className="mt-[28px] flex w-[341px] items-center justify-center gap-2 rounded-xl border border-[#f2b8b5] bg-white px-4 py-3 text-center text-xs text-[#d93025] shadow-[0_2px_4px_rgba(0,0,0,0.12)]">
+            <span aria-hidden className="flex size-4 shrink-0 items-center justify-center rounded-full border border-[#d93025] text-[10px] font-bold">!</span>
+            {error}
+          </p>
+        )}
         {choose && (
-          <div className="rounded-xl border border-gray-200 p-3">
-            <p className="text-sm text-gray-600">같은 이름이 여러 명이다. 본인을 고른다.</p>
+          <div className="mt-4 w-[300px] rounded-xl border border-line bg-white p-3">
+            <p className="text-sm text-ink-2">같은 이름이 여러 명이에요. 본인을 골라 주세요</p>
             <ul className="mt-2 space-y-2">
               {choose.map((c) => (
                 <li key={c.id}>
-                  <button type="button" onClick={() => submit(c.id)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-left hover:border-black">
-                    <span className="font-medium">{c.display_name}</span>
-                    <span className="ml-2 text-sm text-gray-500">
+                  <button type="button" onClick={() => submit(c.id)} className="w-full rounded-lg border border-line px-3 py-2 text-left text-sm hover:border-navy">
+                    <span className="font-bold">{c.display_name}</span>
+                    <span className="ml-2 text-ink-2">
                       {c.affiliation ?? "소속 없음"} · {roleLabel[c.role] ?? c.role}
                       {c.cohort ? ` · ${c.cohort}기` : ""}
                     </span>
@@ -113,13 +155,8 @@ function OnboardingForm() {
             </ul>
           </div>
         )}
-
-        <button type="submit" disabled={!canSubmit} className="w-full rounded-xl bg-black py-3 text-lg font-semibold text-white disabled:bg-gray-300">
-          {busy ? "확인 중" : "입장"}
-        </button>
+        <p className="mt-6 w-[250px] text-center text-xs text-ink-3">숫자 4자리는 보통 휴대폰 번호 뒤 4자리예요. 기억나지 않으면 등록 데스크의 운영진에게 말씀해 주세요</p>
       </form>
-
-      <p className="mt-6 text-xs text-gray-400">이름이나 숫자가 기억나지 않으면 등록 데스크의 운영진에게 말한다.</p>
-    </main>
+    </OnboardingFrame>
   );
 }

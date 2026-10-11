@@ -52,20 +52,20 @@ export default function CardInbox() {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-16 z-30 mx-auto max-w-md px-3">
-      <div className="max-h-[70vh] overflow-y-auto rounded-2xl border border-gray-300 bg-white p-3 shadow-lg">
+    <div className="fixed inset-x-0 bottom-[124px] z-30 mx-auto max-w-md px-3">
+      <div className="max-h-[70vh] overflow-y-auto rounded-3xl border border-line bg-white p-4 shadow-[0_6px_18px_rgba(20,36,74,0.18)]">
         {req ? (
           <>
-            <p className="text-sm font-semibold">{req.message}</p>
-            <p className="mt-0.5 text-xs text-gray-500">상대가 이름으로 찾아 명함 교환을 요청했다. 실제로 만났다면 확인을 누른다</p>
+            <p className="text-base font-bold text-navy">{req.message}</p>
+            <p className="mt-0.5 text-xs text-gray-500">상대가 이름으로 찾아 명함 교환을 요청했어요. 실제로 만났다면 확인을 눌러 주세요</p>
             <div className="mt-2">
               <CardView card={req.card} compact />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <button type="button" disabled={busy} onClick={() => confirm(true)} className="rounded-lg bg-black py-2 text-sm font-semibold text-white">
+              <button type="button" disabled={busy} onClick={() => confirm(true)} className="rounded-2xl bg-navy py-3 text-sm font-bold text-white">
                 네, 교환했어요
               </button>
-              <button type="button" disabled={busy} onClick={() => confirm(false)} className="rounded-lg border border-gray-300 py-2 text-sm">
+              <button type="button" disabled={busy} onClick={() => confirm(false)} className="rounded-2xl border border-line py-3 text-sm">
                 아니요
               </button>
             </div>
@@ -75,12 +75,12 @@ export default function CardInbox() {
           first && (
             <>
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">{first.message}</p>
+                <p className="text-base font-bold text-navy">{first.message}</p>
                 <button type="button" onClick={() => dismiss(false)} className="text-sm text-gray-400">
                   닫기
                 </button>
               </div>
-              <p className="mt-0.5 text-xs text-gray-500">상대가 내 명찰 QR 을 찍어서 서로 명함을 주고받았다. 받은 명함에 들어가 있다</p>
+              <p className="mt-0.5 text-xs text-gray-500">상대가 내 QR을 찍어 서로 명함을 주고받았어요. 교환한 명함 목록에 들어가 있어요</p>
               <div className="mt-2">
                 <CardView card={first.card} compact />
               </div>
@@ -91,7 +91,7 @@ export default function CardInbox() {
               )}
               {inbox.new.length > 1 && (
                 <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                  <span>{inbox.new.length - 1}건 더 있다</span>
+                  <span>{inbox.new.length - 1}건 더 있어요</span>
                   <button type="button" onClick={() => dismiss(true)} className="underline">
                     모두 확인
                   </button>
