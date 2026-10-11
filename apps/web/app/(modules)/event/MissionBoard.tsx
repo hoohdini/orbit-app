@@ -73,8 +73,9 @@ export default function MissionBoard() {
       <section className="rounded-3xl border border-navy bg-strip px-5 pt-3 pb-5">
         <p className="text-[15px] font-bold tracking-[-0.15px] text-ink">미션 스탬프</p>
         <div className="mt-2 flex justify-center gap-3">
-          {m.missions.map((x) => (
-            <Stamp key={x.key} on={x.done} size={53} />
+          {/* 모은 개수만큼 왼쪽부터 채운다 */}
+          {m.missions.map((x, i) => (
+            <Stamp key={x.key} on={i < m.done_count} size={53} />
           ))}
         </div>
       </section>
