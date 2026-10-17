@@ -1,4 +1,6 @@
-// GET /api/ops/poster  포스터세션 현황 (운영자 전용). 포스터별 스탬프 · 관심도 답, 응모권, 마지막 추첨 결과
+// GET /api/ops/poster  포스터세션 현황 (운영자 전용). 포스터별 스탬프 · 관심 포스터 응답, 응모권, 마지막 추첨 결과
+// interest = 관심 포스터 응답(poster_responses.reason, 0011 흥미 3단계 want · maybe · not_mine)의 포스터별 수.
+// 예전에는 0009 전 표 poster_interest 를 셌는데, 0009 부터 새 응답은 poster_responses 에만 쌓여 늘 0 이 나왔다(10/17 웹 점검)
 import { db } from "@/lib/db";
 import { ok, handle } from "@/lib/api";
 import { requireAdmin } from "@/lib/session";
@@ -13,7 +15,7 @@ export async function GET() {
     if (error) throw error;
     const [stamps, interest, tickets, raffle] = await Promise.all([
       selectIn<{ participant_id: string; poster_id: number }>("stamps", "participant_id, poster_id", "participant_id", ids),
-      selectIn<{ poster_id: number; choice: string }>("poster_interest", "poster_id, choice", "participant_id", ids),
+      selectIn<{ poster_id: number; reason: string }>("poster_responses", "poster_id, reason", "participant_id", ids),
       selectIn<{ participant_id: string; reason: string }>("raffle_tickets", "participant_id, reason", "participant_id", ids),
       opsGet<RaffleResult>("raffle_result"),
     ]);
@@ -22,7 +24,7 @@ export async function GET() {
     const interestCount = new Map<number, Record<string, number>>();
     for (const i of interest) {
       const m = interestCount.get(i.poster_id) ?? {};
-      m[i.choice] = (m[i.choice] ?? 0) + 1;
+      m[i.reason] = (m[i.reason] ?? 0) + 1;
       interestCount.set(i.poster_id, m);
     }
     return ok({
