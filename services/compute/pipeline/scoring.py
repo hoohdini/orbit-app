@@ -33,6 +33,37 @@ def directional(S: np.ndarray, O: np.ndarray) -> np.ndarray:
     return a
 
 
+def _z(x: np.ndarray) -> np.ndarray:
+    """대각선을 뺀 값으로 표준화. 대각선은 0."""
+    off = ~np.eye(len(x), dtype=bool)
+    sd = x[off].std()
+    z = (x - x[off].mean()) / (sd if sd > 0 else 1.0)
+    np.fill_diagonal(z, 0.0)
+    return z
+
+
+def pair_directional(S: np.ndarray, O: np.ndarray, center: bool = False, topic_weight: float = 0.0) -> np.ndarray:
+    """directional 의 보정판(10/17 좌석 비교 평가, sim/eval_seating.py).
+    center: 참가자 평균 벡터를 빼고 다시 정규화한다. e5 코사인은 0.88~0.94 에 몰려 사람 차이가 묻힌다.
+    topic_weight: 하는 일끼리의 유사도(같은 분야)를 그 비율만큼 섞는다. 두 점수를 표준화한 뒤 섞으므로 값은 cos 가 아니다."""
+    if center:
+        S, O = unit(S - S.mean(0)), unit(O - O.mean(0))
+    a = directional(S, O)
+    if topic_weight <= 0:
+        return a
+    t = directional(O, O)
+    return (1 - topic_weight) * _z(a) + topic_weight * _z(t)
+
+
+def seat_directional(S: np.ndarray, O: np.ndarray) -> np.ndarray:
+    """테이블토크 · 커피챗 배정에 쓰는 한 방향 점수. 환경변수 SEAT_CENTER(기본 1) · SEAT_TOPIC_WEIGHT(기본 0.5).
+    가상 80명 비교 평가(시험 시드 5개)에서 행사 전체 좋은 만남 수 1.78 → 2.70(무작위 1.75). 예전 방식은 SEAT_CENTER=0 SEAT_TOPIC_WEIGHT=0.
+    개인 추천 · pair_scores 원본 · 근거 한 줄은 그대로 directional 을 쓴다."""
+    center = os.environ.get("SEAT_CENTER", "1").strip() not in ("0", "false", "")
+    w = float(os.environ.get("SEAT_TOPIC_WEIGHT", "0.5") or 0)
+    return pair_directional(S, O, center, w)
+
+
 def combine(a: np.ndarray, mode: str = "min") -> np.ndarray:
     """두 방향 결합. mode: min | avg | harmonic."""
     b = a.T

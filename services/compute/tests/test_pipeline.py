@@ -64,6 +64,21 @@ def test_scoring_rules():
     assert np.allclose(A, A.T)
 
 
+def test_seat_directional():
+    O, S, *_ = fake_people()
+    assert np.allclose(scoring.pair_directional(S, O), scoring.directional(S, O))     # 보정 없음 = 예전 점수
+    m = scoring.pair_directional(S, O, center=True, topic_weight=0.5)
+    off = ~np.eye(len(O), dtype=bool)
+    assert np.allclose(np.diag(m), 0) and abs(m[off].mean()) < 1e-9                 # 표준화 두 개의 평균이라 평균 0
+    for k in ("SEAT_CENTER", "SEAT_TOPIC_WEIGHT"):
+        os.environ.pop(k, None)
+    assert np.allclose(scoring.seat_directional(S, O), m)                             # 기본 = 평균 빼기 + 분야 0.5
+    os.environ.update(SEAT_CENTER="0", SEAT_TOPIC_WEIGHT="0")
+    assert np.allclose(scoring.seat_directional(S, O), scoring.directional(S, O))     # 예전 방식으로 되돌리기
+    for k in ("SEAT_CENTER", "SEAT_TOPIC_WEIGHT"):
+        os.environ.pop(k)
+
+
 def test_rec_matrix_modes():
     O, S, *_ = fake_people()
     a = scoring.directional(S, O)
