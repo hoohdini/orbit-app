@@ -234,7 +234,7 @@ def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = 
     cohort = np.array([p["cohort"] if p.get("cohort") is not None else -1 for p in P])
     fixed_no = np.array([int(p["fixed_table"]) if p.get("fixed_table") is not None else 0 for p in P])
     a = scoring.directional(S, O)
-    A = scoring.table_matrix(a, is_host, table_mode)
+    A = scoring.table_matrix(scoring.seat_directional(S, O), is_host, table_mode)   # 배정만 보정 점수(10/17 비교 평가)
 
     bad = sorted({int(x) for x in fixed_no if x not in (0, FIXED_TABLE_NO)})
     if bad:                                              # 2~9번 고정은 테이블 크기 균등과 맞물려 아직 지원하지 않는다
@@ -399,6 +399,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
         S2 = scoring.card_shift(S2, O, W, beta, by_weight=True)          # 명함 교환 → Seek
 
     a_np = scoring.directional(S2, O2)                                   # 포스터 반영 전 점수(B-05 검증용으로 같이 저장)
+    seat_np = scoring.seat_directional(S2, O2)
 
     # 포스터 → Seek 를 관심 있게 본 포스터 주제 쪽으로 당긴다. 만족도 응답률과 상관없이 답한 사람마다 반영한다
     #   새 응답(poster_responses, 0011 흥미 3단계)이 있으면 B-05 전처리 뒤 폭 0.2 로 당기고, 관심 분야 아님은 밀어낸다
@@ -440,8 +441,8 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
 
     is_host = np.array([bool(p.get("is_host")) for p in P])
     cohort = np.array([p["cohort"] if p.get("cohort") is not None else -1 for p in P])
-    A = scoring.table_matrix(a, is_host, table_mode)
-    A_np = scoring.table_matrix(a_np, is_host, table_mode)
+    A = scoring.table_matrix(scoring.seat_directional(S2, O2), is_host, table_mode)
+    A_np = scoring.table_matrix(seat_np, is_host, table_mode)
     seated, src = np.ones(n, bool), None
     if final:
         r, sizes, seated, src = _keep_groups(repo, ids, idx, event_id, forbid, cohort)
