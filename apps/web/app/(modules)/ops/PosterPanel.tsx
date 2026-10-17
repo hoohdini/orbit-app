@@ -1,5 +1,5 @@
 "use client";
-// 포스터세션 현황과 추첨. 포스터별 스탬프 · 관심도 답, 응모권 수, 추첨(응모권 1장 1표, 한 사람 한 번).
+// 포스터세션 현황과 추첨. 포스터별 스탬프 · 관심 포스터 응답(흥미 3단계, 0011), 응모권 수, 추첨(응모권 1장 1표, 한 사람 한 번).
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 
@@ -70,7 +70,7 @@ export default function PosterPanel() {
               <th className="px-3 py-2">제목</th>
               <th className="px-3 py-2">부스</th>
               <th className="px-3 py-2 text-right">스탬프</th>
-              <th className="px-3 py-2">관심도 (더 알아보고 싶다 · 흥미로웠다 · 아니다)</th>
+              <th className="px-3 py-2">관심 포스터 응답 (꼭 · 기회가 되면 · 관심 분야 아님)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -84,7 +84,7 @@ export default function PosterPanel() {
                 <td className="px-3 py-2 text-xs text-gray-600">{p.booth ?? "-"}</td>
                 <td className="px-3 py-2 text-right font-semibold">{p.stamps}</td>
                 <td className="px-3 py-2 text-xs text-gray-600">
-                  {p.interest.learn_more ?? 0} · {p.interest.interesting ?? 0} · {p.interest.not_mine ?? 0}
+                  {p.interest.want ?? 0} · {p.interest.maybe ?? 0} · {p.interest.not_mine ?? 0}
                 </td>
               </tr>
             ))}

@@ -1,6 +1,6 @@
 "use client";
 // 전역 상태 띠(개발 지시서 v0.2 H-01). 모든 탭 맨 위 한 줄. 운영 공지가 있으면 공지를 먼저, 없으면 지금 단계와 내 위치.
-// 이벤트 탭에서는 미션 진행(n/4)을 붙인다. 값은 /api/state(useOrbitState) 하나에서 온다.
+// 이벤트 탭에서는 미션 진행(n/5, 미션 수를 따라감)을 붙인다. 값은 /api/state(useOrbitState) 하나에서 온다.
 // 모양은 피그마 StatusStrip(10/11): 높이 36, 연한 남색 바탕, 왼쪽 라이브 점. 모든 탭에서 맨 위(헤더 바로 아래)에 둔다(10/11 일관성 정리)
 import { useOrbitState, type OrbitState } from "./useOrbitState";
 

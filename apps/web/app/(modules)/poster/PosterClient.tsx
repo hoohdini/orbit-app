@@ -1,7 +1,7 @@
 "use client";
 // 포스터 화면(피그마 P-1 요약 → P-2 퀴즈 → P-3 결과, 관심 포스터로 선택하기 → 흥미 3단계, 10/11).
 // 퀴즈: 이지선다, 정답이면 그 포스터 퀴즈 스탬프(미션 ②), 오답이면 정답을 알려 주지 않고 무제한 다시 풀기. 이미 맞힌 포스터는 퀴즈 풀기 대신 정답 보기.
-// 관심 포스터: 피그마의 관심 이유 4칩 대신 팀 결정(0011)의 흥미 3단계로 묻는다. 어떤 답이든 스탬프(미션 ①). 이미 답한 포스터는 버튼을 막는다.
+// 관심 포스터: 피그마의 관심 이유 4칩 대신 팀 결정(0011)의 흥미 3단계로 묻는다. 어떤 답이든 미션 ①에 들어간다(선택지 아래 안내 문구는 10/17 뺌: 목록 스탬프가 퀴즈 정답 표시라 헷갈림). 이미 답한 포스터는 버튼을 막는다.
 // 응답은 최근 15분 안에 그 포스터를 찍어야 낼 수 있다(서버 규칙). 목록에서 오래 뒤에 열었으면 QR 을 다시 찍게 안내한다.
 // 정답은 서버만 안다. 이 화면은 고른 보기 번호만 보낸다.
 import { useEffect, useState } from "react";
@@ -135,7 +135,6 @@ export default function PosterClient({ code, id, via }: { code: string | null; i
               </button>
             ))}
           </div>
-          <p className="mt-3 text-xs text-ink-3">어떤 답이든 스탬프는 받아요</p>
         </section>
         {note && <p className="rounded-2xl bg-field px-4 py-3 text-sm text-ink-2">{note}</p>}
         <button type="button" onClick={submitReason} disabled={!reason || busy} className={`${btn} bg-navy text-white disabled:bg-field disabled:text-ink-3`}>
