@@ -135,6 +135,10 @@ export default function StatusPanel() {
             title="3. 테이블토크 뒤, 포스터세션 끝 무렵 (명함 교환 · 만족도 · 포스터 관심도 반영해 커피챗 초안과 추천)"
             cmd={`curl -X POST http://localhost:8000/coffeechat -H "X-Compute-Secret: $COMPUTE_SECRET" -H "Content-Type: application/json" -d '{"event_id":"${status.event_id}"}'`}
           />
+          <Cmd
+            title="4. 시상 · 폐회 뒤 행사 직후 추천 (커피챗 그룹은 그대로, 그날 신호로 추천 목록만 다시. 동석자 · 교환한 사람 제외)"
+            cmd={`curl -X POST http://localhost:8000/coffeechat -H "X-Compute-Secret: $COMPUTE_SECRET" -H "Content-Type: application/json" -d '{"event_id":"${status.event_id}","final":true}'`}
+          />
         </div>
         <p className="mt-2 text-xs text-gray-500">409 가 나오면 사람이 부족하거나(5명 미만) 코드북 · 테이블토크 배정이 아직 없는 것이다. 응답의 detail 을 읽는다</p>
       </section>
