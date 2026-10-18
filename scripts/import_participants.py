@@ -18,6 +18,13 @@ CSV 열 (첫 줄 헤더, UTF-8). 열 이름은 아래와 같거나 --map 으로 
   활동팀: 같이 한 프로젝트 · 스터디 팀 이름(; 로 구분, 예: 25-2 추천시스템;26-1 LLM 스터디). 같은 팀이었으면 추천에서 뒤로 미룬다. 열이 없으면 기존 값을 지우지 않는다
   고정테이블: 1(교수 · 운영진석) 또는 빈칸. 비우면 계산 서비스가 배정한다. 열이 없는 CSV 로 다시 적재해도 기존 값을 지우지 않는다(2026-10-05, 0008)
 
+10/17 구글폼(자유 문장 없음)용 열 — 셋 다 없어도 된다(예전 명단 그대로 적재). 하나라도 있으면 구분(경력, 0015)을 정한다
+  재직: 정규직 | 인턴 | 아니오(비어도 아니오). 직책: 직책 · 직무명(예: 데이터 분석가, 석사과정). 관심도메인: 관심 도메인 체크(; 로 구분)
+  구분(경력) career = 교수 → professor, 재직(정규직 · 인턴) → employed, 직책에 석사 · 박사 · 대학원 → grad, 그 밖 → student
+  하는일 = 직책 + (하는일 열이 있으면 ' · ' 뒤에). 주제태그(직무 도메인)가 비었고 재직이 아니면 관심도메인을 주제태그로 쓴다(학생은 직무 도메인을 안 고르므로, 10/18 민찬).
+  찾는사람이 비었으면 '관심 분야: <관심도메인>' 한 줄로 채운다. 관계태그 = 폼의 '기대하는 점' 체크
+  DB 에 0015 를 먼저 적용해야 한다(없으면 career 칸이 없다는 오류)
+
 운영자(is_admin)는 아래 OPERATORS 명단으로 정한다(2026-09-29). 명단에 있는 이름은 is_admin 을 켜고, 없는 이름은 끈다.
 명단은 docs/OPERATORS.md 와 같이 고치고, 고치는 사람은 성하다.
 
@@ -35,7 +42,8 @@ from pathlib import Path
 
 ROLE_MAP = {"재학생": "student", "학생": "student", "졸업생": "alumni", "알럼나이": "alumni", "교수": "professor", "교수·연구자": "professor", "운영진": "staff", "기타": "other"}
 OPERATORS = ("박성하", "황수민", "김민찬", "김나혜", "김현희")
-DEFAULT_COLS = {"name": "이름", "affiliation": "소속", "role": "구분", "cohort": "기수", "phone": "휴대폰", "offer": "하는일", "seek": "찾는사람", "topic": "주제태그", "intent": "관계태그", "host": "호스트", "fixed": "고정테이블", "teams": "활동팀"}
+DEFAULT_COLS = {"name": "이름", "affiliation": "소속", "role": "구분", "cohort": "기수", "phone": "휴대폰", "offer": "하는일", "seek": "찾는사람", "topic": "주제태그", "intent": "관계태그", "host": "호스트", "fixed": "고정테이블", "teams": "활동팀",
+                "job": "재직", "title": "직책", "interest": "관심도메인"}
 
 
 def load_env() -> None:
@@ -49,6 +57,17 @@ def load_env() -> None:
 
 def split_tags(v: str) -> list[str]:
     return [t.strip() for t in re.split(r"[;,]", v or "") if t.strip()]
+
+
+def career_of(role: str, job_raw: str, title: str) -> str:
+    """구분(경력, 0015). 재직 여부 · 직책 · 기존 구분으로 정한다. 수료(졸업생)여도 재직이 아니고 대학원생도 아니면 학생으로 본다"""
+    if role == "professor":
+        return "professor"
+    if re.search(r"정규|인턴|재직|^예$", job_raw or "") and not re.search(r"아니|아님|없|미재직|안 ?함|않", job_raw or ""):
+        return "employed"
+    if re.search(r"석사|박사|대학원", title or ""):
+        return "grad"
+    return "student"
 
 
 def last4(phone: str) -> str | None:
@@ -122,11 +141,25 @@ def main() -> int:
             participants[-1]["fixed_table"] = int(fixed_raw) if fixed_raw else None
         if cols["teams"] in rows[0]:
             participants[-1]["teams"] = [t.strip() for t in (r.get(cols["teams"]) or "").split(";") if t.strip()]
+        offer = (r.get(cols["offer"]) or "").strip()
+        seek = (r.get(cols["seek"]) or "").strip()
+        topic = split_tags(r.get(cols["topic"], ""))
+        form_cols = [c for c in ("job", "title", "interest") if cols[c] in rows[0]]
+        if form_cols:                                      # 10/17 구글폼 열(위 설명). 없으면 예전 그대로
+            title = (r.get(cols["title"]) or "").strip()
+            interest = split_tags(r.get(cols["interest"], ""))
+            career = career_of(role, (r.get(cols["job"]) or "").strip(), title)
+            participants[-1]["career"] = career
+            offer = " · ".join(x for x in (title, offer) if x)
+            if not topic and career != "employed":
+                topic = interest                           # 학생은 직무 도메인 대신 관심 도메인이 분야
+            if not seek and interest:
+                seek = "관심 분야: " + ", ".join(interest)
         profiles.append(
             {
-                "offer_text": (r.get(cols["offer"]) or "").strip()[:120],
-                "seek_text": (r.get(cols["seek"]) or "").strip()[:120],
-                "topic_tags": split_tags(r.get(cols["topic"], "")),
+                "offer_text": offer[:120],
+                "seek_text": seek[:120],
+                "topic_tags": topic,
                 "intent_tags": split_tags(r.get(cols["intent"], "")),
             }
         )
@@ -134,6 +167,16 @@ def main() -> int:
     roles = {}
     for p in participants:
         roles[p["role"]] = roles.get(p["role"], 0) + 1
+    if not any(cols[c] in rows[0] for c in ("job", "title", "interest")):
+        near = [h for h in rows[0] if re.search(r"재직|직책|직무|관심", h or "")]
+        print(f"구글폼 열(재직 · 직책 · 관심도메인)이 없어 구분(경력)을 정하지 않았다(추천 규칙 점수 0)."
+              + (f" 비슷한 열: {near} → --map job=… title=… interest=… 로 맞춘다" if near else ""), file=sys.stderr)
+    careers = {}
+    for p in participants:
+        if "career" in p:
+            careers[p["career"]] = careers.get(p["career"], 0) + 1
+    if careers:
+        print(f"구분(경력, 0015) {careers}")
     print(f"읽음 {len(participants)}명 · 구분 {roles} · 호스트 {sum(p['is_host'] for p in participants)}명 · 운영자 {sum(p['is_admin'] for p in participants)}명 · 고정 테이블 {sum(1 for p in participants if p.get('fixed_table'))}명")
     absent = [n for n in OPERATORS if n not in {p["display_name"] for p in participants}]
     if absent:
