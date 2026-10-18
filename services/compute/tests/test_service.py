@@ -513,6 +513,11 @@ def test_recs_rule_puts_givers_first():
         p["career"] = None                                               # 구분을 아무도 모르면 rule 이 예전 min 으로
     r = service.precompute(repo, enc, iters=500)
     assert next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]["rec_mode"] == "min(규칙 재료 없음)"
+    for k, p in enumerate(repo.t["participants"]):
+        p["careers"] = ["student", "intern"] if k % 4 == 0 else ["student"]  # 구분 여러 개(0017)가 있으면 career 대신 그것을 본다
+    r = service.precompute(repo, enc, iters=500)
+    params = next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]
+    assert params["rec_mode"] == "rule" and params["career_known"] == 60
     # 재직자 15명 × 노출 상한 12 = 180칸, 학생 45명 × 10칸 = 450칸 → 학생 목록 속 재직자 비율은 최대 0.4. 예전 방식보다 위, 상한에 가깝게
     assert rule > base + 0.05 and rule > 0.3, (rule, base)
 

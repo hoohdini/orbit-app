@@ -81,13 +81,14 @@ def combine(a: np.ndarray, mode: str = "min") -> np.ndarray:
     return c
 
 
-# '줄 수 있는 것' 규칙(10/18 민찬, sim/eval_recs_rule.py). 내가 고른 '기대하는 점' → 그걸 줄 수 있는 상대 구분(participants.career)과 정도(1 = 충분히).
+# '줄 수 있는 것' 규칙(10/18 민찬, sim/eval_recs_rule.py). 내가 고른 '기대하는 점' → 그걸 줄 수 있는 상대 구분과 정도(1 = 충분히).
+# 상대 구분은 여러 개일 수 있다(participants.careers, 0017: 폼 '해당하는 경험' 기업 재직 · 기업 인턴 · 학부연구생 · 대학원 + 재학생 · 교수). 가장 높은 값을 쓴다
 # 키는 사전 등록 구글폼(10/18 성하)의 '게더링에 기대하는 점 · 현재 관심사' 선택지 그대로 = profiles.intent_tags. 괄호 설명 · 띄어쓰기는 무시.
 # 폼 선택지가 바뀌면 여기를 같이 고친다(모르는 선택지는 계산 기록 params.intent_unknown 에 남는다)
 SAME = "same"                         # 상대도 같은 선택지를 골랐으면 1(줄 사람이 구분이 아니라 관심으로 정해지는 것)
 WANTS = {
-    "커리어 조언·현업 이야기": {"employed": 1.0},
-    "취업·이직 정보": {"employed": 1.0},
+    "커리어 조언·현업 이야기": {"employed": 1.0, "intern": 0.5},   # 기업 인턴은 재직자보다 한 단계 낮게(민찬, 학부연구생과 같은 0.5)
+    "취업·이직 정보": {"employed": 1.0, "intern": 0.5},
     "대학원 진학·연구": {"grad": 1.0, "professor": 1.0, "lab_intern": 0.5},     # 학부연구생은 대학원생보다 한 단계 낮게(민찬)
     "스터디·프로젝트 팀원 찾기": {"student": 1.0, "lab_intern": 1.0},
     "최신 AI·데이터 트렌드": {"employed": 0.5, "grad": 0.5},
@@ -105,12 +106,20 @@ def _intent_key(x: str) -> str:
 _WANTS = {_intent_key(k): v for k, v in WANTS.items()}
 
 
-def gives_matrix(intents: list[list[str]], careers: list[str | None]) -> np.ndarray:
+def _career_set(c) -> set[str]:
+    """구분 하나(career, 0015) · 여러 개(careers, 0017) · 모름(None)을 모두 집합으로."""
+    return {c} if isinstance(c, str) else set(c or [])
+
+
+def gives_matrix(intents: list[list[str]], careers: list) -> np.ndarray:
     """g[i, j] = i 가 고른 기대하는 점 중 규칙이 있는 것마다 j 가 줄 수 있는 정도를 더해 그 개수로 나눈 것(0~1). 한 방향.
-    구분 규칙은 j 의 구분(모르면 0), SAME 규칙은 j 도 같은 선택지를 골랐는지. 규칙 없는 선택지(NO_RULE · 기타)는 세지 않는다."""
+    구분 규칙은 j 의 구분 중 가장 높은 값(모르면 0). 경험이 여럿이어도 같은 정보를 두 배로 줄 수는 없어 더하지 않는다.
+    SAME 규칙은 j 도 같은 선택지를 골랐는지. 규칙 없는 선택지(NO_RULE · 기타)는 세지 않는다.
+    careers[j] 는 구분 하나(str) · 여러 개(list) · None 모두 받는다."""
     n = len(intents)
     g = np.zeros((n, n))
     mine = [{_intent_key(x) for x in (w or [])} for w in intents]
+    cs = [_career_set(c) for c in careers]
     for i in range(n):
         w = [x for x in mine[i] if x in _WANTS]
         if not w:
@@ -121,12 +130,12 @@ def gives_matrix(intents: list[list[str]], careers: list[str | None]) -> np.ndar
             s = 0.0
             for x in w:
                 rule = _WANTS[x]
-                s += (1.0 if x in mine[j] else 0.0) if rule == SAME else rule.get(careers[j] or "", 0.0)
+                s += (1.0 if x in mine[j] else 0.0) if rule == SAME else max((rule.get(c, 0.0) for c in cs[j]), default=0.0)
             g[i, j] = s / len(w)
     return g
 
 
-def rec_rule_score(S: np.ndarray, O: np.ndarray, intents: list[list[str]], careers: list[str | None],
+def rec_rule_score(S: np.ndarray, O: np.ndarray, intents: list[list[str]], careers: list,
                    weights: tuple[float, float, float] = REC_RULE_WEIGHTS) -> np.ndarray:
     """개인 추천용 한 방향 점수(10/18). 세 점수를 표준화(_z)해 weights 로 섞는다. 값은 cos 가 아니다.
     1) 찾는 사람 → 하는 일 cos(평균 뺀 벡터) 2) 하는 일끼리 cos(같은 분야, 평균 뺀 벡터) 3) gives_matrix.

@@ -314,6 +314,9 @@ def test_gives_matrix_and_rec_rule_score():
     assert g4[0, 1] == 1.0 and g4[0, 2] == 0.0                           # 창업 · 사이드는 같은 선택지를 고른 사람끼리
     g5 = scoring.gives_matrix([["최신 AI·데이터 트렌드"], [], [], []], [None, "employed", "grad", "student"])
     assert np.allclose(g5[0, 1:], [0.5, 0.5, 0.0])
+    g6 = scoring.gives_matrix([["취업·이직 정보", "대학원 진학·연구"], [], [], []],
+                              [None, ["student", "intern", "lab_intern"], ["employed", "grad"], []])
+    assert np.allclose(g6[0, 1:], [0.5, 1.0, 0.0])                      # 구분 여러 개(0017): 선택지마다 가장 높은 값. 인턴 0.5 · 학부연구생 0.5, 빈 목록 = 모름
     rng = np.random.default_rng(0)
     n, d = 12, 16
     O = scoring.unit(rng.normal(size=(n, d)) + 3)                         # 공통 방향이 큰 벡터(평균 빼기가 필요한 상황)
