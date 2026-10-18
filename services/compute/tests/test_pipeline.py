@@ -296,6 +296,30 @@ def test_poster_targets():
     assert scoring.poster_weights("interesting=0.2") == {"learn_more": 1.0, "interesting": 0.2, "not_mine": -0.2}
     assert scoring.poster_weights("") == {"learn_more": 1.0, "interesting": 0.33, "not_mine": -0.2}  # 9/29 기본값
 
+
+def test_gives_matrix_and_rec_rule_score():
+    """'줄 수 있는 것' 규칙(10/18): 원하는 것 중 상대 구분이 줄 수 있는 비율. 한 방향. 추천 점수는 규칙이 맞는 사람을 위로."""
+    intents = [["취업정보", "멘토링", "스터디"], ["채용"], [], ["대학원진학"]]
+    careers = ["student", "employed", None, "grad"]
+    g = scoring.gives_matrix(intents, careers)
+    assert np.isclose(g[0, 1], 2 / 3) and np.isclose(g[0, 3], 0.0)       # 학생 → 재직자: 취업정보 · 멘토링
+    assert g[1, 0] == 0.0 and g[2].sum() == 0 and g[:, 2].sum() == 0     # 학생은 채용을 못 줌 · 원하는 것 없음 · 구분 모름 → 0
+    assert np.isclose(g[3, 3], 0.0) and np.isclose(g[0, 0], 0.0)          # 자기 자신은 0
+    rng = np.random.default_rng(0)
+    n, d = 12, 16
+    O = scoring.unit(rng.normal(size=(n, d)) + 3)                         # 공통 방향이 큰 벡터(평균 빼기가 필요한 상황)
+    S = scoring.unit(rng.normal(size=(n, d)) + 3)
+    intents = [["취업정보"]] * n
+    careers = ["employed" if j % 3 == 0 else "student" for j in range(n)]
+    R = scoring.rec_rule_score(S, O, intents, careers)
+    assert R.shape == (n, n) and np.allclose(np.diag(R), 0)
+    for i in range(n):                                                    # 취업정보를 원하면 재직자가 평균적으로 위
+        emp = [R[i, j] for j in range(n) if j != i and careers[j] == "employed"]
+        stu = [R[i, j] for j in range(n) if j != i and careers[j] == "student"]
+        assert np.mean(emp) > np.mean(stu)
+    R0 = scoring.rec_rule_score(S, O, intents, [None] * n)                # 구분을 아무도 모르면 규칙 부분은 0
+    assert np.isfinite(R0).all()
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

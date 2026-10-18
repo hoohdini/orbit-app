@@ -484,6 +484,38 @@ def test_errors():
         raise AssertionError("코드북 없이 reuse 가 통과했다")
 
 
+
+def test_recs_rule_puts_givers_first():
+    """기본 추천 점수(rule): 취업정보를 원하는 학생의 추천 10명에 재직자가 많이 들어간다. REC_SCORE=min(예전)과 비교."""
+    import os
+    repo, enc = seed_repo(n=60, n_host=0, n_staff=0, seed=3), FakeEncoder()
+    for k, p in enumerate(repo.t["participants"]):
+        p["career"] = "employed" if k % 4 == 0 else "student"
+    for pr in repo.t["profiles"]:
+        pr["intent_tags"] = ["취업정보"]
+    emp = {p["id"] for p in repo.t["participants"] if p["career"] == "employed"}
+
+    def share(rec_mode):
+        r = service.precompute(repo, enc, iters=500, rec_mode=rec_mode)
+        rows = [x for x in repo.t["recs"] if x["version"] == r["version"]]
+        stu = [x for x in rows if x["participant_id"] not in emp]
+        return sum(x["target_id"] in emp for x in stu) / len(stu)
+
+    old = os.environ.pop("REC_SCORE", None)
+    try:
+        rule, base = share(None), share("min")                           # 기본 = rule
+    finally:
+        if old is not None:
+            os.environ["REC_SCORE"] = old
+    vs = {x["version"]: x for x in repo.t["assign_versions"]}
+    assert vs[max(vs)]["params"]["rec_mode"] == "min" and vs[max(vs)]["params"]["career_known"] == 60
+    for p in repo.t["participants"]:
+        p["career"] = None                                               # 구분을 아무도 모르면 rule 이 예전 min 으로
+    r = service.precompute(repo, enc, iters=500)
+    assert next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]["rec_mode"] == "min(구분 없음)"
+    # 재직자 15명 × 노출 상한 12 = 180칸, 학생 45명 × 10칸 = 450칸 → 학생 목록 속 재직자 비율은 최대 0.4. 예전 방식보다 위, 상한에 가깝게
+    assert rule > base + 0.05 and rule > 0.3, (rule, base)
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

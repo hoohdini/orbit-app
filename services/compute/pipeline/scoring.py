@@ -3,9 +3,9 @@
 a[i, j] = cos(seek_i, offer_j)   i 가 j 에게서 얻는 것 (한 방향)
 
 쓰는 곳 (연구 저장소 docs/33 G16c · 노션 9/23 1-1)
-  개인 추천 목록     REC_SCORE 로 고른다. 기본 min (처음 합의). one_way 는 a 그대로
-                     근거가 갈림 — 공동저술 사람별 a 0.713 · min 0.694, 스피드데이팅 min 0.538 · a 0.528
-                     리허설에서 두 점수를 비교해 본행사 전에 정한다
+  개인 추천 목록     REC_SCORE 로 고른다. 기본 rule(10/18, rec_rule_score): 찾는 사람 → 하는 일 · 하는 일끼리 · '줄 수 있는 것' 규칙을
+                     1 : 1 : 2 로 섞은 한 방향 점수. 예전 방식은 min (양방향 작은 쪽) · one_way (a 그대로) · avg · harmonic
+                     예전 근거 — 공동저술 사람별 a 0.713 · min 0.694, 스피드데이팅 min 0.538 · a 0.528
   테이블 배정       두 사람이 같이 앉으므로 두 방향을 합친다. min · 평균 · 조화평균 중 무엇이 나은지는 리허설에서 정한다
                      세 값을 pair_scores 에 같이 남긴다(score_ab, score_ba)
   호스트            want 가 없다. 학생 ↔ 호스트 쌍은 학생 쪽 한 방향만 쓴다. 호스트끼리는 0
@@ -80,9 +80,59 @@ def combine(a: np.ndarray, mode: str = "min") -> np.ndarray:
     return c
 
 
+# '줄 수 있는 것' 규칙(10/18 민찬, sim/eval_recs_rule.py). 상대의 구분(participants.career, 0015) → 그 사람이 줄 수 있는 것.
+# 키는 폼 '기대하는 점' 체크 = profiles.intent_tags 와 같은 말이어야 한다. 폼 선택지가 바뀌면 여기를 같이 고친다
+GIVES = {
+    "employed": {"취업정보", "이직정보", "채용", "멘토링"},
+    "grad": {"대학원진학", "연구협업"},
+    "student": {"스터디", "프로젝트팀원"},
+    "professor": {"대학원진학", "연구협업", "멘토링"},
+}
+REC_RULE_WEIGHTS = (0.25, 0.25, 0.5)  # 찾는 사람 → 하는 일, 하는 일끼리(분야), 규칙. 표준화한 뒤 섞는다
+
+
+def gives_matrix(intents: list[list[str]], careers: list[str | None]) -> np.ndarray:
+    """g[i, j] = i 가 원하는 것(기대하는 점) 중 j 의 구분이 줄 수 있는 것의 비율(0~1). 한 방향. 구분을 모르면 0."""
+    n = len(intents)
+    g = np.zeros((n, n))
+    norm = lambda x: x.replace(" ", "")                    # '취업 정보' 와 '취업정보' 를 같게
+    give = [{norm(x) for x in GIVES.get(c or "", set())} for c in careers]
+    for i, want in enumerate(intents):
+        w = {norm(x) for x in (want or [])}
+        if not w:
+            continue
+        for j in range(n):
+            if i != j and give[j]:
+                g[i, j] = len(w & give[j]) / len(w)
+    return g
+
+
+def rec_rule_score(S: np.ndarray, O: np.ndarray, intents: list[list[str]], careers: list[str | None],
+                   weights: tuple[float, float, float] = REC_RULE_WEIGHTS) -> np.ndarray:
+    """개인 추천용 한 방향 점수(10/18). 세 점수를 표준화(_z)해 weights 로 섞는다. 값은 cos 가 아니다.
+    1) 찾는 사람 → 하는 일 cos(평균 뺀 벡터) 2) 하는 일끼리 cos(같은 분야, 평균 뺀 벡터) 3) gives_matrix.
+    문장 비교 모델은 '재직자 → 취업정보' 같은 연결을 잡지 못해(가상 데이터 상관 0.04~0.15) 규칙으로 직접 넣는다.
+    가상 80명(시드 20개, 서비스 추천 함수 그대로, sim/eval_recs_rule.py)에서 10명 중 좋은 상대 2.60(예전 min) → 3.65.
+    구분을 아무도 모르면 service._rec_scores 가 예전 min 으로 돌아간다(1 · 2 만 남은 조합은 평가하지 않았으므로)."""
+    Sc, Oc = unit(S - S.mean(0)), unit(O - O.mean(0))
+    g = gives_matrix(intents, careers)
+    parts = [_z(directional(Sc, Oc)), _z(directional(Oc, Oc)), _z(g) if g.std() > 0 else np.zeros_like(g)]
+    r = sum(w * x for w, x in zip(weights, parts))
+    np.fill_diagonal(r, 0.0)
+    return r
+
+
+def intent_unknown(intents: list[list[str]]) -> list[str]:
+    """GIVES 어느 구분에도 없는 기대하는 점(폼 선택지와 표의 말이 어긋났는지 보려고 계산 기록에 남긴다)."""
+    known = {x.replace(" ", "") for v in GIVES.values() for x in v}
+    return sorted({t for w in intents for t in (w or []) if t.replace(" ", "") not in known})
+
+
 def rec_matrix(a: np.ndarray, mode: str | None = None) -> np.ndarray:
-    """개인 추천용 점수. mode: min | avg | harmonic | one_way (기본은 환경변수 REC_SCORE, 없으면 min)."""
+    """개인 추천용 점수(예전 방식). mode: min | avg | harmonic | one_way. 기본 rule 은 service._rec_scores 가 rec_rule_score 로 따로 만든다."""
     mode = mode or os.environ.get("REC_SCORE", "min")
+    if mode == "rule":
+        mode = "min"
     if mode == "one_way":
         r = a.copy()
         np.fill_diagonal(r, 0.0)

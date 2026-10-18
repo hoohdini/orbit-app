@@ -1,7 +1,7 @@
 """커피챗 개인 추천 목록과 테이블 소개.
 
 추천 (성하 06_event_loop.py T7 을 옮김)
-  점수는 scoring.rec_matrix 가 만든 것(기본 min, REC_SCORE=one_way 면 한 방향)
+  점수는 service._rec_scores 가 만든 것(기본 rule = scoring.rec_rule_score 한 방향, 10/18. 예전 방식은 REC_SCORE=min · one_way 등)
   이미 만난 사람(같은 테이블 · 명함 교환)은 뺀다
   정확 칸 + 탐색 칸. 탐색 칸은 아직 덜 노출된 사람. 목록 안 확장 칸 15% 는 견고했음(docs/29 F1)
   노출 상한 — 한 사람이 너무 많은 목록에 뜨지 않게 무작위 순서로 돌며 누적
