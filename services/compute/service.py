@@ -18,6 +18,7 @@ coffeechat  테이블토크 뒤(포스터세션 중, v0.2 B-04). 3~4명 그룹 �
 """
 from __future__ import annotations
 
+import os
 import threading
 from collections import Counter
 from datetime import datetime, timezone
@@ -181,12 +182,35 @@ def _orbit(table: np.ndarray, first_prefix: list[int | None], labels: dict[int, 
     return {int(t): evm.group_label(list(np.where(table == t)[0]), first_prefix, labels, tags) for t in set(table.tolist())}
 
 
-def _write_recs(repo, v: int, P, ids, a, met, tags, intents, prefix, rec_mode, n_exact, n_explore, seed) -> np.ndarray:
-    """개인 추천 목록(B-06). 상호 점수(기본 min) − 이미 아는 사이 감점(pipeline/people.py), 이미 만난 사람(met) 제외, 노출 상한 · 탐색 칸.
+def _rec_mode(rec_mode: str | None) -> str:
+    return rec_mode or os.environ.get("REC_SCORE", "rule")
+
+
+def _rec_scores(S, O, a, P, intents, rec_mode) -> np.ndarray:
+    """개인 추천 점수. 기본 rule(10/18): 찾는 사람 → 하는 일 · 하는 일끼리 · '줄 수 있는 것' 규칙을 섞은 한 방향(scoring.rec_rule_score).
+    예전 방식(min · one_way · avg · harmonic)은 REC_SCORE 나 요청의 rec_mode 로."""
+    careers = [p.get("career") for p in P]
+    if _rec_mode(rec_mode) == "rule" and any(careers):
+        return scoring.rec_rule_score(S, O, intents, careers)
+    # 구분을 아무도 모르면(0015 전 DB · 예전 명단) 규칙이 0 이라 평가하지 않은 조합만 남는다 → 예전 min
+    return scoring.rec_matrix(a, "min" if _rec_mode(rec_mode) == "rule" else _rec_mode(rec_mode))
+
+
+def _rec_params(P, intents, rec_mode) -> dict:
+    """계산 기록(assign_versions.params)에 어떤 점수로 추천 목록을 만들었는지 남긴다."""
+    known = sum(1 for p in P if p.get("career"))
+    mode = _rec_mode(rec_mode)
+    return {"rec_mode": mode if (mode != "rule" or known) else "min(구분 없음)", "career_known": known,
+            "intent_unknown": scoring.intent_unknown(intents)}
+
+
+def _write_recs(repo, v: int, P, ids, scores, met, tags, intents, prefix, n_exact, n_explore, seed) -> np.ndarray:
+    """개인 추천 목록(B-06). 추천 점수(_rec_scores) − 이미 아는 사이 감점(pipeline/people.py), 이미 만난 사람(met) 제외, 노출 상한 · 탐색 칸.
     전날(테이블토크 버전, 입장 ~ 포스터세션용)과 커피챗(자유 이동용) 두 번 만든다. 화면(H-04)은 여기서 거르기만 한다."""
-    scores = scoring.rec_matrix(a, rec_mode).copy()
+    scores = scores.copy()
     same = peoplem.acquainted(P)
-    scores[same] -= SAME_GROUP_PENALTY
+    # 이미 아는 사이는 크게 뺀다. cos 점수(범위 1 미만)에서는 예전처럼 1.0, 표준화 점수(rule)에서는 점수 폭만큼 빼서 같은 효과(사실상 뒤로)
+    scores[same] -= SAME_GROUP_PENALTY * max(1.0, float(np.ptp(scores)))
     lists, exposure = recm.personal(scores, met, n_exact=n_exact, n_explore=n_explore, seed=seed, avoid=same)
     repo.insert("recs", [{"version": v, "participant_id": ids[i], "rank": k + 1, "target_id": ids[j], "kind": kind,
                           "reason": recm.reasons(i, j, tags, intents, None, prefix)}
@@ -259,7 +283,8 @@ def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = 
         seat_sum[str(int(t))] = round(total, 3)          # JSON 키는 문자열로(DB 에서 돌아올 때와 같게)
     cohort_over = seating.cohort_overflow(table[reg], cohort[reg], cap=TABLETALK_COHORT_CAP)
     fixed = {int(i) for i in np.where(fixed_no > 0)[0]}
-    params = {"kind": "precompute", "table_mode": table_mode, "random_ratio": random_ratio, "iters": r.iters,
+    intents = [(prof.get(i) or {}).get("intent_tags") or [] for i in ids]
+    params = {"kind": "precompute", "table_mode": table_mode, "random_ratio": random_ratio, "iters": r.iters, **_rec_params(P, intents, rec_mode),
               "codebook_version": cb.version, "reuse_codebook": False, "n": len(P), "n_tables": n_tables,
               "sizes": {str(int(t)): int((table == t).sum()) for t in sorted(set(table.tolist()))}, "fixed": len(fixed),
               "sizes_out_of_range": any(not 8 <= s <= 10 for s in sizes),   # v0.2 테이블당 8~10명 밖이면 운영진이 확인
@@ -273,9 +298,8 @@ def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = 
     # 전날 추천 목록(입장부터 포스터세션까지 명함 탭에 뜸). 같은 테이블토크 테이블 사람은 곧 만나므로 뺀다
     met = seating.same_table_pairs(table)
     np.fill_diagonal(met, True)
-    intents = [(prof.get(i) or {}).get("intent_tags") or [] for i in ids]
-    exposure = _write_recs(repo, v, P, ids, a, met, tags, intents, [(c,) for c in first_prefix], rec_mode,
-                           n_exact, n_explore, seed)
+    exposure = _write_recs(repo, v, P, ids, _rec_scores(S, O, a, P, intents, rec_mode), met, tags, intents,
+                           [(c,) for c in first_prefix], n_exact, n_explore, seed)
     _heartbeat(repo, "precompute")
     return {"version": v, "codebook_version": cb.version, "new_codebook": new_cb, "issued": len(targets),
             "n": len(P), "tables": len(set(table.tolist())), "fixed": len(fixed), "cohort_over": cohort_over,
@@ -450,7 +474,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
         sizes = seating.group_sizes(n, COFFEECHAT_GROUP_MAX)
         r = seating.assign(A, is_host, cohort, forbid=forbid, random_ratio=random_ratio, iters=iters, seed=seed,
                            sizes=sizes, cohort_cap=COFFEECHAT_COHORT_CAP)
-    params = {"kind": "final" if final else "coffeechat", "table_mode": table_mode, "rec_mode": rec_mode or "env", "beta": beta,
+    params = {"kind": "final" if final else "coffeechat", "table_mode": table_mode, **_rec_params(P, intents, rec_mode), "beta": beta,
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2), "cards": card_stat,
               "sat_weights": sw, "sat_counts": dict(Counter(sat.values())), "sat_fast": sat_fast,
               "sat_picks": {"people": len(picked), "picked": sum(len(v) for v in picked.values())},
@@ -489,8 +513,8 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     # 자유 이동용 추천 목록(B-06). 테이블토크 · 커피챗 동석자와 명함을 교환한 사람은 뺀다
     met = forbid | seating.same_table_pairs(r.table) | (W > 0)
     np.fill_diagonal(met, True)
-    exposure = _write_recs(repo, v, P, ids, a, met, tags, intents, [(c,) for c in first_prefix], rec_mode,
-                           n_exact, n_explore, seed)
+    exposure = _write_recs(repo, v, P, ids, _rec_scores(S2, O2, a, P, intents, rec_mode), met, tags, intents,
+                           [(c,) for c in first_prefix], n_exact, n_explore, seed)
     _heartbeat(repo, "final" if final else "coffeechat")
     return {"version": v, "final": final, "late": int((~seated).sum()), "n": n, "tables": len(sizes), "groups": len(sizes), "fallback": fallback,
             "response_rate": round(rate, 3), "forbid_hits": r.forbid_hits, "group_reasons": n_reasons,

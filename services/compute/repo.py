@@ -178,8 +178,14 @@ class SupabaseRepo:
         return out
 
     def participants(self, event_id: str) -> list[dict]:
-        return self._all(lambda: self.db.table("participants")
-                         .select("id, display_name, affiliation, role, cohort, is_host, fixed_table, teams, event_id").eq("event_id", event_id))
+        from postgrest.exceptions import APIError
+        cols = "id, display_name, affiliation, role, cohort, is_host, fixed_table, teams, event_id"
+        try:                                              # career(구분, 0015)는 추천 규칙 점수가 본다
+            return self._all(lambda: self.db.table("participants").select(cols + ", career").eq("event_id", event_id))
+        except APIError as e:
+            if e.code not in ("42703", "PGRST204"):         # 0015 전 DB(칸 없음)만 예전 칸으로(규칙 점수 0). 다른 오류는 그대로
+                raise
+            return self._all(lambda: self.db.table("participants").select(cols).eq("event_id", event_id))
 
     def profiles(self, ids):
         return {r["participant_id"]: r for r in self._in("profiles", "participant_id, offer_text, seek_text, topic_tags, intent_tags", "participant_id", ids)}
