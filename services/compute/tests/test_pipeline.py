@@ -308,6 +308,8 @@ def test_gives_matrix_and_rec_rule_score():
     g2 = scoring.gives_matrix([["채용(같이 일할 사람 찾기)", "취업 정보"], []], [None, "employed"])
     assert np.isclose(g2[0, 1], 1.0)                                      # 폼 선택지의 괄호 설명 · 띄어쓰기는 무시
     assert scoring.intent_unknown([["채용(같이 일할 사람 찾기)", "네트워킹"]]) == ["네트워킹"]
+    g3 = scoring.gives_matrix([["대학원진학"], [], [], []], [None, "grad", "lab_intern", "student"])
+    assert np.allclose(g3[0, 1:], [1.0, 0.5, 0.0])                       # 대학원생 > 학부연구생(연구실 인턴) > 학생
     rng = np.random.default_rng(0)
     n, d = 12, 16
     O = scoring.unit(rng.normal(size=(n, d)) + 3)                         # 공통 방향이 큰 벡터(평균 빼기가 필요한 상황)
