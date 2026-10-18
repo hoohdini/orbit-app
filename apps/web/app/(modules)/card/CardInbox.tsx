@@ -2,7 +2,7 @@
 // 받은 쪽 알림. 명함 탭 아래에 붙어 15초마다 /api/card/inbox 를 물어본다. 푸시는 없고 폴링만 있다.
 // 개발 지시서 v0.2 H-05:
 // - requests: 상대가 이름 검색으로 보낸 교환. "OO님과 명함을 교환하셨나요?" 에 확인해야 성립한다(/api/card/confirm)
-// - new: 상대가 내 명찰 QR 을 찍어 받은 명함. 찍힌 쪽도 미션 ③ 을 올릴 수 있게 오늘 처음 대화한 분인가요? 를 한 번 묻는다
+// - new: 상대가 내 명찰 QR 을 찍어 받은 명함. 찍힌 쪽도 미션 ④ 를 올릴 수 있게 오늘 처음 대화한 분인가요? 를 한 번 묻는다
 // 닫으면 seen 처리한다.
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";

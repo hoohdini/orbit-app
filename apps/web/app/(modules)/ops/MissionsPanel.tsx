@@ -1,6 +1,6 @@
 "use client";
 // 이벤트 · 미션 · 시상 현황(개발 지시서 v0.2 A-07)과 특별 시상 제외 명단(E-06).
-// 시상은 미션 진행도 순, 동점은 유효 포스터 응답 수 → 첫 대화로 확인한 교환 수 → 4/4 완료 시각(결정 12). 응모권 추첨은 명찰 번호로 앱 밖에서 한다.
+// 시상은 미션 진행도 순, 동점은 유효 포스터 응답 수 → 첫 대화로 확인한 교환 수 → 전체 미션 완료 시각(결정 12, 10/11 부터 미션 5개). 응모권 추첨은 명찰 번호로 앱 밖에서 한다.
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 
@@ -37,12 +37,13 @@ export default function MissionsPanel() {
   }
 
   if (!d) return <p className="text-sm text-gray-500">{msg ?? "불러오는 중"}</p>;
+  const all = `${d.by_mission.length}/${d.by_mission.length}`; // 미션 수(lib/missions.ts MISSIONS)를 따라간다
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
         <Box label="평균 진행도" value={d.avg_progress == null ? "-" : `${Math.round(d.avg_progress * 100)}%`} />
-        <Box label="4/4 완료" value={`${d.completed_all} / ${d.checked_in}명`} />
+        <Box label={`${all} 완료`} value={`${d.completed_all} / ${d.checked_in}명`} />
         <Box label="QR 처리" value={`명함 ${d.qr.card_scans} · 포스터 ${d.qr.poster_scans}`} />
         <Box label="탭 불일치" value={String(d.qr.tab_mismatch)} />
       </div>
@@ -60,7 +61,7 @@ export default function MissionsPanel() {
               <th>진행도</th>
               <th>포스터</th>
               <th>첫 대화</th>
-              <th>4/4 시각</th>
+              <th>{all} 시각</th>
             </tr>
           </thead>
           <tbody>

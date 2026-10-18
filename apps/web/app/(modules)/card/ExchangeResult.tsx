@@ -1,7 +1,7 @@
 "use client";
 // 교환 결과 카드(피그마 iPhone 16 - 15 · 16 · 17 의 Result Card). /card?p=<id>(내장 카메라)와 /card/scan(앱 스캐너) 둘 다 쓴다.
 // payload 를 받으면 한 번만 scan API 를 부른다.
-// v0.2 H-05: QR 은 바로 성립, 이름 검색(manual)은 상대 확인을 기다린다. 성립하면 오늘 처음 대화한 분인가요? 를 한 번 묻는다(FirstMeetAsk, 미션 ③).
+// v0.2 H-05: QR 은 바로 성립, 이름 검색(manual)은 상대 확인을 기다린다. 성립하면 오늘 처음 대화한 분인가요? 를 한 번 묻는다(FirstMeetAsk, 미션 ④).
 // 피그마에 없던 상태(내 QR, 동의 거부자, 확인 대기, 첫 대화 질문)는 같은 카드 모양으로 더했다(피그마 복제본 '연결 보강' 섹션에 그려 둠).
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
