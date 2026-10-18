@@ -33,6 +33,7 @@ CSV 열 (첫 줄 헤더, UTF-8). 열 이름은 아래와 같거나 --map 으로 
   재학생 · 졸업생 · 타 학회원 섹션이 같은 질문을 되풀이해 시트에 같은 이름 열이 여러 개 생긴다(소속 (학교·학과) · 소속처럼 앞부분만 같은 것도).
   한 사람은 한 섹션만 답하므로 열을 합쳐 처음 채워진 값을 쓴다(read_rows · resolve_cols)
   구분 여러 개 careers(0017) = 경험(기업 재직 → employed · 기업 인턴 → intern · 학부연구생 → lab_intern · 대학원 → grad) + 재학생이면 student
+  (타 학회원은 직책 칸에 학부 · 학년 · 재학이 있으면 student)
   (대학원을 고르거나 학년에 석사 · 박사면 student 대신 grad) · 교수면 professor 만. 경험 열이 없는 예전 CSV 는 아래 career 하나만 정한다
   구분 하나 career(0015) = careers 중 professor > employed > grad > lab_intern > student 의 첫 값(intern 만 있으면 null).
   경험 열이 없으면: 졸업생 = employed(학년 칸에 석사 · 박사면 grad), 재학생 = 학년 칸으로 grad · lab_intern · student, 교수 = professor, 그 밖 = 모름(null)
@@ -153,7 +154,8 @@ def career_of(role: str, job_raw: str, title: str, has_job_col: bool = True) -> 
 
 def careers_of(role: str, exp_raw: str, title: str) -> list[str]:
     """구분 여러 개(careers, 0017). 폼 경험 문항(복수) + 구분. 교수는 professor 만.
-    재학생은 student 를 더하되, 대학원을 골랐거나 학년이 석사 · 박사면 대학원생이라 student 대신 grad(10/18 규칙표: 스터디 팀원은 학부생)"""
+    재학생은 student 를 더하되, 대학원을 골랐거나 학년이 석사 · 박사면 대학원생이라 student 대신 grad(10/18 규칙표: 스터디 팀원은 학부생).
+    타 학회원(other)은 구분만으로 학생인지 모르므로 직책 칸에 학부 · 학년 · 재학이 있으면 student(10/19 민찬)"""
     if role == "professor":
         return ["professor"]
     got = {v for t in split_tags(exp_raw) for k, v in EXP_MAP if t.startswith(k)}
@@ -161,7 +163,8 @@ def careers_of(role: str, exp_raw: str, title: str) -> list[str]:
         got.add("lab_intern")
     if re.search(r"석사|박사|석박|대학원|M\.S\.|Ph\.?D", title or "", re.I):
         got.add("grad")
-    if role in ("student", "staff") and "grad" not in got:
+    studying = role in ("student", "staff") or (role == "other" and re.search(r"학부|학년|재학", title or ""))   # 타 학회원은 직책 칸에 학부 · 학년을 적었으면 학생
+    if studying and "grad" not in got:
         got.add("student")
     return [c for c in ("employed", "intern", "grad", "lab_intern", "student") if c in got]
 
