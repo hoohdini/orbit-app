@@ -140,7 +140,7 @@ def rec_rule_score(S: np.ndarray, O: np.ndarray, intents: list[list[str]], caree
     """개인 추천용 한 방향 점수(10/18). 세 점수를 표준화(_z)해 weights 로 섞는다. 값은 cos 가 아니다.
     1) 찾는 사람 → 하는 일 cos(평균 뺀 벡터) 2) 하는 일끼리 cos(같은 분야, 평균 뺀 벡터) 3) gives_matrix.
     문장 비교 모델은 '재직자 → 취업 · 이직 정보' 같은 연결을 잡지 못해(가상 데이터 상관 0.04~0.15) 규칙으로 직접 넣는다.
-    가상 80명(시드 20개, 서비스 추천 함수 그대로, sim/eval_recs_rule.py, 폼 선택지로 옮겨서)에서 10명 중 좋은 상대 2.60(예전 min) → 3.52.
+    가상 80명(시드 20개, 서비스 추천 함수 그대로, sim/eval_recs_rule.py, 폼처럼 찾는 사람 빈칸)에서 10명 중 좋은 상대 2.79(예전 min) → 3.47.
     규칙 재료가 없으면(구분을 모르거나 아무도 규칙 있는 선택지를 안 고름) service._rec_scores 가 예전 min 으로 돌아간다(1 · 2 만 남은 조합은 평가하지 않았으므로)."""
     Sc, Oc = unit(S - S.mean(0)), unit(O - O.mean(0))
     g = gives_matrix(intents, careers)
