@@ -1,0 +1,3208 @@
+{
+ "seed": 2026,
+ "layout": {
+  "tables": 10,
+  "seats": 8,
+  "fixed": {
+   "1": [
+    "staff",
+    "professor",
+    "speaker"
+   ]
+  },
+  "tabletalk_sizes": [
+   8,
+   8,
+   8,
+   8,
+   8,
+   8,
+   8,
+   7,
+   7
+  ]
+ },
+ "people": [
+  {
+   "pid": "V01",
+   "name": "김민성",
+   "group": "staff",
+   "cohort": 15,
+   "stage": "학부저학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "LLM·자연어처리",
+    "게임·엔터"
+   ],
+   "goals": [
+    "프로젝트팀원"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 추천시스템 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": false,
+   "coffeechat": false,
+   "host": false,
+   "fixed_table": 1,
+   "offer_text": "프롬프트 평가 자동화 관련 수업을 듣고 있다\n게임 데이터 공부를 막 시작했다",
+   "seek_text": "사이드 프로젝트 동료를 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "LLM·자연어처리"
+   ],
+   "intent_tags": [
+    "프로젝트팀원"
+   ]
+  },
+  {
+   "pid": "V02",
+   "name": "김유진",
+   "group": "staff",
+   "cohort": 15,
+   "stage": "학부고학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "데이터엔지니어링·MLOps",
+    "컴퓨터비전"
+   ],
+   "goals": [
+    "멘토링",
+    "취업정보"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 금융 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": false,
+   "coffeechat": false,
+   "host": false,
+   "fixed_table": 1,
+   "offer_text": "모델 서빙 프로젝트를 진행 중이다\n졸업 프로젝트로 OCR를 하고 있다",
+   "seek_text": "포트폴리오 피드백을 받고 싶다\n신입으로 컴퓨터 비전 분야에 들어가는 길이 궁금하다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "데이터엔지니어링·MLOps"
+   ],
+   "intent_tags": [
+    "멘토링",
+    "취업정보"
+   ]
+  },
+  {
+   "pid": "V03",
+   "name": "인정우",
+   "group": "staff",
+   "cohort": 15,
+   "stage": "학부고학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "LLM·자연어처리",
+    "시계열·수요예측"
+   ],
+   "goals": [
+    "프로젝트팀원",
+    "취업정보"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 추천시스템 프로젝트",
+    "26-2 논문 리딩 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": false,
+   "coffeechat": false,
+   "host": false,
+   "fixed_table": 1,
+   "offer_text": "회사에서 RAG 챗봇 인턴을 했다\n에너지 사용량 예측 공모전을 준비 중이다",
+   "seek_text": "공모전 팀원을 구한다\n시계열 예측 쪽 취업 준비를 어떻게 했는지 묻고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "LLM·자연어처리"
+   ],
+   "intent_tags": [
+    "취업정보"
+   ]
+  },
+  {
+   "pid": "V04",
+   "name": "이규리",
+   "group": "staff",
+   "cohort": 15,
+   "stage": "학부고학년",
+   "major": "수학과",
+   "affiliation": "연세대 수학과",
+   "domains": [
+    "통계방법론",
+    "시계열·수요예측"
+   ],
+   "goals": [
+    "취업정보"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 금융 프로젝트",
+    "26-2 논문 리딩 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": false,
+   "coffeechat": false,
+   "host": false,
+   "fixed_table": 1,
+   "offer_text": "통계 방법론 직무로 취업을 준비한다",
+   "seek_text": "신입으로 시계열 예측 분야에 들어가는 길이 궁금하다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "통계방법론",
+    "시계열·수요예측"
+   ],
+   "intent_tags": [
+    "취업정보"
+   ]
+  },
+  {
+   "pid": "V05",
+   "name": "이도현",
+   "group": "staff",
+   "cohort": 15,
+   "stage": "학부고학년",
+   "major": "계량위험관리학과",
+   "affiliation": "연세대 계량위험관리학과",
+   "domains": [
+    "금융·퀀트",
+    "컴퓨터비전"
+   ],
+   "goals": [
+    "멘토링"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 금융 프로젝트",
+    "26-2 논문 리딩 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": false,
+   "coffeechat": false,
+   "host": false,
+   "fixed_table": 1,
+   "offer_text": "졸업 프로젝트로 주가 변동성 예측을 하고 있다\nOCR 공모전을 준비 중이다",
+   "seek_text": "컴퓨터 비전 선배에게 커리어 조언을 받고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "금융·퀀트"
+   ],
+   "intent_tags": [
+    "멘토링"
+   ]
+  },
+  {
+   "pid": "V06",
+   "name": "모지훈",
+   "group": "staff",
+   "cohort": 15,
+   "stage": "학부저학년",
+   "major": "산업공학과",
+   "affiliation": "연세대 산업공학과",
+   "domains": [
+    "컨설팅·전략",
+    "데이터엔지니어링·MLOps"
+   ],
+   "goals": [
+    "프로젝트팀원"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 시계열 프로젝트",
+    "26-2 인과추론 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": false,
+   "coffeechat": false,
+   "host": false,
+   "fixed_table": 1,
+   "offer_text": "AI 도입 전략 튜토리얼을 따라 해 보고 있다",
+   "seek_text": "사이드 프로젝트 동료를 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "컨설팅·전략",
+    "데이터엔지니어링·MLOps"
+   ],
+   "intent_tags": [
+    "프로젝트팀원"
+   ]
+  },
+  {
+   "pid": "V07",
+   "name": "표보민",
+   "group": "staff",
+   "cohort": 15,
+   "stage": "학부고학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "컴퓨터비전",
+    "컨설팅·전략"
+   ],
+   "goals": [
+    "대학원진학",
+    "프로젝트팀원"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 헬스케어 프로젝트",
+    "26-2 인과추론 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": false,
+   "coffeechat": false,
+   "host": false,
+   "fixed_table": 1,
+   "offer_text": "컴퓨터 비전 직무로 취업을 준비한다",
+   "seek_text": "",
+   "seek_clarity": "blank",
+   "topic_tags": [
+    "컴퓨터비전",
+    "컨설팅·전략"
+   ],
+   "intent_tags": [
+    "대학원진학"
+   ]
+  },
+  {
+   "pid": "V08",
+   "name": "김성민",
+   "group": "active",
+   "cohort": 15,
+   "stage": "학부고학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "바이오·헬스케어",
+    "인과추론·실험"
+   ],
+   "goals": [
+    "취업정보",
+    "멘토링"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 시계열 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "졸업 프로젝트로 생존 분석을 하고 있다\n회사에서 인과효과 추정 인턴을 했다",
+   "seek_text": "헬스케어 데이터 직무 현업자의 실제 업무 이야기를 듣고 싶다\n진로 고민을 나눌 선배를 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "바이오·헬스케어",
+    "인과추론·실험"
+   ],
+   "intent_tags": [
+    "취업정보",
+    "멘토링"
+   ]
+  },
+  {
+   "pid": "V09",
+   "name": "금하은",
+   "group": "active",
+   "cohort": 15,
+   "stage": "학부저학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "추천시스템",
+    "마케팅·광고"
+   ],
+   "goals": [
+    "프로젝트팀원"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 마케팅 프로젝트",
+    "26-2 딥러닝 기초 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "추천 시스템 공부를 막 시작했다\n캐글 대회에 몇 번 나가 봤다",
+   "seek_text": "사이드 프로젝트 동료를 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "추천시스템",
+    "마케팅·광고"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V10",
+   "name": "김소율",
+   "group": "active",
+   "cohort": 15,
+   "stage": "학부고학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "통계방법론",
+    "인과추론·실험"
+   ],
+   "goals": [
+    "대학원진학"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 마케팅 프로젝트",
+    "26-2 딥러닝 기초 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "회사에서 통계적 학습 이론 인턴을 했다\n인과효과 추정 공모전을 준비 중이다\n캐글 대회에 몇 번 나가 봤다",
+   "seek_text": "석사 진학과 취업 사이에서 고민 중이다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "통계방법론",
+    "인과추론·실험"
+   ],
+   "intent_tags": [
+    "대학원진학"
+   ]
+  },
+  {
+   "pid": "V11",
+   "name": "구주원",
+   "group": "active",
+   "cohort": 15,
+   "stage": "학부저학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "LLM·자연어처리",
+    "컴퓨터비전"
+   ],
+   "goals": [
+    "스터디"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 시계열 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "자연어처리 공부를 막 시작했다\n학회에서 객체 탐지 프로젝트를 하고 있다\n캐글 대회에 몇 번 나가 봤다",
+   "seek_text": "꾸준히 같이 공부할 사람이 필요하다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "LLM·자연어처리",
+    "컴퓨터비전"
+   ],
+   "intent_tags": [
+    "스터디"
+   ]
+  },
+  {
+   "pid": "V12",
+   "name": "왕재윤",
+   "group": "active",
+   "cohort": 15,
+   "stage": "학부저학년",
+   "major": "경제학과",
+   "affiliation": "연세대 경제학과",
+   "domains": [
+    "인과추론·실험",
+    "보험·리스크"
+   ],
+   "goals": [
+    "스터디"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 LLM 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "학회에서 정책 효과 평가 프로젝트를 하고 있다",
+   "seek_text": "인과추론 같이 공부할 동료를 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "인과추론·실험",
+    "보험·리스크"
+   ],
+   "intent_tags": [
+    "스터디"
+   ]
+  },
+  {
+   "pid": "V13",
+   "name": "탁예린",
+   "group": "active",
+   "cohort": 15,
+   "stage": "학부고학년",
+   "major": "산업공학과",
+   "affiliation": "연세대 산업공학과",
+   "domains": [
+    "데이터엔지니어링·MLOps",
+    "인과추론·실험"
+   ],
+   "goals": [
+    "취업정보",
+    "멘토링"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 헬스케어 프로젝트",
+    "26-2 인과추론 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "데이터 엔지니어링 직무로 취업을 준비한다\n졸업 프로젝트로 A/B 테스트 설계를 하고 있다\n시각화 작업을 자주 한다",
+   "seek_text": "데이터 엔지니어링 쪽 취업 준비를 어떻게 했는지 묻고 싶다\n포트폴리오 피드백을 받고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "데이터엔지니어링·MLOps",
+    "인과추론·실험"
+   ],
+   "intent_tags": [
+    "취업정보",
+    "멘토링"
+   ]
+  },
+  {
+   "pid": "V14",
+   "name": "우은호",
+   "group": "active",
+   "cohort": 15,
+   "stage": "학부저학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "마케팅·광고",
+    "시계열·수요예측"
+   ],
+   "goals": [
+    "멘토링",
+    "프로젝트팀원"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 추천시스템 프로젝트",
+    "26-2 딥러닝 기초 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "학회에서 CRM 캠페인 분석 프로젝트를 하고 있다",
+   "seek_text": "아무나 좋아요",
+   "seek_clarity": "vague",
+   "topic_tags": [
+    "마케팅·광고",
+    "시계열·수요예측"
+   ],
+   "intent_tags": [
+    "멘토링",
+    "프로젝트팀원"
+   ]
+  },
+  {
+   "pid": "V15",
+   "name": "최주원",
+   "group": "active",
+   "cohort": 15,
+   "stage": "학부고학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "추천시스템",
+    "컨설팅·전략"
+   ],
+   "goals": [
+    "대학원진학",
+    "멘토링"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 추천시스템 프로젝트",
+    "26-2 딥러닝 기초 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "협업 필터링 공모전을 준비 중이다\n경영 지표 대시보드 프로젝트를 진행 중이다\n통계 이론에 관심이 많다",
+   "seek_text": "연구실 선택 기준을 선배에게 묻고 싶다\n포트폴리오 피드백을 받고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "추천시스템",
+    "컨설팅·전략"
+   ],
+   "intent_tags": [
+    "대학원진학",
+    "멘토링"
+   ]
+  },
+  {
+   "pid": "V16",
+   "name": "최도윤",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부고학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "통계방법론",
+    "추천시스템"
+   ],
+   "goals": [
+    "대학원진학"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 금융 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "졸업 프로젝트로 통계적 학습 이론을 하고 있다",
+   "seek_text": "통계 방법론 대학원 진학 경험을 듣고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "통계방법론",
+    "추천시스템"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V17",
+   "name": "이유나",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부저학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "컴퓨터비전",
+    "통계방법론"
+   ],
+   "goals": [
+    "프로젝트팀원"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 헬스케어 프로젝트",
+    "26-2 SQL 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "제조 불량 검출 튜토리얼을 따라 해 보고 있다\n통계 방법론 공부를 막 시작했다",
+   "seek_text": "",
+   "seek_clarity": "blank",
+   "topic_tags": [
+    "컴퓨터비전",
+    "통계방법론"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V18",
+   "name": "도예은",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부저학년",
+   "major": "경제학과",
+   "affiliation": "연세대 경제학과",
+   "domains": [
+    "컨설팅·전략",
+    "마케팅·광고"
+   ],
+   "goals": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 LLM 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "AI 도입 전략 튜토리얼을 따라 해 보고 있다",
+   "seek_text": "공모전 팀원을 구한다\nAI 도입 전략 논문 스터디 멤버를 구한다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "컨설팅·전략"
+   ],
+   "intent_tags": [
+    "프로젝트팀원",
+    "스터디"
+   ]
+  },
+  {
+   "pid": "V19",
+   "name": "기지호",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부고학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "바이오·헬스케어",
+    "컴퓨터비전"
+   ],
+   "goals": [
+    "취업정보",
+    "대학원진학"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 추천시스템 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "생존 분석 프로젝트를 진행 중이다\n컴퓨터 비전 직무로 취업을 준비한다",
+   "seek_text": "",
+   "seek_clarity": "blank",
+   "topic_tags": [
+    "바이오·헬스케어",
+    "컴퓨터비전"
+   ],
+   "intent_tags": [
+    "취업정보"
+   ]
+  },
+  {
+   "pid": "V20",
+   "name": "이한결",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부저학년",
+   "major": "컴퓨터과학과",
+   "affiliation": "연세대 컴퓨터과학과",
+   "domains": [
+    "컴퓨터비전",
+    "LLM·자연어처리"
+   ],
+   "goals": [
+    "프로젝트팀원",
+    "멘토링"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 LLM 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "제조 불량 검출 튜토리얼을 따라 해 보고 있다\n한국어 감성 분석 관련 수업을 듣고 있다\n시각화 작업을 자주 한다",
+   "seek_text": "",
+   "seek_clarity": "blank",
+   "topic_tags": [
+    "컴퓨터비전",
+    "LLM·자연어처리"
+   ],
+   "intent_tags": [
+    "프로젝트팀원"
+   ]
+  },
+  {
+   "pid": "V21",
+   "name": "윤시우",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부저학년",
+   "major": "사회학과",
+   "affiliation": "연세대 사회학과",
+   "domains": [
+    "사회과학·정책",
+    "금융·퀀트"
+   ],
+   "goals": [
+    "프로젝트팀원",
+    "멘토링"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 시계열 프로젝트",
+    "26-2 인과추론 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "여론 데이터 분석 관련 수업을 듣고 있다\n포트폴리오 최적화 튜토리얼을 따라 해 보고 있다\n캐글 대회에 몇 번 나가 봤다",
+   "seek_text": "주가 변동성 예측 프로젝트를 같이 할 사람을 찾는다\n포트폴리오 피드백을 받고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "사회과학·정책",
+    "금융·퀀트"
+   ],
+   "intent_tags": [
+    "프로젝트팀원",
+    "멘토링"
+   ]
+  },
+  {
+   "pid": "V22",
+   "name": "권수아",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부저학년",
+   "major": "산업공학과",
+   "affiliation": "연세대 산업공학과",
+   "domains": [
+    "데이터엔지니어링·MLOps",
+    "추천시스템"
+   ],
+   "goals": [
+    "취업정보",
+    "프로젝트팀원"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 마케팅 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "모델 서빙 튜토리얼을 따라 해 보고 있다\n비전공으로 데이터 공부를 시작했다",
+   "seek_text": "추천 시스템 쪽 취업 준비를 어떻게 했는지 묻고 싶다\n사이드 프로젝트 동료를 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "데이터엔지니어링·MLOps",
+    "추천시스템"
+   ],
+   "intent_tags": [
+    "취업정보"
+   ]
+  },
+  {
+   "pid": "V23",
+   "name": "허하린",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부저학년",
+   "major": "컴퓨터과학과",
+   "affiliation": "연세대 컴퓨터과학과",
+   "domains": [
+    "데이터엔지니어링·MLOps",
+    "마케팅·광고"
+   ],
+   "goals": [
+    "스터디",
+    "프로젝트팀원"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 LLM 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "데이터 엔지니어링 공부를 막 시작했다",
+   "seek_text": "",
+   "seek_clarity": "blank",
+   "topic_tags": [
+    "데이터엔지니어링·MLOps",
+    "마케팅·광고"
+   ],
+   "intent_tags": [
+    "스터디"
+   ]
+  },
+  {
+   "pid": "V24",
+   "name": "김우진",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부저학년",
+   "major": "계량위험관리학과",
+   "affiliation": "연세대 계량위험관리학과",
+   "domains": [
+    "보험·리스크",
+    "컴퓨터비전"
+   ],
+   "goals": [
+    "스터디"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 LLM 프로젝트",
+    "26-2 SQL 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "보험 리스크 공부를 막 시작했다",
+   "seek_text": "보험 리스크 같이 공부할 동료를 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "보험·리스크",
+    "컴퓨터비전"
+   ],
+   "intent_tags": [
+    "스터디"
+   ]
+  },
+  {
+   "pid": "V25",
+   "name": "허서진",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부저학년",
+   "major": "경제학과",
+   "affiliation": "연세대 경제학과",
+   "domains": [
+    "금융·퀀트",
+    "컨설팅·전략"
+   ],
+   "goals": [
+    "스터디",
+    "취업정보"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 시계열 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "신용평가 모형 관련 수업을 듣고 있다\n학회에서 AI 도입 전략 프로젝트를 하고 있다",
+   "seek_text": "산업 리서치 논문 스터디 멤버를 구한다\n신입으로 데이터 컨설팅 분야에 들어가는 길이 궁금하다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "금융·퀀트",
+    "컨설팅·전략"
+   ],
+   "intent_tags": [
+    "스터디",
+    "취업정보"
+   ]
+  },
+  {
+   "pid": "V26",
+   "name": "고규리",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부저학년",
+   "major": "계량위험관리학과",
+   "affiliation": "연세대 계량위험관리학과",
+   "domains": [
+    "금융·퀀트",
+    "데이터엔지니어링·MLOps"
+   ],
+   "goals": [
+    "프로젝트팀원"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 금융 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "신용평가 모형 관련 수업을 듣고 있다",
+   "seek_text": "",
+   "seek_clarity": "blank",
+   "topic_tags": [
+    "금융·퀀트",
+    "데이터엔지니어링·MLOps"
+   ],
+   "intent_tags": [
+    "프로젝트팀원"
+   ]
+  },
+  {
+   "pid": "V27",
+   "name": "여지아",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부고학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "금융·퀀트",
+    "컴퓨터비전"
+   ],
+   "goals": [
+    "대학원진학",
+    "프로젝트팀원"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 헬스케어 프로젝트",
+    "26-2 SQL 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "금융 데이터 직무로 취업을 준비한다\n객체 탐지 프로젝트를 진행 중이다\n대시보드 만드는 걸 좋아한다",
+   "seek_text": "석사 진학과 취업 사이에서 고민 중이다\n사이드 프로젝트 동료를 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "금융·퀀트",
+    "컴퓨터비전"
+   ],
+   "intent_tags": [
+    "대학원진학"
+   ]
+  },
+  {
+   "pid": "V28",
+   "name": "김지민",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부고학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "금융·퀀트",
+    "LLM·자연어처리"
+   ],
+   "goals": [
+    "대학원진학"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 마케팅 프로젝트",
+    "26-2 딥러닝 기초 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "회사에서 신용평가 모형 인턴을 했다\n자연어처리 직무로 취업을 준비한다",
+   "seek_text": "금융 데이터 대학원 진학 경험을 듣고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "금융·퀀트"
+   ],
+   "intent_tags": [
+    "대학원진학"
+   ]
+  },
+  {
+   "pid": "V29",
+   "name": "엄건우",
+   "group": "active",
+   "cohort": 16,
+   "stage": "학부고학년",
+   "major": "심리학과",
+   "affiliation": "연세대 심리학과",
+   "domains": [
+    "사회과학·정책",
+    "보험·리스크"
+   ],
+   "goals": [
+    "멘토링"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "26-2 마케팅 프로젝트",
+    "26-2 논문 리딩 스터디"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "사회과학 데이터 직무로 취업을 준비한다",
+   "seek_text": "포트폴리오 피드백을 받고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "사회과학·정책",
+    "보험·리스크"
+   ],
+   "intent_tags": [
+    "멘토링"
+   ]
+  },
+  {
+   "pid": "V30",
+   "name": "박채원",
+   "group": "active",
+   "cohort": 16,
+   "stage": "대학원생",
+   "major": "컴퓨터과학과",
+   "affiliation": "연세대 컴퓨터과학과",
+   "domains": [
+    "게임·엔터",
+    "마케팅·광고"
+   ],
+   "goals": [
+    "취업정보",
+    "연구협업"
+   ],
+   "gives": [
+    "대학원진학",
+    "연구협업",
+    "스터디"
+   ],
+   "teams": [
+    "26-2 헬스케어 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "게임 유저 행동 분석 논문을 쓰고 있다\n석사 과정에서 마케팅 분석을 공부한다",
+   "seek_text": "신입으로 게임 데이터 분야에 들어가는 길이 궁금하다\n게임 내 매칭 알고리즘 주제로 공동 연구할 사람을 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "게임·엔터"
+   ],
+   "intent_tags": [
+    "연구협업"
+   ]
+  },
+  {
+   "pid": "V31",
+   "name": "권지아",
+   "group": "professor",
+   "cohort": null,
+   "stage": "교수",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "통계방법론",
+    "추천시스템"
+   ],
+   "goals": [
+    "연구협업"
+   ],
+   "gives": [
+    "대학원진학",
+    "연구협업",
+    "멘토링"
+   ],
+   "teams": [],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": false,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": 1,
+   "offer_text": "결측 데이터 처리 관련 수업을 맡고 있다",
+   "seek_text": "산학 협력 파트너를 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "통계방법론"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V32",
+   "name": "김유나",
+   "group": "speaker",
+   "cohort": null,
+   "stage": "시니어",
+   "major": "언론홍보영상학부",
+   "affiliation": "AI 스타트업",
+   "domains": [
+    "LLM·자연어처리",
+    "데이터엔지니어링·MLOps"
+   ],
+   "goals": [
+    "창업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": "AI 스타트업",
+   "grad": null,
+   "tabletalk": false,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": 1,
+   "offer_text": "AI 스타트업 시니어 데이터 사이언티스트로 9년째 일하고 있다\n데이터 엔지니어링 실무 경력이 14년이다",
+   "seek_text": "창업 경험을 들려줄 분을 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "LLM·자연어처리"
+   ],
+   "intent_tags": [
+    "창업"
+   ]
+  },
+  {
+   "pid": "V33",
+   "name": "편태민",
+   "group": "speaker",
+   "cohort": null,
+   "stage": "창업자",
+   "major": "응용통계학과",
+   "affiliation": "데이터 스타트업",
+   "domains": [
+    "인과추론·실험",
+    "마케팅·광고"
+   ],
+   "goals": [
+    "채용",
+    "연구협업"
+   ],
+   "gives": [
+    "채용",
+    "창업",
+    "멘토링"
+   ],
+   "teams": [],
+   "workplace": "커머스 플랫폼",
+   "grad": null,
+   "tabletalk": false,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": 1,
+   "offer_text": "인과추론 분야 스타트업 대표다",
+   "seek_text": "광고 효과 분석 인턴 후보를 만나고 싶다\nA/B 테스트 설계 주제로 공동 연구할 사람을 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "인과추론·실험",
+    "마케팅·광고"
+   ],
+   "intent_tags": [
+    "채용",
+    "연구협업"
+   ]
+  },
+  {
+   "pid": "V34",
+   "name": "현시은",
+   "group": "alumni",
+   "cohort": 9,
+   "stage": "시니어",
+   "major": "응용통계학과",
+   "affiliation": "핀테크 스타트업",
+   "domains": [
+    "인과추론·실험",
+    "게임·엔터"
+   ],
+   "goals": [
+    "창업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": "핀테크 스타트업",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "핀테크 스타트업에서 인과추론 조직을 이끌고 있다\n음원 스트리밍 데이터 시스템을 설계 · 운영한다",
+   "seek_text": "편하게 대화할 사람",
+   "seek_clarity": "vague",
+   "topic_tags": [
+    "인과추론·실험",
+    "게임·엔터"
+   ],
+   "intent_tags": [
+    "창업"
+   ]
+  },
+  {
+   "pid": "V35",
+   "name": "왕세아",
+   "group": "alumni",
+   "cohort": 4,
+   "stage": "시니어",
+   "major": "사회학과",
+   "affiliation": "공공기관",
+   "domains": [
+    "사회과학·정책",
+    "금융·퀀트"
+   ],
+   "goals": [
+    "연구협업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [
+    "4기 B팀 프로젝트"
+   ],
+   "workplace": "공공기관",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "공공기관 시니어 데이터 사이언티스트로 13년째 일하고 있다\n공공기관에서 금융 데이터 조직을 이끌고 있다",
+   "seek_text": "산학 협력 파트너를 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "사회과학·정책",
+    "금융·퀀트"
+   ],
+   "intent_tags": [
+    "연구협업"
+   ]
+  },
+  {
+   "pid": "V36",
+   "name": "최예준",
+   "group": "alumni",
+   "cohort": 3,
+   "stage": "시니어",
+   "major": "경영학과",
+   "affiliation": "커머스 플랫폼",
+   "domains": [
+    "마케팅·광고",
+    "사회과학·정책"
+   ],
+   "goals": [
+    "채용"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": "커머스 플랫폼",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "커머스 플랫폼에서 마케팅 분석 조직을 이끌고 있다\n사회과학 데이터 실무 경력이 9년이다",
+   "seek_text": "",
+   "seek_clarity": "blank",
+   "topic_tags": [
+    "마케팅·광고",
+    "사회과학·정책"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V37",
+   "name": "채예은",
+   "group": "alumni",
+   "cohort": 4,
+   "stage": "시니어",
+   "major": "산업공학과",
+   "affiliation": "에너지 회사",
+   "domains": [
+    "시계열·수요예측",
+    "금융·퀀트"
+   ],
+   "goals": [
+    "창업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [
+    "4기 B팀 프로젝트"
+   ],
+   "workplace": "에너지 회사",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "센서 데이터 이상 탐지 시스템을 설계 · 운영한다",
+   "seek_text": "창업 경험을 들려줄 분을 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "시계열·수요예측"
+   ],
+   "intent_tags": [
+    "창업"
+   ]
+  },
+  {
+   "pid": "V38",
+   "name": "백도윤",
+   "group": "alumni",
+   "cohort": 9,
+   "stage": "주니어",
+   "major": "응용통계학과",
+   "affiliation": "은행",
+   "domains": [
+    "금융·퀀트",
+    "마케팅·광고"
+   ],
+   "goals": [
+    "스터디"
+   ],
+   "gives": [
+    "취업정보",
+    "멘토링",
+    "이직정보"
+   ],
+   "teams": [
+    "9기 B팀 프로젝트"
+   ],
+   "workplace": "은행",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "은행에서 주가 변동성 예측 업무를 4년째 하고 있다\n회사에서 광고 효과 분석 모델을 만들고 있다",
+   "seek_text": "신용평가 모형 논문 스터디 멤버를 구한다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "금융·퀀트",
+    "마케팅·광고"
+   ],
+   "intent_tags": [
+    "스터디"
+   ]
+  },
+  {
+   "pid": "V39",
+   "name": "정아린",
+   "group": "alumni",
+   "cohort": 3,
+   "stage": "시니어",
+   "major": "계량위험관리학과",
+   "affiliation": "증권사",
+   "domains": [
+    "금융·퀀트",
+    "마케팅·광고"
+   ],
+   "goals": [
+    "연구협업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": "증권사",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "증권사 리드로 8년째 일하고 있다\n광고 효과 분석 시스템을 설계 · 운영한다",
+   "seek_text": "마케팅 믹스 모형 주제로 공동 연구할 사람을 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "금융·퀀트",
+    "마케팅·광고"
+   ],
+   "intent_tags": [
+    "연구협업"
+   ]
+  },
+  {
+   "pid": "V40",
+   "name": "이지안",
+   "group": "alumni",
+   "cohort": 9,
+   "stage": "주니어",
+   "major": "생명공학과",
+   "affiliation": "바이오 제약사",
+   "domains": [
+    "바이오·헬스케어",
+    "시계열·수요예측"
+   ],
+   "goals": [
+    "스터디"
+   ],
+   "gives": [
+    "취업정보",
+    "멘토링",
+    "이직정보"
+   ],
+   "teams": [
+    "9기 A팀 프로젝트"
+   ],
+   "workplace": "바이오 제약사",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "회사에서 의료 AI 모델을 만들고 있다",
+   "seek_text": "의료 AI 논문 스터디 멤버를 구한다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "바이오·헬스케어",
+    "시계열·수요예측"
+   ],
+   "intent_tags": [
+    "스터디"
+   ]
+  },
+  {
+   "pid": "V41",
+   "name": "이수아",
+   "group": "alumni",
+   "cohort": 11,
+   "stage": "주니어",
+   "major": "언론홍보영상학부",
+   "affiliation": "국책 연구소",
+   "domains": [
+    "사회과학·정책",
+    "LLM·자연어처리"
+   ],
+   "goals": [
+    "창업",
+    "스터디"
+   ],
+   "gives": [
+    "취업정보",
+    "멘토링",
+    "이직정보"
+   ],
+   "teams": [
+    "11기 A팀 프로젝트"
+   ],
+   "workplace": "국책 연구소",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "국책 연구소에서 여론 데이터 분석 업무를 4년째 하고 있다\n국책 연구소 데이터 사이언티스트로 프롬프트 평가 자동화를 맡고 있다",
+   "seek_text": "사회과학 데이터 창업에 관심 있는 사람을 만나고 싶다\n사회과학 데이터 같이 공부할 동료를 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "사회과학·정책",
+    "LLM·자연어처리"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V42",
+   "name": "이준혁",
+   "group": "alumni",
+   "cohort": 11,
+   "stage": "대학원생",
+   "major": "응용통계학과",
+   "affiliation": "연세대 산업공학 대학원",
+   "domains": [
+    "컴퓨터비전",
+    "인과추론·실험"
+   ],
+   "goals": [
+    "연구협업"
+   ],
+   "gives": [
+    "대학원진학",
+    "연구협업",
+    "스터디"
+   ],
+   "teams": [
+    "11기 B팀 프로젝트"
+   ],
+   "workplace": null,
+   "grad": "산업공학 대학원",
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "연구실에서 제조 불량 검출 과제를 맡고 있다\n산업공학 대학원에서 인과효과 추정을 연구한다",
+   "seek_text": "산학 협력 파트너를 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "컴퓨터비전",
+    "인과추론·실험"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V43",
+   "name": "백다은",
+   "group": "alumni",
+   "cohort": 10,
+   "stage": "주니어",
+   "major": "응용통계학과",
+   "affiliation": "증권사",
+   "domains": [
+    "금융·퀀트",
+    "인과추론·실험"
+   ],
+   "goals": [
+    "스터디",
+    "이직정보"
+   ],
+   "gives": [
+    "취업정보",
+    "멘토링",
+    "이직정보"
+   ],
+   "teams": [],
+   "workplace": "증권사",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "증권사에서 주가 변동성 예측 업무를 2년째 하고 있다",
+   "seek_text": "인과추론 같이 공부할 동료를 찾는다\n인과추론 다른 회사의 일하는 방식이 궁금하다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "금융·퀀트",
+    "인과추론·실험"
+   ],
+   "intent_tags": [
+    "스터디",
+    "이직정보"
+   ]
+  },
+  {
+   "pid": "V44",
+   "name": "명채원",
+   "group": "alumni",
+   "cohort": 8,
+   "stage": "대학원생",
+   "major": "응용통계학과",
+   "affiliation": "연세대 경제학 대학원",
+   "domains": [
+    "컴퓨터비전",
+    "데이터엔지니어링·MLOps"
+   ],
+   "goals": [
+    "멘토링"
+   ],
+   "gives": [
+    "대학원진학",
+    "연구협업",
+    "스터디"
+   ],
+   "teams": [
+    "8기 A팀 프로젝트"
+   ],
+   "workplace": null,
+   "grad": "경제학 대학원",
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "경제학 대학원에서 의료 영상 분할을 연구한다\n연구실에서 모델 서빙 과제를 맡고 있다",
+   "seek_text": "진로 고민을 나눌 선배를 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "컴퓨터비전"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V45",
+   "name": "황선우",
+   "group": "alumni",
+   "cohort": 11,
+   "stage": "학부고학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "데이터엔지니어링·MLOps",
+    "컴퓨터비전"
+   ],
+   "goals": [
+    "멘토링",
+    "대학원진학"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "11기 B팀 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "데이터 파이프라인 공모전을 준비 중이다",
+   "seek_text": "데이터 엔지니어링 선배에게 커리어 조언을 받고 싶다\n데이터 엔지니어링 대학원 진학 경험을 듣고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "데이터엔지니어링·MLOps",
+    "컴퓨터비전"
+   ],
+   "intent_tags": [
+    "멘토링"
+   ]
+  },
+  {
+   "pid": "V46",
+   "name": "황서윤",
+   "group": "alumni",
+   "cohort": 7,
+   "stage": "주니어",
+   "major": "응용통계학과",
+   "affiliation": "핀테크 스타트업",
+   "domains": [
+    "인과추론·실험",
+    "추천시스템"
+   ],
+   "goals": [
+    "연구협업"
+   ],
+   "gives": [
+    "취업정보",
+    "멘토링",
+    "이직정보"
+   ],
+   "teams": [
+    "7기 A팀 프로젝트"
+   ],
+   "workplace": "핀테크 스타트업",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "회사에서 정책 효과 평가 모델을 만들고 있다\n핀테크 스타트업 데이터 분석가로 추천 노출 다양성을 맡고 있다",
+   "seek_text": "인과추론 쪽 현업 데이터로 협업하고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "인과추론·실험",
+    "추천시스템"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V47",
+   "name": "맹준서",
+   "group": "alumni",
+   "cohort": 6,
+   "stage": "주니어",
+   "major": "경제학과",
+   "affiliation": "컨설팅펌",
+   "domains": [
+    "컨설팅·전략",
+    "인과추론·실험"
+   ],
+   "goals": [
+    "스터디"
+   ],
+   "gives": [
+    "취업정보",
+    "멘토링",
+    "이직정보"
+   ],
+   "teams": [],
+   "workplace": "컨설팅펌",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "컨설팅펌에서 AI 도입 전략 업무를 4년째 하고 있다",
+   "seek_text": "DT 컨설팅 논문 스터디 멤버를 구한다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "컨설팅·전략",
+    "인과추론·실험"
+   ],
+   "intent_tags": [
+    "스터디"
+   ]
+  },
+  {
+   "pid": "V48",
+   "name": "최민준",
+   "group": "alumni",
+   "cohort": 13,
+   "stage": "대학원생",
+   "major": "컴퓨터과학과",
+   "affiliation": "연세대 산업공학 대학원",
+   "domains": [
+    "게임·엔터",
+    "바이오·헬스케어"
+   ],
+   "goals": [
+    "취업정보"
+   ],
+   "gives": [
+    "대학원진학",
+    "연구협업",
+    "스터디"
+   ],
+   "teams": [
+    "13기 B팀 프로젝트"
+   ],
+   "workplace": null,
+   "grad": "산업공학 대학원",
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "산업공학 대학원에서 게임 내 매칭 알고리즘을 연구한다\n생존 분석 논문을 쓰고 있다",
+   "seek_text": "게임 데이터 직무 현업자의 실제 업무 이야기를 듣고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "게임·엔터",
+    "바이오·헬스케어"
+   ],
+   "intent_tags": [
+    "취업정보"
+   ]
+  },
+  {
+   "pid": "V49",
+   "name": "이승우",
+   "group": "alumni",
+   "cohort": 2,
+   "stage": "시니어",
+   "major": "경제학과",
+   "affiliation": "컨설팅펌",
+   "domains": [
+    "컨설팅·전략",
+    "통계방법론"
+   ],
+   "goals": [
+    "연구협업",
+    "채용"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [
+    "2기 A팀 프로젝트"
+   ],
+   "workplace": "컨설팅펌",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "컨설팅펌에서 데이터 컨설팅 조직을 이끌고 있다\n통계 방법론 실무 경력이 5년이다",
+   "seek_text": "산학 협력 파트너를 만나고 싶다\n통계 방법론 쪽 함께 일할 후배를 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "컨설팅·전략"
+   ],
+   "intent_tags": [
+    "연구협업",
+    "채용"
+   ]
+  },
+  {
+   "pid": "V50",
+   "name": "김수아",
+   "group": "alumni",
+   "cohort": 3,
+   "stage": "시니어",
+   "major": "응용통계학과",
+   "affiliation": "전자 회사",
+   "domains": [
+    "컴퓨터비전",
+    "LLM·자연어처리"
+   ],
+   "goals": [
+    "채용"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [
+    "3기 A팀 프로젝트"
+   ],
+   "workplace": "전자 회사",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "전자 회사 팀장으로 15년째 일하고 있다\n전자 회사에서 자연어처리 조직을 이끌고 있다",
+   "seek_text": "팀에 올 주니어 인재를 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "컴퓨터비전"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V51",
+   "name": "이서연",
+   "group": "alumni",
+   "cohort": 14,
+   "stage": "학부고학년",
+   "major": "응용통계학과",
+   "affiliation": "연세대 응용통계학과",
+   "domains": [
+    "LLM·자연어처리",
+    "추천시스템"
+   ],
+   "goals": [
+    "취업정보",
+    "대학원진학"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "14기 A팀 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "문서 요약 공모전을 준비 중이다\n회사에서 협업 필터링 인턴을 했다\n비전공으로 데이터 공부를 시작했다",
+   "seek_text": "추천 시스템 쪽 취업 준비를 어떻게 했는지 묻고 싶다\n자연어처리 대학원 진학 경험을 듣고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "LLM·자연어처리",
+    "추천시스템"
+   ],
+   "intent_tags": [
+    "대학원진학"
+   ]
+  },
+  {
+   "pid": "V52",
+   "name": "성가은",
+   "group": "alumni",
+   "cohort": 11,
+   "stage": "학부고학년",
+   "major": "문헌정보학과",
+   "affiliation": "연세대 문헌정보학과",
+   "domains": [
+    "추천시스템",
+    "컨설팅·전략"
+   ],
+   "goals": [
+    "취업정보",
+    "대학원진학"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "회사에서 협업 필터링 인턴을 했다\n산업 리서치 공모전을 준비 중이다",
+   "seek_text": "추천 시스템 쪽 취업 준비를 어떻게 했는지 묻고 싶다\n석사 진학과 취업 사이에서 고민 중이다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "추천시스템",
+    "컨설팅·전략"
+   ],
+   "intent_tags": [
+    "취업정보"
+   ]
+  },
+  {
+   "pid": "V53",
+   "name": "오성민",
+   "group": "alumni",
+   "cohort": 5,
+   "stage": "시니어",
+   "major": "응용통계학과",
+   "affiliation": "콘텐츠 플랫폼",
+   "domains": [
+    "추천시스템",
+    "통계방법론"
+   ],
+   "goals": [
+    "연구협업",
+    "채용"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": "콘텐츠 플랫폼",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "콘텐츠 플랫폼에서 추천 시스템 조직을 이끌고 있다\n고차원 통계 시스템을 설계 · 운영한다",
+   "seek_text": "산학 협력 파트너를 만나고 싶다\n커머스 상품 추천 인턴 후보를 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "추천시스템"
+   ],
+   "intent_tags": [
+    "연구협업",
+    "채용"
+   ]
+  },
+  {
+   "pid": "V54",
+   "name": "국다인",
+   "group": "alumni",
+   "cohort": 13,
+   "stage": "주니어",
+   "major": "응용통계학과",
+   "affiliation": "국책 연구소",
+   "domains": [
+    "통계방법론",
+    "금융·퀀트"
+   ],
+   "goals": [
+    "연구협업"
+   ],
+   "gives": [
+    "취업정보",
+    "멘토링",
+    "이직정보"
+   ],
+   "teams": [],
+   "workplace": "국책 연구소",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "국책 연구소 데이터 사이언티스트로 통계적 학습 이론을 맡고 있다\n회사에서 퀀트 전략 백테스트 모델을 만들고 있다",
+   "seek_text": "결측 데이터 처리 주제로 공동 연구할 사람을 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "통계방법론",
+    "금융·퀀트"
+   ],
+   "intent_tags": [
+    "연구협업"
+   ]
+  },
+  {
+   "pid": "V55",
+   "name": "민지호",
+   "group": "alumni",
+   "cohort": 14,
+   "stage": "학부고학년",
+   "major": "경영학과",
+   "affiliation": "연세대 경영학과",
+   "domains": [
+    "금융·퀀트",
+    "통계방법론"
+   ],
+   "goals": [
+    "취업정보"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [
+    "14기 B팀 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "금융 데이터 직무로 취업을 준비한다",
+   "seek_text": "신입으로 금융 데이터 분야에 들어가는 길이 궁금하다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "금융·퀀트",
+    "통계방법론"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V56",
+   "name": "조서연",
+   "group": "alumni",
+   "cohort": 12,
+   "stage": "학부고학년",
+   "major": "컴퓨터과학과",
+   "affiliation": "연세대 컴퓨터과학과",
+   "domains": [
+    "게임·엔터",
+    "추천시스템"
+   ],
+   "goals": [
+    "대학원진학",
+    "취업정보"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "게임 내 매칭 알고리즘 프로젝트를 진행 중이다",
+   "seek_text": "게임 데이터 대학원 진학 경험을 듣고 싶다\n신입으로 추천 시스템 분야에 들어가는 길이 궁금하다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "게임·엔터",
+    "추천시스템"
+   ],
+   "intent_tags": [
+    "대학원진학",
+    "취업정보"
+   ]
+  },
+  {
+   "pid": "V57",
+   "name": "진유나",
+   "group": "alumni",
+   "cohort": 8,
+   "stage": "대학원생",
+   "major": "경제학과",
+   "affiliation": "연세대 인공지능 대학원",
+   "domains": [
+    "사회과학·정책",
+    "통계방법론"
+   ],
+   "goals": [
+    "연구협업"
+   ],
+   "gives": [
+    "대학원진학",
+    "연구협업",
+    "스터디"
+   ],
+   "teams": [
+    "8기 B팀 프로젝트"
+   ],
+   "workplace": null,
+   "grad": "인공지능 대학원",
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "여론 데이터 분석 논문을 쓰고 있다",
+   "seek_text": "통계 방법론 쪽 현업 데이터로 협업하고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "사회과학·정책",
+    "통계방법론"
+   ],
+   "intent_tags": [
+    "연구협업"
+   ]
+  },
+  {
+   "pid": "V58",
+   "name": "김보민",
+   "group": "alumni",
+   "cohort": 8,
+   "stage": "주니어",
+   "major": "응용통계학과",
+   "affiliation": "커머스 플랫폼",
+   "domains": [
+    "추천시스템",
+    "마케팅·광고"
+   ],
+   "goals": [
+    "스터디",
+    "연구협업"
+   ],
+   "gives": [
+    "취업정보",
+    "멘토링",
+    "이직정보"
+   ],
+   "teams": [],
+   "workplace": "커머스 플랫폼",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "커머스 플랫폼에서 추천 노출 다양성 업무를 2년째 하고 있다\n회사에서 이탈 예측 모델을 만들고 있다",
+   "seek_text": "추천 노출 다양성 논문 스터디 멤버를 구한다\n세션 기반 추천 모델 주제로 공동 연구할 사람을 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "추천시스템",
+    "마케팅·광고"
+   ],
+   "intent_tags": [
+    "연구협업"
+   ]
+  },
+  {
+   "pid": "V59",
+   "name": "김태민",
+   "group": "alumni",
+   "cohort": 14,
+   "stage": "주니어",
+   "major": "응용통계학과",
+   "affiliation": "AI 스타트업",
+   "domains": [
+    "LLM·자연어처리",
+    "금융·퀀트"
+   ],
+   "goals": [
+    "이직정보",
+    "스터디"
+   ],
+   "gives": [
+    "취업정보",
+    "멘토링",
+    "이직정보"
+   ],
+   "teams": [
+    "14기 A팀 프로젝트"
+   ],
+   "workplace": "AI 스타트업",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "AI 스타트업에서 한국어 감성 분석 업무를 3년째 하고 있다",
+   "seek_text": "아무나 좋아요",
+   "seek_clarity": "vague",
+   "topic_tags": [
+    "LLM·자연어처리",
+    "금융·퀀트"
+   ],
+   "intent_tags": [
+    "이직정보",
+    "스터디"
+   ]
+  },
+  {
+   "pid": "V60",
+   "name": "박세아",
+   "group": "alumni",
+   "cohort": 8,
+   "stage": "시니어",
+   "major": "경제학과",
+   "affiliation": "핀테크 스타트업",
+   "domains": [
+    "인과추론·실험",
+    "사회과학·정책"
+   ],
+   "goals": [
+    "채용"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [
+    "8기 B팀 프로젝트"
+   ],
+   "workplace": "핀테크 스타트업",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "인과추론 실무 경력이 10년이다",
+   "seek_text": "",
+   "seek_clarity": "blank",
+   "topic_tags": [
+    "인과추론·실험"
+   ],
+   "intent_tags": [
+    "채용"
+   ]
+  },
+  {
+   "pid": "V61",
+   "name": "박지안",
+   "group": "alumni",
+   "cohort": 1,
+   "stage": "시니어",
+   "major": "응용통계학과",
+   "affiliation": "클라우드 회사",
+   "domains": [
+    "데이터엔지니어링·MLOps",
+    "통계방법론"
+   ],
+   "goals": [
+    "채용"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [
+    "1기 A팀 프로젝트"
+   ],
+   "workplace": "클라우드 회사",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "클라우드 회사 리드로 7년째 일하고 있다",
+   "seek_text": "팀에 올 주니어 인재를 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "데이터엔지니어링·MLOps",
+    "통계방법론"
+   ],
+   "intent_tags": [
+    "채용"
+   ]
+  },
+  {
+   "pid": "V62",
+   "name": "맹유준",
+   "group": "alumni",
+   "cohort": 7,
+   "stage": "대학원생",
+   "major": "응용통계학과",
+   "affiliation": "연세대 인공지능 대학원",
+   "domains": [
+    "추천시스템",
+    "데이터엔지니어링·MLOps"
+   ],
+   "goals": [
+    "취업정보"
+   ],
+   "gives": [
+    "대학원진학",
+    "연구협업",
+    "스터디"
+   ],
+   "teams": [],
+   "workplace": null,
+   "grad": "인공지능 대학원",
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "세션 기반 추천 모델 논문을 쓰고 있다\n인공지능 대학원에서 데이터 파이프라인을 연구한다",
+   "seek_text": "신입으로 추천 시스템 분야에 들어가는 길이 궁금하다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "추천시스템",
+    "데이터엔지니어링·MLOps"
+   ],
+   "intent_tags": [
+    "취업정보"
+   ]
+  },
+  {
+   "pid": "V63",
+   "name": "설은호",
+   "group": "alumni",
+   "cohort": 13,
+   "stage": "대학원생",
+   "major": "산업공학과",
+   "affiliation": "연세대 산업공학 대학원",
+   "domains": [
+    "추천시스템",
+    "보험·리스크"
+   ],
+   "goals": [
+    "스터디"
+   ],
+   "gives": [
+    "대학원진학",
+    "연구협업",
+    "스터디"
+   ],
+   "teams": [],
+   "workplace": null,
+   "grad": "산업공학 대학원",
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "연구실에서 추천 노출 다양성 과제를 맡고 있다\n장기계약 해지 예측 논문을 쓰고 있다",
+   "seek_text": "추천 노출 다양성 논문 스터디 멤버를 구한다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "추천시스템",
+    "보험·리스크"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V64",
+   "name": "이지호",
+   "group": "alumni",
+   "cohort": 2,
+   "stage": "창업자",
+   "major": "계량위험관리학과",
+   "affiliation": "데이터 스타트업",
+   "domains": [
+    "보험·리스크",
+    "게임·엔터"
+   ],
+   "goals": [
+    "채용",
+    "연구협업"
+   ],
+   "gives": [
+    "채용",
+    "창업",
+    "멘토링"
+   ],
+   "teams": [
+    "2기 A팀 프로젝트"
+   ],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "리스크 관리 지표 스타트업을 창업해 운영 중이다\n게임 데이터 분야 스타트업 대표다",
+   "seek_text": "팀에 올 주니어 인재를 찾는다\n게임 데이터 쪽 현업 데이터로 협업하고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "보험·리스크"
+   ],
+   "intent_tags": [
+    "채용"
+   ]
+  },
+  {
+   "pid": "V65",
+   "name": "공민준",
+   "group": "alumni",
+   "cohort": 14,
+   "stage": "대학원생",
+   "major": "응용통계학과",
+   "affiliation": "연세대 산업공학 대학원",
+   "domains": [
+    "추천시스템",
+    "게임·엔터"
+   ],
+   "goals": [
+    "연구협업",
+    "취업정보"
+   ],
+   "gives": [
+    "대학원진학",
+    "연구협업",
+    "스터디"
+   ],
+   "teams": [
+    "14기 B팀 프로젝트"
+   ],
+   "workplace": null,
+   "grad": "산업공학 대학원",
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "산업공학 대학원에서 세션 기반 추천 모델을 연구한다\n연구실에서 게임 내 매칭 알고리즘 과제를 맡고 있다",
+   "seek_text": "콘텐츠 추천 피드 주제로 공동 연구할 사람을 찾는다\n게임 데이터 쪽 취업 준비를 어떻게 했는지 묻고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "추천시스템"
+   ],
+   "intent_tags": [
+    "연구협업",
+    "취업정보"
+   ]
+  },
+  {
+   "pid": "V66",
+   "name": "위수빈",
+   "group": "alumni",
+   "cohort": 5,
+   "stage": "시니어",
+   "major": "문헌정보학과",
+   "affiliation": "AI 스타트업",
+   "domains": [
+    "LLM·자연어처리",
+    "바이오·헬스케어"
+   ],
+   "goals": [
+    "연구협업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": "AI 스타트업",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "한국어 감성 분석 시스템을 설계 · 운영한다\n헬스케어 데이터 실무 경력이 10년이다",
+   "seek_text": "헬스케어 데이터 쪽 현업 데이터로 협업하고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "LLM·자연어처리",
+    "바이오·헬스케어"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V67",
+   "name": "송서윤",
+   "group": "alumni",
+   "cohort": 14,
+   "stage": "주니어",
+   "major": "경영학과",
+   "affiliation": "카드사",
+   "domains": [
+    "금융·퀀트",
+    "추천시스템"
+   ],
+   "goals": [
+    "이직정보"
+   ],
+   "gives": [
+    "취업정보",
+    "멘토링",
+    "이직정보"
+   ],
+   "teams": [
+    "14기 A팀 프로젝트"
+   ],
+   "workplace": "카드사",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "카드사에서 포트폴리오 최적화 업무를 1년째 하고 있다",
+   "seek_text": "추천 시스템 다른 회사의 일하는 방식이 궁금하다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "금융·퀀트",
+    "추천시스템"
+   ],
+   "intent_tags": [
+    "이직정보"
+   ]
+  },
+  {
+   "pid": "V68",
+   "name": "위하람",
+   "group": "alumni",
+   "cohort": 1,
+   "stage": "시니어",
+   "major": "수학과",
+   "affiliation": "은행",
+   "domains": [
+    "금융·퀀트",
+    "게임·엔터"
+   ],
+   "goals": [
+    "채용",
+    "창업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": "은행",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "은행 리드로 8년째 일하고 있다\n은행에서 게임 데이터 조직을 이끌고 있다",
+   "seek_text": "팀에 올 주니어 인재를 찾는다\n창업 경험을 들려줄 분을 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "금융·퀀트",
+    "게임·엔터"
+   ],
+   "intent_tags": [
+    "채용"
+   ]
+  },
+  {
+   "pid": "V69",
+   "name": "편시우",
+   "group": "alumni",
+   "cohort": 2,
+   "stage": "시니어",
+   "major": "응용통계학과",
+   "affiliation": "AI 스타트업",
+   "domains": [
+    "LLM·자연어처리",
+    "컴퓨터비전"
+   ],
+   "goals": [
+    "연구협업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": "AI 스타트업",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "AI 스타트업에서 자연어처리 조직을 이끌고 있다\nAI 스타트업 팀장으로 10년째 일하고 있다",
+   "seek_text": "자연어처리 쪽 현업 데이터로 협업하고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "LLM·자연어처리",
+    "컴퓨터비전"
+   ],
+   "intent_tags": [
+    "연구협업"
+   ]
+  },
+  {
+   "pid": "V70",
+   "name": "기지훈",
+   "group": "alumni",
+   "cohort": 5,
+   "stage": "교수",
+   "major": "응용통계학과",
+   "affiliation": "대학 연구실",
+   "domains": [
+    "인과추론·실험",
+    "추천시스템"
+   ],
+   "goals": [
+    "연구협업",
+    "채용"
+   ],
+   "gives": [
+    "대학원진학",
+    "연구협업",
+    "멘토링"
+   ],
+   "teams": [],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "연구실에서 업리프트 모델링 과제를 지도한다\n추천 시스템 분야를 연구한다",
+   "seek_text": "새로운 사람들을 만나고 싶다",
+   "seek_clarity": "vague",
+   "topic_tags": [
+    "인과추론·실험"
+   ],
+   "intent_tags": [
+    "연구협업",
+    "채용"
+   ]
+  },
+  {
+   "pid": "V71",
+   "name": "채은채",
+   "group": "alumni",
+   "cohort": 5,
+   "stage": "시니어",
+   "major": "응용통계학과",
+   "affiliation": "커머스 플랫폼",
+   "domains": [
+    "추천시스템",
+    "데이터엔지니어링·MLOps"
+   ],
+   "goals": [
+    "채용",
+    "연구협업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": "커머스 플랫폼",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "추천 노출 다양성 시스템을 설계 · 운영한다",
+   "seek_text": "데이터 엔지니어링 쪽 함께 일할 후배를 찾는다\n추천 노출 다양성 주제로 공동 연구할 사람을 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "추천시스템"
+   ],
+   "intent_tags": [
+    "채용",
+    "연구협업"
+   ]
+  },
+  {
+   "pid": "V72",
+   "name": "허현우",
+   "group": "alumni",
+   "cohort": 11,
+   "stage": "학부고학년",
+   "major": "경제학과",
+   "affiliation": "연세대 경제학과",
+   "domains": [
+    "사회과학·정책",
+    "보험·리스크"
+   ],
+   "goals": [
+    "멘토링"
+   ],
+   "gives": [
+    "프로젝트팀원",
+    "스터디",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": null,
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": false,
+   "fixed_table": null,
+   "offer_text": "졸업 프로젝트로 텍스트로 보는 미디어 담론을 하고 있다\n장기계약 해지 예측 공모전을 준비 중이다\n논문 구현 스터디를 하고 있다",
+   "seek_text": "",
+   "seek_clarity": "blank",
+   "topic_tags": [
+    "사회과학·정책",
+    "보험·리스크"
+   ],
+   "intent_tags": [
+    "멘토링"
+   ]
+  },
+  {
+   "pid": "V73",
+   "name": "김준혁",
+   "group": "alumni",
+   "cohort": 9,
+   "stage": "대학원생",
+   "major": "응용통계학과",
+   "affiliation": "연세대 통계데이터사이언스 대학원",
+   "domains": [
+    "추천시스템",
+    "바이오·헬스케어"
+   ],
+   "goals": [
+    "취업정보",
+    "연구협업"
+   ],
+   "gives": [
+    "대학원진학",
+    "연구협업",
+    "스터디"
+   ],
+   "teams": [
+    "9기 A팀 프로젝트"
+   ],
+   "workplace": null,
+   "grad": "통계데이터사이언스 대학원",
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "협업 필터링 논문을 쓰고 있다",
+   "seek_text": "추천 시스템 직무 현업자의 실제 업무 이야기를 듣고 싶다\n산학 협력 파트너를 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "추천시스템",
+    "바이오·헬스케어"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V74",
+   "name": "황준서",
+   "group": "alumni",
+   "cohort": 2,
+   "stage": "시니어",
+   "major": "문헌정보학과",
+   "affiliation": "AI 스타트업",
+   "domains": [
+    "LLM·자연어처리",
+    "금융·퀀트"
+   ],
+   "goals": [
+    "채용",
+    "창업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [
+    "2기 A팀 프로젝트"
+   ],
+   "workplace": "AI 스타트업",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "문서 요약 시스템을 설계 · 운영한다",
+   "seek_text": "아무나 좋아요",
+   "seek_clarity": "vague",
+   "topic_tags": [
+    "LLM·자연어처리",
+    "금융·퀀트"
+   ],
+   "intent_tags": [
+    "채용",
+    "창업"
+   ]
+  },
+  {
+   "pid": "V75",
+   "name": "어도현",
+   "group": "alumni",
+   "cohort": 1,
+   "stage": "시니어",
+   "major": "산업공학과",
+   "affiliation": "제조 대기업",
+   "domains": [
+    "시계열·수요예측",
+    "게임·엔터"
+   ],
+   "goals": [
+    "창업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [
+    "1기 B팀 프로젝트"
+   ],
+   "workplace": "제조 대기업",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "제조 대기업 시니어 데이터 사이언티스트로 9년째 일하고 있다\n제조 대기업에서 게임 데이터 조직을 이끌고 있다",
+   "seek_text": "시계열 예측 창업에 관심 있는 사람을 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "시계열·수요예측"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V76",
+   "name": "류유준",
+   "group": "alumni",
+   "cohort": 13,
+   "stage": "대학원생",
+   "major": "심리학과",
+   "affiliation": "연세대 산업공학 대학원",
+   "domains": [
+    "사회과학·정책",
+    "인과추론·실험"
+   ],
+   "goals": [
+    "취업정보"
+   ],
+   "gives": [
+    "대학원진학",
+    "연구협업",
+    "스터디"
+   ],
+   "teams": [
+    "13기 A팀 프로젝트"
+   ],
+   "workplace": null,
+   "grad": "산업공학 대학원",
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "연구실에서 여론 데이터 분석 과제를 맡고 있다\n석사 과정에서 인과추론을 공부한다",
+   "seek_text": "인과추론 쪽 취업 준비를 어떻게 했는지 묻고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "사회과학·정책",
+    "인과추론·실험"
+   ],
+   "intent_tags": []
+  },
+  {
+   "pid": "V77",
+   "name": "우채원",
+   "group": "alumni",
+   "cohort": 1,
+   "stage": "시니어",
+   "major": "수학과",
+   "affiliation": "국책 연구소",
+   "domains": [
+    "통계방법론",
+    "인과추론·실험"
+   ],
+   "goals": [
+    "채용",
+    "연구협업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [
+    "1기 A팀 프로젝트"
+   ],
+   "workplace": "국책 연구소",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "결측 데이터 처리 시스템을 설계 · 운영한다\n국책 연구소 팀장으로 9년째 일하고 있다",
+   "seek_text": "인과추론 쪽 함께 일할 후배를 찾는다\n산학 협력 파트너를 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "통계방법론",
+    "인과추론·실험"
+   ],
+   "intent_tags": [
+    "채용",
+    "연구협업"
+   ]
+  },
+  {
+   "pid": "V78",
+   "name": "정지안",
+   "group": "alumni",
+   "cohort": 1,
+   "stage": "시니어",
+   "major": "응용통계학과",
+   "affiliation": "전자 회사",
+   "domains": [
+    "컴퓨터비전",
+    "컨설팅·전략"
+   ],
+   "goals": [
+    "연구협업",
+    "창업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [
+    "1기 A팀 프로젝트"
+   ],
+   "workplace": "전자 회사",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "OCR 시스템을 설계 · 운영한다\n데이터 컨설팅 실무 경력이 15년이다",
+   "seek_text": "객체 탐지 주제로 공동 연구할 사람을 찾는다\n컴퓨터 비전 창업에 관심 있는 사람을 만나고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "컴퓨터비전",
+    "컨설팅·전략"
+   ],
+   "intent_tags": [
+    "창업"
+   ]
+  },
+  {
+   "pid": "V79",
+   "name": "임규리",
+   "group": "alumni",
+   "cohort": 10,
+   "stage": "시니어",
+   "major": "경제학과",
+   "affiliation": "은행",
+   "domains": [
+    "금융·퀀트",
+    "LLM·자연어처리"
+   ],
+   "goals": [
+    "연구협업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": "은행",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "은행에서 금융 데이터 조직을 이끌고 있다",
+   "seek_text": "자연어처리 쪽 현업 데이터로 협업하고 싶다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "금융·퀀트",
+    "LLM·자연어처리"
+   ],
+   "intent_tags": [
+    "연구협업"
+   ]
+  },
+  {
+   "pid": "V80",
+   "name": "이지훈",
+   "group": "alumni",
+   "cohort": 2,
+   "stage": "시니어",
+   "major": "컴퓨터과학과",
+   "affiliation": "AI 스타트업",
+   "domains": [
+    "LLM·자연어처리",
+    "컴퓨터비전"
+   ],
+   "goals": [
+    "채용",
+    "연구협업"
+   ],
+   "gives": [
+    "멘토링",
+    "채용",
+    "이직정보",
+    "취업정보"
+   ],
+   "teams": [],
+   "workplace": "AI 스타트업",
+   "grad": null,
+   "tabletalk": true,
+   "coffeechat": true,
+   "host": true,
+   "fixed_table": null,
+   "offer_text": "자연어처리 실무 경력이 14년이다\n제조 불량 검출 시스템을 설계 · 운영한다",
+   "seek_text": "한국어 감성 분석 인턴 후보를 만나고 싶다\nRAG 챗봇 주제로 공동 연구할 사람을 찾는다",
+   "seek_clarity": "clear",
+   "topic_tags": [
+    "LLM·자연어처리",
+    "컴퓨터비전"
+   ],
+   "intent_tags": [
+    "채용",
+    "연구협업"
+   ]
+  }
+ ]
+}
