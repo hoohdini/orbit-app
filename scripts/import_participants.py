@@ -37,7 +37,8 @@ CSV 열 (첫 줄 헤더, UTF-8). 열 이름은 아래와 같거나 --map 으로 
   구분 하나 career(0015) = careers 중 professor > employed > grad > lab_intern > student 의 첫 값(intern 만 있으면 null).
   경험 열이 없으면: 졸업생 = employed(학년 칸에 석사 · 박사면 grad), 재학생 = 학년 칸으로 grad · lab_intern · student, 교수 = professor, 그 밖 = 모름(null)
   하는일 = 학년(직책) · 소속. DSL 활동 · 연락처 · 동의 · 사주 · 롤링페이퍼 열은 읽지 않는다
-  DB 에 0017 을 먼저 적용해야 한다(없으면 careers 칸이 없다는 오류)
+  DB 에 0017 을 먼저 적용해야 한다(없으면 careers 칸이 없다는 오류). 경험 열이 없는 명단은 careers 를 건드리지 않는다(0017 전 DB 에도 적재되게).
+  그래서 폼 명단을 넣은 뒤 같은 event 에 경험 열 없는 명단을 다시 넣으면 예전 careers 가 남는다(계산 서비스는 careers 를 먼저 본다)
 
 운영자(is_admin)는 아래 OPERATORS 명단으로 정한다(2026-09-29). 명단에 있는 이름은 is_admin 을 켜고, 없는 이름은 끈다.
 명단은 docs/OPERATORS.md 와 같이 고치고, 고치는 사람은 성하다.
@@ -102,6 +103,8 @@ def read_rows(path: str) -> tuple[list[str], list[dict]]:
             for h, v in zip(header, vals):
                 if not (r.get(h) or "").strip():
                     r[h] = v
+            for h in header:                               # 끝 칸이 빠진 행도 열은 있게(DictReader 처럼). 열 확인은 rows[0] 로 한다
+                r.setdefault(h, "")
             rows.append(r)
     return list(dict.fromkeys(header)), rows
 
@@ -154,11 +157,12 @@ def careers_of(role: str, exp_raw: str, title: str) -> list[str]:
     if role == "professor":
         return ["professor"]
     got = {v for t in split_tags(exp_raw) for k, v in EXP_MAP if t.startswith(k)}
-    if role in ("student", "staff"):
-        if "grad" in got or re.search(r"석사|박사|석박|대학원|M\.S\.|Ph\.?D", title or "", re.I):
-            got.add("grad")
-        else:
-            got.add("student")
+    if re.search(r"학부연구생|연구실\s?인턴|랩\s?인턴", title or ""):      # 경험에 안 골라도 학년 · 직책에 적었으면(career_of 와 같은 말)
+        got.add("lab_intern")
+    if re.search(r"석사|박사|석박|대학원|M\.S\.|Ph\.?D", title or "", re.I):
+        got.add("grad")
+    if role in ("student", "staff") and "grad" not in got:
+        got.add("student")
     return [c for c in ("employed", "intern", "grad", "lab_intern", "student") if c in got]
 
 
@@ -202,13 +206,14 @@ def main() -> int:
         print(f"CSV 에 열이 없다: {missing}. --map 으로 이름을 맞춘다", file=sys.stderr)
         return 2
 
+    form_1018 = cols["exp"] in rows[0]                     # 경험 문항이 있는 10/18 사전 등록 폼
     participants, profiles, random_pins = [], [], []
     for i, r in enumerate(rows, start=2):
         name = (r.get(cols["name"]) or "").strip()
         if not name:
             print(f"{i}행: 이름이 비어 건너뛴다", file=sys.stderr)
             continue
-        if not (r.get(cols["role"]) or "").strip():       # 폼에서 앱 동의를 안 하면 구분이 비고 사주 섹션 이름만 남는다(필수 문항이라 그 밖에는 안 빔)
+        if form_1018 and not (r.get(cols["role"]) or "").strip():  # 10/18 폼에서 앱 동의를 안 하면 구분이 비고 사주 섹션 이름만 남는다(필수 문항이라 그 밖에는 안 빔). 예전 명단은 그대로 other
             print(f"{i}행: 구분이 비어 건너뛴다({name})", file=sys.stderr)
             continue
         role = role_of(r.get(cols["role"]))
@@ -284,7 +289,7 @@ def main() -> int:
         print(f"구분(경력, 0015) {careers}")
     multi = {}
     for p in participants:
-        for c in p.get("careers", []):
+        for c in p.get("careers") or []:
             multi[c] = multi.get(c, 0) + 1
     if any("careers" in p for p in participants):
         print(f"구분 여러 개(0017, 사람 수) {multi} · 하나도 없음 {sum(1 for p in participants if p.get('careers') == [])}명")
