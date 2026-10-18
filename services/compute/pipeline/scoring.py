@@ -13,6 +13,7 @@ a[i, j] = cos(seek_i, offer_j)   i 가 j 에게서 얻는 것 (한 방향)
 from __future__ import annotations
 
 import os
+import re
 
 import numpy as np
 
@@ -81,29 +82,36 @@ def combine(a: np.ndarray, mode: str = "min") -> np.ndarray:
 
 
 # '줄 수 있는 것' 규칙(10/18 민찬, sim/eval_recs_rule.py). 상대의 구분(participants.career, 0015) → 그 사람이 줄 수 있는 것.
-# 키는 폼 '기대하는 점' 체크 = profiles.intent_tags 와 같은 말이어야 한다. 폼 선택지가 바뀌면 여기를 같이 고친다
+# 키는 폼 '기대하는 점' 체크 = profiles.intent_tags 와 같은 말이어야 한다(괄호 설명 · 띄어쓰기는 무시). 폼 선택지가 바뀌면 여기를 같이 고친다
+# 값 = 얼마나 줄 수 있나(1 = 충분히). 학부연구생(연구실 인턴)은 대학원생보다 한 단계 낮게 대학원진학 · 연구협업 0.5(10/18 민찬)
 GIVES = {
-    "employed": {"취업정보", "이직정보", "채용", "멘토링"},
-    "grad": {"대학원진학", "연구협업"},
-    "student": {"스터디", "프로젝트팀원"},
-    "professor": {"대학원진학", "연구협업", "멘토링"},
+    "employed": {"취업정보": 1.0, "이직정보": 1.0, "채용": 1.0, "멘토링": 1.0},
+    "grad": {"대학원진학": 1.0, "연구협업": 1.0},
+    "lab_intern": {"대학원진학": 0.5, "연구협업": 0.5, "스터디": 1.0, "프로젝트팀원": 1.0},
+    "student": {"스터디": 1.0, "프로젝트팀원": 1.0},
+    "professor": {"대학원진학": 1.0, "연구협업": 1.0, "멘토링": 1.0},
 }
 REC_RULE_WEIGHTS = (0.25, 0.25, 0.5)  # 찾는 사람 → 하는 일, 하는 일끼리(분야), 규칙. 표준화한 뒤 섞는다
 
 
+def _intent_key(x: str) -> str:
+    """폼 선택지 → 규칙표 키. 괄호 설명과 띄어쓰기를 뺀다. 예: '프로젝트팀원(사이드 프로젝트 · 공모전)' → '프로젝트팀원'."""
+    return re.sub(r"\(.*?\)|\s", "", x or "")
+
+
 def gives_matrix(intents: list[list[str]], careers: list[str | None]) -> np.ndarray:
-    """g[i, j] = i 가 원하는 것(기대하는 점) 중 j 의 구분이 줄 수 있는 것의 비율(0~1). 한 방향. 구분을 모르면 0."""
+    """g[i, j] = i 가 원하는 것(기대하는 점)마다 j 의 구분이 줄 수 있는 정도(GIVES 값)를 더해 원하는 것 수로 나눈 것(0~1). 한 방향. 구분을 모르면 0."""
     n = len(intents)
     g = np.zeros((n, n))
-    norm = lambda x: x.replace(" ", "")                    # '취업 정보' 와 '취업정보' 를 같게
-    give = [{norm(x) for x in GIVES.get(c or "", set())} for c in careers]
+    norm = _intent_key                                     # '취업 정보' · '채용(같이 일할 사람 찾기)' 도 '취업정보' · '채용' 으로
+    give = [{norm(x): v for x, v in GIVES.get(c or "", {}).items()} for c in careers]
     for i, want in enumerate(intents):
         w = {norm(x) for x in (want or [])}
         if not w:
             continue
         for j in range(n):
             if i != j and give[j]:
-                g[i, j] = len(w & give[j]) / len(w)
+                g[i, j] = sum(give[j].get(x, 0.0) for x in w) / len(w)
     return g
 
 
@@ -124,8 +132,8 @@ def rec_rule_score(S: np.ndarray, O: np.ndarray, intents: list[list[str]], caree
 
 def intent_unknown(intents: list[list[str]]) -> list[str]:
     """GIVES 어느 구분에도 없는 기대하는 점(폼 선택지와 표의 말이 어긋났는지 보려고 계산 기록에 남긴다)."""
-    known = {x.replace(" ", "") for v in GIVES.values() for x in v}
-    return sorted({t for w in intents for t in (w or []) if t.replace(" ", "") not in known})
+    known = {_intent_key(x) for v in GIVES.values() for x in v}
+    return sorted({t for w in intents for t in (w or []) if _intent_key(t) not in known})
 
 
 def rec_matrix(a: np.ndarray, mode: str | None = None) -> np.ndarray:
