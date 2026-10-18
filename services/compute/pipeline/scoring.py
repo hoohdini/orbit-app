@@ -13,6 +13,7 @@ a[i, j] = cos(seek_i, offer_j)   i 가 j 에게서 얻는 것 (한 방향)
 from __future__ import annotations
 
 import os
+import re
 
 import numpy as np
 
@@ -91,11 +92,16 @@ GIVES = {
 REC_RULE_WEIGHTS = (0.25, 0.25, 0.5)  # 찾는 사람 → 하는 일, 하는 일끼리(분야), 규칙. 표준화한 뒤 섞는다
 
 
+def _intent_key(x: str) -> str:
+    """폼 선택지 → 규칙표 키. 괄호 설명과 띄어쓰기를 뺀다. 예: '프로젝트팀원(사이드 프로젝트 · 공모전)' → '프로젝트팀원'."""
+    return re.sub(r"\(.*?\)|\s", "", x or "")
+
+
 def gives_matrix(intents: list[list[str]], careers: list[str | None]) -> np.ndarray:
     """g[i, j] = i 가 원하는 것(기대하는 점) 중 j 의 구분이 줄 수 있는 것의 비율(0~1). 한 방향. 구분을 모르면 0."""
     n = len(intents)
     g = np.zeros((n, n))
-    norm = lambda x: x.replace(" ", "")                    # '취업 정보' 와 '취업정보' 를 같게
+    norm = _intent_key                                     # '취업 정보' · '채용(같이 일할 사람 찾기)' 도 '취업정보' · '채용' 으로
     give = [{norm(x) for x in GIVES.get(c or "", set())} for c in careers]
     for i, want in enumerate(intents):
         w = {norm(x) for x in (want or [])}
@@ -124,8 +130,8 @@ def rec_rule_score(S: np.ndarray, O: np.ndarray, intents: list[list[str]], caree
 
 def intent_unknown(intents: list[list[str]]) -> list[str]:
     """GIVES 어느 구분에도 없는 기대하는 점(폼 선택지와 표의 말이 어긋났는지 보려고 계산 기록에 남긴다)."""
-    known = {x.replace(" ", "") for v in GIVES.values() for x in v}
-    return sorted({t for w in intents for t in (w or []) if t.replace(" ", "") not in known})
+    known = {_intent_key(x) for v in GIVES.values() for x in v}
+    return sorted({t for w in intents for t in (w or []) if _intent_key(t) not in known})
 
 
 def rec_matrix(a: np.ndarray, mode: str | None = None) -> np.ndarray:
