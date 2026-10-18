@@ -3,14 +3,14 @@
 
 사람 · 배치 · 아는 사이 = sim/make_seat_eval_dataset.make(seed) 그대로. 폼 답만 10/17 구글폼 모양으로 바꾼다(자유 문장 없음)
   하는 일 = 직책(+ 소속 70%), 분야 태그 = 재직자 · 교수는 직무 도메인, 학생 · 대학원생은 관심 도메인(학생은 직무 도메인을 안 고름)
-  찾는 사람 = '관심 분야: <관심 도메인>', 기대하는 점(관계태그) = 숨은 원하는 것 그대로, 구분(career) = 단계에서(재직 · 대학원 · 재학 · 교수)
+  찾는 사람 = '관심 분야: <관심 도메인>', 기대하는 점 = 숨은 원하는 것을 10/18 사전 등록 폼 선택지로 옮긴 것(FORM_INTENT), 구분(career) = 단계에서(재직 · 대학원 · 재학 · 교수)
 숨은 관심 도메인: 60% 는 자기 분야 포함, 40% 는 다른 분야 포함(1~3개)
 좋은 상대
   T1 = 상대가 내 필요를 채움(need > 0) 그리고 분야가 겹침, 처음 보는 사이(sim/eval_seating.py 정답 그대로)
   T2 = 같은데 분야 대신 '상대 주 분야가 내 관심 도메인 안'
 비교: 예전(찾는 사람 → 하는 일 cos, min · one_way), 배정용 보정 점수(seat_directional 과 같은 계산), rule(scoring.rec_rule_score)
 --noise p: 숨은 정답의 '줄 수 있는 것'을 사람마다 흔든다(항목마다 p 확률로 빼고, p 확률로 표에 없는 것 하나 더함, 1 이면 완전 무작위).
-           규칙표(scoring.GIVES)가 실제와 어긋날 때 이득이 얼마나 남는지 본다
+           규칙표(scoring.WANTS)가 실제와 어긋날 때 이득이 얼마나 남는지 본다
 
 실행  python sim/eval_recs_rule.py --seeds 2026-2045 [--noise 0.4]      (약 2분, 모델 필요)
 """
@@ -36,6 +36,10 @@ from service import TABLETALK_COHORT_CAP  # noqa: E402
 
 DOM = list(DOMAINS)
 EMPLOYED = ("주니어", "시니어", "창업자")
+# 숨은 원하는 것 → 10/18 사전 등록 폼 '게더링에 기대하는 점' 선택지. 채용(선배가 사람 구함)은 폼에 맞는 선택지가 없어 뺀다
+FORM_INTENT = {"취업정보": "취업·이직 정보", "이직정보": "취업·이직 정보", "멘토링": "커리어 조언·현업 이야기",
+               "대학원진학": "대학원 진학·연구", "연구협업": "대학원 진학·연구", "스터디": "스터디·프로젝트 팀원 찾기",
+               "프로젝트팀원": "스터디·프로젝트 팀원 찾기", "창업": "창업·사이드 프로젝트"}
 
 
 def career(stage: str) -> str:
@@ -69,7 +73,7 @@ def form(P: list[dict], seed: int, noise: float) -> list[dict]:
         p["topic_tags"] = order(job) or order(p["wanted"])
         p["f_offer"] = title(rng, p) + (f" · {p['affiliation']}" if rng.random() < 0.7 else "")
         p["f_seek"] = "관심 분야: " + ", ".join(order(p["wanted"]))
-        p["intent_tags"] = [g for g in GOALS if g in p["goals"]]
+        p["intent_tags"] = sorted({FORM_INTENT[g] for g in p["goals"] if g in FORM_INTENT})
         if noise >= 1.0:
             p["gives"] = nz.sample(GOALS, nz.randint(2, 4))
         elif noise > 0:

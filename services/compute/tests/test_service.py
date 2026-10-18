@@ -486,13 +486,13 @@ def test_errors():
 
 
 def test_recs_rule_puts_givers_first():
-    """기본 추천 점수(rule): 취업정보를 원하는 학생의 추천 10명에 재직자가 많이 들어간다. REC_SCORE=min(예전)과 비교."""
+    """기본 추천 점수(rule): 취업 · 이직 정보를 원하는 학생의 추천 10명에 재직자가 많이 들어간다. REC_SCORE=min(예전)과 비교."""
     import os
     repo, enc = seed_repo(n=60, n_host=0, n_staff=0, seed=3), FakeEncoder()
     for k, p in enumerate(repo.t["participants"]):
         p["career"] = "employed" if k % 4 == 0 else "student"
     for pr in repo.t["profiles"]:
-        pr["intent_tags"] = ["취업정보"]
+        pr["intent_tags"] = ["취업·이직 정보"]
     emp = {p["id"] for p in repo.t["participants"] if p["career"] == "employed"}
 
     def share(rec_mode):
@@ -512,7 +512,7 @@ def test_recs_rule_puts_givers_first():
     for p in repo.t["participants"]:
         p["career"] = None                                               # 구분을 아무도 모르면 rule 이 예전 min 으로
     r = service.precompute(repo, enc, iters=500)
-    assert next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]["rec_mode"] == "min(구분 없음)"
+    assert next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]["rec_mode"] == "min(규칙 재료 없음)"
     # 재직자 15명 × 노출 상한 12 = 180칸, 학생 45명 × 10칸 = 450칸 → 학생 목록 속 재직자 비율은 최대 0.4. 예전 방식보다 위, 상한에 가깝게
     assert rule > base + 0.05 and rule > 0.3, (rule, base)
 

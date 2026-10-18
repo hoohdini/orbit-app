@@ -298,27 +298,31 @@ def test_poster_targets():
 
 
 def test_gives_matrix_and_rec_rule_score():
-    """'줄 수 있는 것' 규칙(10/18): 원하는 것 중 상대 구분이 줄 수 있는 비율. 한 방향. 추천 점수는 규칙이 맞는 사람을 위로."""
-    intents = [["취업정보", "멘토링", "스터디"], ["채용"], [], ["대학원진학"]]
+    """'줄 수 있는 것' 규칙(10/18, 사전 등록 폼 선택지): 고른 기대하는 점(규칙 있는 것만)마다 상대가 줄 수 있는 정도의 평균. 한 방향."""
+    intents = [["커리어 조언·현업 이야기", "취업·이직 정보", "스터디·프로젝트 팀원 찾기", "비슷한 분야 사람 만나기"], [], [], ["대학원 진학·연구"]]
     careers = ["student", "employed", None, "grad"]
     g = scoring.gives_matrix(intents, careers)
-    assert np.isclose(g[0, 1], 2 / 3) and np.isclose(g[0, 3], 0.0)       # 학생 → 재직자: 취업정보 · 멘토링
-    assert g[1, 0] == 0.0 and g[2].sum() == 0 and g[:, 2].sum() == 0     # 학생은 채용을 못 줌 · 원하는 것 없음 · 구분 모름 → 0
-    assert np.isclose(g[3, 3], 0.0) and np.isclose(g[0, 0], 0.0)          # 자기 자신은 0
-    g2 = scoring.gives_matrix([["채용(같이 일할 사람 찾기)", "취업 정보"], []], [None, "employed"])
-    assert np.isclose(g2[0, 1], 1.0)                                      # 폼 선택지의 괄호 설명 · 띄어쓰기는 무시
-    assert scoring.intent_unknown([["채용(같이 일할 사람 찾기)", "네트워킹"]]) == ["네트워킹"]
-    g3 = scoring.gives_matrix([["대학원진학"], [], [], []], [None, "grad", "lab_intern", "student"])
-    assert np.allclose(g3[0, 1:], [1.0, 0.5, 0.0])                       # 대학원생 > 학부연구생(연구실 인턴) > 학생
+    assert np.isclose(g[0, 1], 2 / 3) and np.isclose(g[0, 3], 0.0)       # 학생 → 재직자: 커리어 · 취업(규칙 없는 '비슷한 분야'는 안 셈)
+    assert g[1].sum() == 0 and g[2].sum() == 0 and g[:, 2].sum() == 0     # 원하는 것 없음 · 구분 모름 → 0
+    assert np.isclose(g[0, 0], 0.0) and np.isclose(g[3, 3], 0.0)          # 자기 자신은 0
+    g2 = scoring.gives_matrix([["취업 ㆍ 이직 정보(현업)", "기타: 네트워킹"], []], [None, "employed"])
+    assert np.isclose(g2[0, 1], 1.0)                                      # 괄호 설명 · 띄어쓰기 무시, 규칙 없는 '기타'는 안 셈
+    assert scoring.intent_unknown([["취업·이직 정보", "비슷한 분야 사람 만나기", "기타: 네트워킹"]]) == ["기타: 네트워킹"]
+    g3 = scoring.gives_matrix([["대학원 진학·연구"], [], [], [], []], [None, "grad", "lab_intern", "student", "professor"])
+    assert np.allclose(g3[0, 1:], [1.0, 0.5, 0.0, 1.0])                  # 대학원생 · 교수 > 학부연구생(연구실 인턴) > 학생
+    g4 = scoring.gives_matrix([["창업·사이드 프로젝트"], ["창업·사이드 프로젝트"], []], ["student", "student", "employed"])
+    assert g4[0, 1] == 1.0 and g4[0, 2] == 0.0                           # 창업 · 사이드는 같은 선택지를 고른 사람끼리
+    g5 = scoring.gives_matrix([["최신 AI·데이터 트렌드"], [], [], []], [None, "employed", "grad", "student"])
+    assert np.allclose(g5[0, 1:], [0.5, 0.5, 0.0])
     rng = np.random.default_rng(0)
     n, d = 12, 16
     O = scoring.unit(rng.normal(size=(n, d)) + 3)                         # 공통 방향이 큰 벡터(평균 빼기가 필요한 상황)
     S = scoring.unit(rng.normal(size=(n, d)) + 3)
-    intents = [["취업정보"]] * n
+    intents = [["취업·이직 정보"]] * n
     careers = ["employed" if j % 3 == 0 else "student" for j in range(n)]
     R = scoring.rec_rule_score(S, O, intents, careers)
     assert R.shape == (n, n) and np.allclose(np.diag(R), 0)
-    for i in range(n):                                                    # 취업정보를 원하면 재직자가 평균적으로 위
+    for i in range(n):                                                    # 취업 · 이직 정보를 원하면 재직자가 평균적으로 위
         emp = [R[i, j] for j in range(n) if j != i and careers[j] == "employed"]
         stu = [R[i, j] for j in range(n) if j != i and careers[j] == "student"]
         assert np.mean(emp) > np.mean(stu)
