@@ -26,11 +26,18 @@ CSV 열 (첫 줄 헤더, UTF-8). 열 이름은 아래와 같거나 --map 으로 
   찾는사람이 비었으면 '관심 분야: <관심도메인>' 한 줄로 채운다. 관계태그 = 폼의 '기대하는 점' 체크
   DB 에 0015 · 0016 을 먼저 적용해야 한다(없으면 career 칸이 없거나 lab_intern 이 check 에 걸리는 오류)
 
-10/18 사전 등록 구글폼(성하)을 시트로 내려받은 CSV 는 그대로 넣으면 된다. 열 이름이 질문 문장이라 앞부분으로 찾는다(FORM_HEADERS)
-  이름 · 휴대폰 번호 뒤 4자리 · 구분 · 기수 · 직무 도메인(→ 주제태그, 학부생은 희망 진로) · 소속 · 학년(→ 직책) · 게더링에 기대하는 점(→ 관계태그)
-  구분: '재학생(석/박사 연구원 포함)' · '졸업생' · '교수' · '기타(외부연사, 타 학회원, 등)' 처럼 앞부분으로 읽는다
-  이 폼에는 재직 여부가 없다 → 구분(경력): 졸업생 = employed(학년 칸에 석사 · 박사면 grad), 재학생 = 학년 칸으로 grad · lab_intern · student,
-  교수 = professor, 기타 = 모름(null). 하는일 = 학년 · 소속. DSL 활동 · 연락처 · 동의 · 사주 열은 읽지 않는다
+10/18 사전 등록 구글폼(성하 · 민찬)을 시트로 내려받은 CSV 는 그대로 넣으면 된다. 열 이름이 질문 문장이라 앞부분으로 찾는다(FORM_HEADERS)
+  이름 · 휴대폰 번호 뒤 4자리 · 구분 · 기수 · 직무 도메인(→ 주제태그, 학부생은 희망 진로) · 소속 · 학년 / 직책 · 직무명(→ 직책)
+  · 해당하는 경험(→ 구분 여러 개) · 게더링에 기대하는 점(→ 관계태그)
+  구분: '재학생(석/박사 연구원 포함)' · '졸업생' · '교수' · '타 학회원' · '기타(외부연사 등)' 처럼 앞부분으로 읽는다(타 학회원 · 기타 = other)
+  재학생 · 졸업생 · 타 학회원 섹션이 같은 질문을 되풀이해 시트에 같은 이름 열이 여러 개 생긴다(소속 (학교·학과) · 소속처럼 앞부분만 같은 것도).
+  한 사람은 한 섹션만 답하므로 열을 합쳐 처음 채워진 값을 쓴다(read_rows · resolve_cols)
+  구분 여러 개 careers(0017) = 경험(기업 재직 → employed · 기업 인턴 → intern · 학부연구생 → lab_intern · 대학원 → grad) + 재학생이면 student
+  (대학원을 고르거나 학년에 석사 · 박사면 student 대신 grad) · 교수면 professor 만. 경험 열이 없는 예전 CSV 는 아래 career 하나만 정한다
+  구분 하나 career(0015) = careers 중 professor > employed > grad > lab_intern > student 의 첫 값(intern 만 있으면 null).
+  경험 열이 없으면: 졸업생 = employed(학년 칸에 석사 · 박사면 grad), 재학생 = 학년 칸으로 grad · lab_intern · student, 교수 = professor, 그 밖 = 모름(null)
+  하는일 = 학년(직책) · 소속. DSL 활동 · 연락처 · 동의 · 사주 · 롤링페이퍼 열은 읽지 않는다
+  DB 에 0017 을 먼저 적용해야 한다(없으면 careers 칸이 없다는 오류)
 
 운영자(is_admin)는 아래 OPERATORS 명단으로 정한다(2026-09-29). 명단에 있는 이름은 is_admin 을 켜고, 없는 이름은 끈다.
 명단은 docs/OPERATORS.md 와 같이 고치고, 고치는 사람은 성하다.
@@ -50,11 +57,14 @@ from pathlib import Path
 ROLE_MAP = {"재학생": "student", "학생": "student", "졸업생": "alumni", "알럼나이": "alumni", "교수": "professor", "교수·연구자": "professor", "운영진": "staff", "기타": "other"}
 # 10/18 사전 등록 구글폼 질문 → 열(질문 문장의 앞부분). 기본 열 이름이 CSV 에 없고 --map 으로 정하지 않았을 때만 쓴다
 FORM_HEADERS = {"name": ("이름",), "phone": ("휴대폰 번호 뒤 4자리", "휴대폰"), "role": ("구분",), "cohort": ("기수",),
-                "topic": ("직무 도메인",), "affiliation": ("소속",), "title": ("학년",),
-                "intent": ("게더링에 기대하는 점", "개더링에 기대하는 점")}
+                "topic": ("직무 도메인",), "affiliation": ("소속",), "title": ("학년", "직책"),
+                "intent": ("게더링에 기대하는 점", "개더링에 기대하는 점"), "exp": ("해당하는 경험",)}
+# 폼 '해당하는 경험을 모두 골라 주세요' 선택지(앞부분) → 구분(careers, 0017). '해당 없음'은 아무것도 아니다
+EXP_MAP = (("기업 재직", "employed"), ("기업 인턴", "intern"), ("학부연구생", "lab_intern"), ("대학원", "grad"))
+CAREER_ORDER = ("professor", "employed", "grad", "lab_intern", "student")   # career(0015, 하나)로 고를 때의 순서. intern 은 0015 에 없다
 OPERATORS = ("박성하", "황수민", "김민찬", "김나혜", "김현희")
 DEFAULT_COLS = {"name": "이름", "affiliation": "소속", "role": "구분", "cohort": "기수", "phone": "휴대폰", "offer": "하는일", "seek": "찾는사람", "topic": "주제태그", "intent": "관계태그", "host": "호스트", "fixed": "고정테이블", "teams": "활동팀",
-                "job": "재직", "title": "직책", "interest": "관심도메인"}
+                "job": "재직", "title": "직책", "interest": "관심도메인", "exp": "경험"}
 
 
 def load_env() -> None:
@@ -78,23 +88,44 @@ def role_of(raw: str) -> str:
     return next((v for k, v in ROLE_MAP.items() if raw.startswith(k)), "other")
 
 
-def resolve_cols(cols: dict, header: list[str], explicit: set[str]) -> dict:
+def read_rows(path: str) -> tuple[list[str], list[dict]]:
+    """CSV → (열 이름, 행). 같은 이름 열이 여러 개면(폼 섹션마다 같은 질문) 처음 채워진 값을 쓴다. csv.DictReader 는 마지막 열이 덮어써
+    재학생 섹션 답이 뒤 섹션의 빈 칸에 지워진다"""
+    with open(path, encoding="utf-8-sig", newline="") as f:
+        rd = csv.reader(f)
+        header = [(h or "").strip() for h in next(rd, [])]
+        rows = []
+        for vals in rd:
+            if not any((v or "").strip() for v in vals):
+                continue
+            r = {}
+            for h, v in zip(header, vals):
+                if not (r.get(h) or "").strip():
+                    r[h] = v
+            rows.append(r)
+    return list(dict.fromkeys(header)), rows
+
+
+def resolve_cols(cols: dict, header: list[str], explicit: set[str], rows: list[dict]) -> dict:
     """기본 열 이름이 없으면 사전 등록 폼 질문 문장의 앞부분(FORM_HEADERS)으로 열을 찾는다.
-    접두어를 순서대로 보며 딱 하나 걸리는 첫 접두어를 쓴다. 못 찾거나 여러 개 걸리면 알리고 건드리지 않는다(--map 으로 정함)"""
+    접두어 중 하나로 시작하는 열이 하나면 그 열, 여러 개면(섹션마다 '소속 (학교·학과)' · '소속', '학년' · '직책 · 직무명') 합친 열을 만들어
+    행마다 처음 채워진 값을 넣는다. 한 사람은 한 섹션만 답한다. 못 찾으면 알린다(--map 으로 정함)"""
     for k, prefixes in FORM_HEADERS.items():
-        if k in explicit or cols[k] in header:
+        if k in explicit:
             continue
-        for p in prefixes:
-            hit = [h for h in header if (h or "").strip().startswith(p)]
-            if len(hit) == 1:
-                cols[k] = hit[0]
-                break
-            if len(hit) > 1:
-                print(f"'{p}' 로 시작하는 열이 여러 개라 {k} 열을 못 정했다: {hit} → --map {k}=… 로 정한다", file=sys.stderr)
-                break
-        else:
-            if k in ("phone", "topic", "intent", "title"):
-                print(f"{k} 열을 찾지 못했다(기본 '{cols[k]}' · 폼 '{prefixes[0]}…' 모두 없음)", file=sys.stderr)
+        hit = [h for h in header if any(h.startswith(p) for p in prefixes)]
+        if cols[k] in header and len(hit) <= 1:           # 기본 열 이름이 있고 비슷한 열이 더 없으면 그대로('소속'만 있는 예전 명단)
+            continue
+        if len(hit) == 1:
+            cols[k] = hit[0]
+        elif hit:
+            merged = " | ".join(hit)
+            for r in rows:
+                r[merged] = next((r[h] for h in hit if (r.get(h) or "").strip()), "")
+            cols[k] = merged
+            print(f"{k}: 열 {len(hit)}개를 합쳤다 {hit}")
+        elif k in ("phone", "topic", "intent", "title"):          # 경험(exp)은 10/18 폼에만 있어 없어도 알리지 않는다
+            print(f"{k} 열을 찾지 못했다(기본 '{cols[k]}' · 폼 '{prefixes[0]}…' 모두 없음)", file=sys.stderr)
     return cols
 
 
@@ -115,6 +146,20 @@ def career_of(role: str, job_raw: str, title: str, has_job_col: bool = True) -> 
     if re.search(r"석사|박사|대학원", title or ""):
         return "grad"
     return "student"
+
+
+def careers_of(role: str, exp_raw: str, title: str) -> list[str]:
+    """구분 여러 개(careers, 0017). 폼 경험 문항(복수) + 구분. 교수는 professor 만.
+    재학생은 student 를 더하되, 대학원을 골랐거나 학년이 석사 · 박사면 대학원생이라 student 대신 grad(10/18 규칙표: 스터디 팀원은 학부생)"""
+    if role == "professor":
+        return ["professor"]
+    got = {v for t in split_tags(exp_raw) for k, v in EXP_MAP if t.startswith(k)}
+    if role in ("student", "staff"):
+        if "grad" in got or re.search(r"석사|박사|석박|대학원|M\.S\.|Ph\.?D", title or "", re.I):
+            got.add("grad")
+        else:
+            got.add("student")
+    return [c for c in ("employed", "intern", "grad", "lab_intern", "student") if c in got]
 
 
 def last4(phone: str) -> str | None:
@@ -147,11 +192,11 @@ def main() -> int:
 
     import bcrypt  # pip install bcrypt
 
-    rows = list(csv.DictReader(open(args.csv, encoding="utf-8-sig")))
+    header, rows = read_rows(args.csv)
     if not rows:
         print("CSV 가 비어 있다", file=sys.stderr)
         return 2
-    cols = resolve_cols(cols, list(rows[0]), explicit)
+    cols = resolve_cols(cols, header, explicit, rows)
     missing = [c for c in (cols["name"], cols["role"]) if c not in rows[0]]
     if missing:
         print(f"CSV 에 열이 없다: {missing}. --map 으로 이름을 맞춘다", file=sys.stderr)
@@ -162,6 +207,9 @@ def main() -> int:
         name = (r.get(cols["name"]) or "").strip()
         if not name:
             print(f"{i}행: 이름이 비어 건너뛴다", file=sys.stderr)
+            continue
+        if not (r.get(cols["role"]) or "").strip():       # 폼에서 앱 동의를 안 하면 구분이 비고 사주 섹션 이름만 남는다(필수 문항이라 그 밖에는 안 빔)
+            print(f"{i}행: 구분이 비어 건너뛴다({name})", file=sys.stderr)
             continue
         role = role_of(r.get(cols["role"]))
         pin = None if args.names_only else last4(r.get(cols["phone"], ""))
@@ -200,6 +248,10 @@ def main() -> int:
             interest = split_tags(r.get(cols["interest"], ""))
             has_job = cols["job"] in rows[0]
             career = career_of(role, (r.get(cols["job"]) or "").strip(), title, has_job)
+            if cols["exp"] in rows[0]:                     # 10/18 폼 경험 문항: 구분 여러 개(0017). career 는 그중 하나
+                careers = careers_of(role, r.get(cols["exp"], ""), title)
+                participants[-1]["careers"] = careers
+                career = next((c for c in CAREER_ORDER if c in careers), None)
             participants[-1]["career"] = career
             if not offer and not has_job:                  # 10/18 사전 등록 폼: 하는 일 문장이 없어 학년 · 소속으로
                 offer = (r.get(cols["affiliation"]) or "").strip()
@@ -230,6 +282,12 @@ def main() -> int:
             careers[p["career"]] = careers.get(p["career"], 0) + 1
     if careers:
         print(f"구분(경력, 0015) {careers}")
+    multi = {}
+    for p in participants:
+        for c in p.get("careers", []):
+            multi[c] = multi.get(c, 0) + 1
+    if any("careers" in p for p in participants):
+        print(f"구분 여러 개(0017, 사람 수) {multi} · 하나도 없음 {sum(1 for p in participants if p.get('careers') == [])}명")
     print(f"읽음 {len(participants)}명 · 구분 {roles} · 호스트 {sum(p['is_host'] for p in participants)}명 · 운영자 {sum(p['is_admin'] for p in participants)}명 · 고정 테이블 {sum(1 for p in participants if p.get('fixed_table'))}명")
     absent = [n for n in OPERATORS if n not in {p["display_name"] for p in participants}]
     if absent:
