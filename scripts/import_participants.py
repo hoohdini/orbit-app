@@ -26,6 +26,12 @@ CSV 열 (첫 줄 헤더, UTF-8). 열 이름은 아래와 같거나 --map 으로 
   찾는사람이 비었으면 '관심 분야: <관심도메인>' 한 줄로 채운다. 관계태그 = 폼의 '기대하는 점' 체크
   DB 에 0015 · 0016 을 먼저 적용해야 한다(없으면 career 칸이 없거나 lab_intern 이 check 에 걸리는 오류)
 
+10/18 사전 등록 구글폼(성하)을 시트로 내려받은 CSV 는 그대로 넣으면 된다. 열 이름이 질문 문장이라 앞부분으로 찾는다(FORM_HEADERS)
+  이름 · 휴대폰 번호 뒤 4자리 · 구분 · 기수 · 직무 도메인(→ 주제태그, 학부생은 희망 진로) · 소속 · 학년(→ 직책) · 게더링에 기대하는 점(→ 관계태그)
+  구분: '재학생(석/박사 연구원 포함)' · '졸업생' · '교수' · '기타(외부연사, 타 학회원, 등)' 처럼 앞부분으로 읽는다
+  이 폼에는 재직 여부가 없다 → 구분(경력): 졸업생 = employed(학년 칸에 석사 · 박사면 grad), 재학생 = 학년 칸으로 grad · lab_intern · student,
+  교수 = professor, 기타 = 모름(null). 하는일 = 학년 · 소속. DSL 활동 · 연락처 · 동의 · 사주 열은 읽지 않는다
+
 운영자(is_admin)는 아래 OPERATORS 명단으로 정한다(2026-09-29). 명단에 있는 이름은 is_admin 을 켜고, 없는 이름은 끈다.
 명단은 docs/OPERATORS.md 와 같이 고치고, 고치는 사람은 성하다.
 
@@ -42,6 +48,10 @@ import sys
 from pathlib import Path
 
 ROLE_MAP = {"재학생": "student", "학생": "student", "졸업생": "alumni", "알럼나이": "alumni", "교수": "professor", "교수·연구자": "professor", "운영진": "staff", "기타": "other"}
+# 10/18 사전 등록 구글폼 질문 → 열(질문 문장의 앞부분). 기본 열 이름이 CSV 에 없고 --map 으로 정하지 않았을 때만 쓴다
+FORM_HEADERS = {"name": ("이름",), "phone": ("휴대폰 번호 뒤 4자리", "휴대폰"), "role": ("구분",), "cohort": ("기수",),
+                "topic": ("직무 도메인",), "affiliation": ("소속",), "title": ("학년",),
+                "intent": ("게더링에 기대하는 점", "개더링에 기대하는 점")}
 OPERATORS = ("박성하", "황수민", "김민찬", "김나혜", "김현희")
 DEFAULT_COLS = {"name": "이름", "affiliation": "소속", "role": "구분", "cohort": "기수", "phone": "휴대폰", "offer": "하는일", "seek": "찾는사람", "topic": "주제태그", "intent": "관계태그", "host": "호스트", "fixed": "고정테이블", "teams": "활동팀",
                 "job": "재직", "title": "직책", "interest": "관심도메인"}
@@ -60,12 +70,46 @@ def split_tags(v: str) -> list[str]:
     return [t.strip() for t in re.split(r"[;,]", v or "") if t.strip()]
 
 
-def career_of(role: str, job_raw: str, title: str) -> str:
-    """구분(경력, 0015). 재직 여부 · 직책 · 기존 구분으로 정한다. 수료(졸업생)여도 재직이 아니고 대학원생도 아니면 학생으로 본다"""
+def role_of(raw: str) -> str:
+    """구분 답 → role. 폼 선택지는 설명이 붙어 있어('재학생(석/박사 연구원 포함)') 앞부분으로도 맞춘다"""
+    raw = (raw or "").strip()
+    if raw in ROLE_MAP:
+        return ROLE_MAP[raw]
+    return next((v for k, v in ROLE_MAP.items() if raw.startswith(k)), "other")
+
+
+def resolve_cols(cols: dict, header: list[str], explicit: set[str]) -> dict:
+    """기본 열 이름이 없으면 사전 등록 폼 질문 문장의 앞부분(FORM_HEADERS)으로 열을 찾는다.
+    접두어를 순서대로 보며 딱 하나 걸리는 첫 접두어를 쓴다. 못 찾거나 여러 개 걸리면 알리고 건드리지 않는다(--map 으로 정함)"""
+    for k, prefixes in FORM_HEADERS.items():
+        if k in explicit or cols[k] in header:
+            continue
+        for p in prefixes:
+            hit = [h for h in header if (h or "").strip().startswith(p)]
+            if len(hit) == 1:
+                cols[k] = hit[0]
+                break
+            if len(hit) > 1:
+                print(f"'{p}' 로 시작하는 열이 여러 개라 {k} 열을 못 정했다: {hit} → --map {k}=… 로 정한다", file=sys.stderr)
+                break
+        else:
+            if k in ("phone", "topic", "intent", "title"):
+                print(f"{k} 열을 찾지 못했다(기본 '{cols[k]}' · 폼 '{prefixes[0]}…' 모두 없음)", file=sys.stderr)
+    return cols
+
+
+def career_of(role: str, job_raw: str, title: str, has_job_col: bool = True) -> str | None:
+    """구분(경력, 0015 · 0016). 재직 여부 · 직책(학년) · 기존 구분으로 정한다.
+    재직 열이 있으면(10/17 안) 수료(졸업생)여도 재직이 아니고 대학원생도 아니면 학생.
+    재직 열이 없으면(10/18 사전 등록 폼) 졸업생은 재직자로 본다(이 폼의 구분은 지금 상태라 수료했어도 재학이면 재학생을 고름). 기타는 모름"""
     if role == "professor":
         return "professor"
     if re.search(r"학부연구생|연구실\s?인턴|랩\s?인턴", f"{job_raw} {title}"):   # '인턴' 보다 먼저: 연구실 인턴은 재직자가 아니다(회사 'AI Lab' 직책은 해당 없음)
         return "lab_intern"
+    if not has_job_col:
+        if re.search(r"석사|박사|석박|대학원|M\.S\.|Ph\.?D", title or "", re.I):   # 'MS Office' 같은 말은 안 걸리게 M.S. 는 점까지
+            return "grad"
+        return {"alumni": "employed", "student": "student", "staff": "student"}.get(role)
     if re.search(r"정규|인턴|재직|^예$", job_raw or "") and not re.search(r"아니|아님|없|미재직|안 ?함|않", job_raw or ""):
         return "employed"
     if re.search(r"석사|박사|대학원", title or ""):
@@ -89,9 +133,11 @@ def main() -> int:
     args = ap.parse_args()
 
     cols = dict(DEFAULT_COLS)
+    explicit = set()
     for m in args.map:
         k, v = m.split("=", 1)
         cols[k] = v
+        explicit.add(k)
 
     load_env()
     url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
@@ -105,6 +151,7 @@ def main() -> int:
     if not rows:
         print("CSV 가 비어 있다", file=sys.stderr)
         return 2
+    cols = resolve_cols(cols, list(rows[0]), explicit)
     missing = [c for c in (cols["name"], cols["role"]) if c not in rows[0]]
     if missing:
         print(f"CSV 에 열이 없다: {missing}. --map 으로 이름을 맞춘다", file=sys.stderr)
@@ -116,7 +163,7 @@ def main() -> int:
         if not name:
             print(f"{i}행: 이름이 비어 건너뛴다", file=sys.stderr)
             continue
-        role = ROLE_MAP.get((r.get(cols["role"]) or "").strip(), "other")
+        role = role_of(r.get(cols["role"]))
         pin = None if args.names_only else last4(r.get(cols["phone"], ""))
         pin_from_phone = pin is not None
         host_raw = (r.get(cols["host"]) or "").strip()
@@ -151,8 +198,11 @@ def main() -> int:
         if form_cols:                                      # 10/17 구글폼 열(위 설명). 없으면 예전 그대로
             title = (r.get(cols["title"]) or "").strip()
             interest = split_tags(r.get(cols["interest"], ""))
-            career = career_of(role, (r.get(cols["job"]) or "").strip(), title)
+            has_job = cols["job"] in rows[0]
+            career = career_of(role, (r.get(cols["job"]) or "").strip(), title, has_job)
             participants[-1]["career"] = career
+            if not offer and not has_job:                  # 10/18 사전 등록 폼: 하는 일 문장이 없어 학년 · 소속으로
+                offer = (r.get(cols["affiliation"]) or "").strip()
             offer = " · ".join(x for x in (title, offer) if x)
             if not topic and career != "employed":
                 topic = interest                           # 학생은 직무 도메인 대신 관심 도메인이 분야
