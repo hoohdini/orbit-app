@@ -16,7 +16,7 @@ export function parsePosterCode(raw: string): string | null {
   }
 }
 
-// 환경변수 POSTER_MAX_ATTEMPTS. 기본 3
+// 환경변수 POSTER_MAX_ATTEMPTS. 비워 두면 퀴즈 재시도 무제한(10/11 성하 결정, answer/route.ts 가 값이 있을 때만 이 함수를 부른다). 값이 숫자가 아니면 3
 export function parseMaxAttempts(raw: string | undefined): number {
   const n = Number.parseInt((raw ?? "").trim(), 10);
   return Number.isFinite(n) && n > 0 ? n : 3;

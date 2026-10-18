@@ -103,7 +103,7 @@ export async function POST(req: Request) {
       card: { ...card, source: b.source, status, exchanged_at: (existing?.created_at as string) ?? now },
       already_saved: alreadySaved,
       status,
-      // 교환 결과 화면에서 오늘 처음 대화한 분인가요? 를 한 번만 묻는다(미션 ③). 성립했고 아직 답하거나 건너뛰지 않았을 때만
+      // 교환 결과 화면에서 오늘 처음 대화한 분인가요? 를 한 번만 묻는다(미션 ④). 성립했고 아직 답하거나 건너뛰지 않았을 때만
       ask_first_meet: status === "confirmed" && (existing?.first_meet_at ?? null) === null,
     });
   });

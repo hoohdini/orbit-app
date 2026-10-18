@@ -1,4 +1,4 @@
-// POST /api/card/first-meet { target_id, first_meet, note? }  오늘 처음 대화한 분인가요? 와 한 줄 남기기(개발 지시서 v0.2 H-05, 미션 ③).
+// POST /api/card/first-meet { target_id, first_meet, note? }  오늘 처음 대화한 분인가요? 와 한 줄 남기기(개발 지시서 v0.2 H-05, 미션 ④ 새로운 연결).
 // 교환 결과 화면(찍은 쪽)과 받은 명함 알림(찍힌 쪽)에서 각자 한 번 묻는다. 내 행(scanner_id = 나)에만 쓴다.
 // first_meet null 은 건너뛰기다. 답한 시각은 남겨 다시 묻지 않는다. 한 줄 메모는 계산에 쓰지 않는다.
 import { z } from "zod";
