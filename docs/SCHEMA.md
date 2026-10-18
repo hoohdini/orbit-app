@@ -15,7 +15,7 @@
 
 | 테이블 | 무엇 | 누가 쓰나 | 비고 |
 |---|---|---|---|
-| participants | 참가자 기본 정보, 로그인 숫자 4자리의 해시(사전 적재 때 휴대폰 뒤 4자리 또는 무작위로 정함. null 이면 로그인 불가), 동의 시각, 고정 테이블 | 사전 적재(운영), 온보딩(consent_at), 운영 콘솔(login_pin_hash 재발급) | `is_host` 는 단방향 점수 대상, `is_admin` 은 콘솔. `fixed_table` 은 0008: 교수 · 운영진석처럼 미리 정한 테이블 번호(보통 1). 있으면 계산 서비스가 그 테이블에 고정한다. `teams` 도 0008: 같이 한 프로젝트 · 스터디 팀 이름 목록, 같으면 이미 아는 사이로 보고 추천에서 뒤로. `consent_refused_at` 은 0010: 이용 동의 거부 시각(v0.2 H-00). `share_consent_at` · `share_refused_at` 은 0014: 명함 공개 및 추천 활용 동의(동의 두 번째 항목). 거부자도 배정에는 들어가고 행사 중 수집과 남의 추천 · 검색 · 궤도에서만 빠진다. `career` 는 0015: 구분(경력) employed · grad · student · professor, null 은 모름. 계산 서비스 추천 점수의 '줄 수 있는 것' 규칙이 본다(role 과 다름: 수료했어도 학생일 수 있음). `entry_token` 은 예비 |
+| participants | 참가자 기본 정보, 로그인 숫자 4자리의 해시(사전 적재 때 휴대폰 뒤 4자리 또는 무작위로 정함. null 이면 로그인 불가), 동의 시각, 고정 테이블 | 사전 적재(운영), 온보딩(consent_at), 운영 콘솔(login_pin_hash 재발급) | `is_host` 는 단방향 점수 대상, `is_admin` 은 콘솔. `fixed_table` 은 0008: 교수 · 운영진석처럼 미리 정한 테이블 번호(보통 1). 있으면 계산 서비스가 그 테이블에 고정한다. `teams` 도 0008: 같이 한 프로젝트 · 스터디 팀 이름 목록, 같으면 이미 아는 사이로 보고 추천에서 뒤로. `consent_refused_at` 은 0010: 이용 동의 거부 시각(v0.2 H-00). `share_consent_at` · `share_refused_at` 은 0014: 명함 공개 및 추천 활용 동의(동의 두 번째 항목). 거부자도 배정에는 들어가고 행사 중 수집과 남의 추천 · 검색 · 궤도에서만 빠진다. `career` 는 0015: 구분(경력) employed · grad · student · professor, 0016 에서 lab_intern(학부연구생 · 연구실 인턴) 추가, null 은 모름. 계산 서비스 추천 점수의 '줄 수 있는 것' 규칙이 본다(role 과 다름: 수료했어도 학생일 수 있음). `entry_token` 은 예비 |
 | profiles | offer_text(하는 일), seek_text(찾는 사람), 주제 태그, 관계 태그, 링크, card_edit(0014) | 사전 적재, 마이페이지 명함 편집(card_edit 만) | card_edit 은 마이페이지에서 고친 offer_text · seek_text · topic_tags. 명함에만 보이고 계산 서비스는 원래 칸만 읽는다 |
 | sids | 주소 두 개와 벡터 두 개, 코드북 버전 | 계산 서비스(전날 배치) | 당일 재발급 없음 |
 | labels | 주소 앞자리별 사람이 읽는 라벨 | 전날 배치, 운영 검수 | |
@@ -30,12 +30,12 @@
 | card_exchanges | 명함 교환 기록(방향 있음). `source` qr·manual 은 찍은 쪽, auto 는 받은 쪽. `seen_at` 은 받은 쪽 알림 확인 시각. 0010: `status`(pending 이름 검색 교환의 상대 확인 전 · confirmed), `confirmed_at`(성립 시각, 미션 판정 기준), `first_meet` · `first_meet_at`(오늘 처음 대화한 분인가요? 의 답, 내 행에만), `note`(메모, 0013 부터 200자, 계산에 안 씀), `via`(스캐너를 연 탭 card · event). 0013: `phase`(교환이 생긴 때의 행사 단계, 명함 목록의 어디서 만났나 칩. 두 행에 같은 값, 그 전 행은 null) | card 모듈 API | 한 번 찍으면 두 행(양방향, 9/26 확정). 교환 수는 행 수 그대로(교환 1건 = 각자 +1, 전체 +2). 성립 전(pending) 교환은 미션 · 추천 · 간선 어디에도 세지 않는다 |
 | satisfaction | 테이블토크 · 커피챗 끝 만족도. 문장 선택지 choice(gained, different, mismatch. 예전 unsure 는 더 받지 않음), 고른 사람 picks(uuid[], 같은 테이블 사람), 답하는 데 걸린 시간 elapsed_ms, 한 줄 의견 | tabletalk 모듈 API | 라운드당 1건. 0005 에서 1~5 숫자를 선택지로 바꿨다. 0012 에서 3지선다 + 사람 고르기(picks · elapsed_ms) |
 | event_log | 화면 이벤트(열람, 스캔 실패 등) | 모든 모듈 API | 패시브 수집. 운영 쓰기(ops_*)는 운영자 id 를 participant_id 로 남겨 감사 로그(A-09)가 된다 |
-| rec_impressions | 오늘 만나면 좋을 분(H-04)에 처음 보인 시각(사람 쌍마다 한 행, version) | card 모듈 API(/api/card/recs) | 0010. 미션 ③(추천 인물) 판정과 행사 뒤 분석. 다시 보여도 시각을 바꾸지 않는다 |
+| rec_impressions | 오늘 만나면 좋을 분(H-04)에 처음 보인 시각(사람 쌍마다 한 행, version) | card 모듈 API(/api/card/recs) | 0010. 미션 ② 판정과 행사 뒤 분석. 다시 보여도 시각을 바꾸지 않는다 |
 | posters | 포스터 목록과 QR 코드, 요약 한 줄(summary), 발표자 참가자 id(presenter_ids) | 사전 적재 | summary · presenter_ids 는 0009. 포스터 벡터 = 제목 + tags + summary, 발표자 본인 · 같은 소속 응답은 계산에서 뺀다 |
 | poster_quizzes | 포스터별 퀴즈와 정답 | 사전 적재 | 정답은 서버만 본다 |
 | quiz_attempts | 퀴즈 시도 기록 | poster 모듈 API | 오답도 남긴다. 10/11 부터 정답 기록이 포스터 퀴즈 스탬프(미션 ②)다(별도 표 없음) |
 | stamps | 포스터 스탬프 | poster 모듈 API | 포스터당 1개. v0.2 부터는 관심 이유를 내면 찍힌다(퀴즈 정답과 무관, /api/poster/response) |
-| poster_interest | 포스터 관심도. 문장 선택지 choice(learn_more, interesting, not_mine) | poster 모듈 API | 0005 에서 1~5 숫자를 선택지로 바꿨다. v0.2 부터는 poster_responses 를 쓴다. 10/17 부터 운영 콘솔도 poster_responses 를 읽어, 지금은 아무도 새로 쓰지 않는다(예전 /api/poster/interest 만 씀) |
+| poster_interest | 포스터 관심도. 문장 선택지 choice(learn_more, interesting, not_mine) | poster 모듈 API | 0005 에서 1~5 숫자를 선택지로 바꿨다. v0.2 부터는 poster_responses 를 쓴다(운영 콘솔 포스터 칸이 아직 읽어 남겨 둠) |
 | poster_responses | 포스터 응답(미션 ①). reason = 흥미 3단계(want, maybe, not_mine), 보여 준 순서, 소요 시간, 응답 순번, 퀴즈 시도 | poster 모듈 API | 0009. 0011 에서 관심 이유 4지선다(topic, method, experience, new_field)를 흥미 3단계로 바꿨다(칸 이름 reason 은 그대로). 계산 서비스가 B-05 전처리 뒤 커피챗에 반영(docs/DATA_SPEC.md). **배포 순서: DB 에 0011 · 0012 적용과 be/ 머지를 같이 → compute/ 머지** |
 | raffle_tickets | 응모권 | poster 모듈 API | v0.2 결정 6 으로 앱에서 발급하지 않는다(명찰 번호로 앱 밖). 표와 운영 콘솔 추첨은 남아 있다 |
 | ops_state | 운영 상태(키 · 값). phase(9개 값, lib/phase.ts), phase_meta(바꾼 시각 · 사람), notice(공지와 만료 시각), mission_closed_at(미션 마감, 처음 wrapup 으로 넘어간 시각), award_excluded(특별 시상 제외 명단), published_*, compute_heartbeat, raffle_result | 운영 콘솔, 계산 서비스 | 단계 값은 표가 아니라 API(zod)가 막는다 |
