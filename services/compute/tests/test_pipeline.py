@@ -311,7 +311,7 @@ def test_gives_matrix_and_rec_rule_score():
     g3 = scoring.gives_matrix([["대학원 진학·연구"], [], [], [], []], [None, "grad", "lab_intern", "student", "professor"])
     assert np.allclose(g3[0, 1:], [1.0, 0.5, 0.0, 1.0])                  # 대학원생 · 교수 > 학부연구생(연구실 인턴) > 학생
     g4 = scoring.gives_matrix([["창업·사이드 프로젝트"], ["창업·사이드 프로젝트"], []], ["student", "student", "employed"])
-    assert g4[0, 1] == 1.0 and g4[0, 2] == 0.0                           # 창업 · 사이드는 같은 선택지를 고른 사람끼리
+    assert g4[0, 1] == 0.5 and g4[0, 2] == 0.0                           # 창업 · 사이드: 같은 선택지를 고른 사람 0.5(창업자보다 한 단계 낮게)
     g4b = scoring.gives_matrix([["창업·사이드 프로젝트"], []], ["student", ["employed", "founder"]])
     assert g4b[0, 1] == 1.0                                               # 창업자(외부연사 CEO)는 같은 선택지를 안 골라도 1
     g5 = scoring.gives_matrix([["최신 AI·데이터 트렌드"], [], [], []], [None, "employed", "grad", "student"])
