@@ -28,13 +28,15 @@ CSV 열 (첫 줄 헤더, UTF-8). 열 이름은 아래와 같거나 --map 으로 
 
 10/18 사전 등록 구글폼(성하 · 민찬)을 시트로 내려받은 CSV 는 그대로 넣으면 된다. 열 이름이 질문 문장이라 앞부분으로 찾는다(FORM_HEADERS)
   이름 · 휴대폰 번호 뒤 4자리 · 구분 · 기수 · 직무 도메인(→ 주제태그, 학부생은 희망 진로) · 소속 · 학년 / 직책 · 직무명(→ 직책)
-  · 해당하는 경험(→ 구분 여러 개) · 게더링에 기대하는 점(→ 관계태그)
+  · 해당하는 경험(→ 구분 여러 개) · 개더링에 기대하는 점(→ 관계태그)
   구분: '재학생(석/박사 연구원 포함)' · '졸업생' · '교수' · '타 학회원' · '기타(외부연사 등)' 처럼 앞부분으로 읽는다(타 학회원 · 기타 = other)
   재학생 · 졸업생 · 타 학회원 섹션이 같은 질문을 되풀이해 시트에 같은 이름 열이 여러 개 생긴다(소속 (학교·학과) · 소속처럼 앞부분만 같은 것도).
   한 사람은 한 섹션만 답하므로 열을 합쳐 처음 채워진 값을 쓴다(read_rows · resolve_cols)
-  구분 여러 개 careers(0017) = 경험(기업 재직 → employed · 기업 인턴 → intern · 학부연구생 → lab_intern · 대학원 → grad) + 재학생이면 student
-  (타 학회원은 직책 칸에 학부 · 학년 · 재학이 있으면 student)
-  (대학원을 고르거나 학년에 석사 · 박사면 student 대신 grad) · 교수면 professor 만. 경험 열이 없는 예전 CSV 는 아래 career 하나만 정한다
+  구분 여러 개 careers(0017) = 경험(기업 재직 → employed · 기업 인턴 → intern · 학부연구생 → lab_intern · 대학원 → grad)
+  + 학년 · 직책 칸 말(석사 · 박사 · 석박 · 대학원 · M.S. · Ph.D → grad, 학부연구생 · 연구실 인턴 · 랩 인턴 → lab_intern, 경험에 안 골랐어도)
+  + 재학생이면 student(grad 가 있으면 빼고), 타 학회원은 직책 칸에 학부 · 학년 · 재학이 있으면 student
+  · 교수면 professor 만 · 기타(외부연사 등)면 employed + founder(10/19: 외부연사 두 분이 CEO, 다른 사람이 섞이면 그 사람도 재직자로 들어간다)
+  경험 열이 없는 예전 CSV 는 아래 career 하나만 정한다
   구분 하나 career(0015) = careers 중 professor > employed > grad > lab_intern > student 의 첫 값(intern 만 있으면 null).
   경험 열이 없으면: 졸업생 = employed(학년 칸에 석사 · 박사면 grad), 재학생 = 학년 칸으로 grad · lab_intern · student, 교수 = professor, 그 밖 = 모름(null)
   하는일 = 학년(직책) · 소속. DSL 활동 · 연락처 · 동의 · 사주 · 롤링페이퍼 열은 읽지 않는다
@@ -152,12 +154,15 @@ def career_of(role: str, job_raw: str, title: str, has_job_col: bool = True) -> 
     return "student"
 
 
-def careers_of(role: str, exp_raw: str, title: str) -> list[str]:
+def careers_of(role: str, exp_raw: str, title: str, role_raw: str = "") -> list[str]:
     """구분 여러 개(careers, 0017). 폼 경험 문항(복수) + 구분. 교수는 professor 만.
+    구분 답이 '기타(외부연사 등)'면 employed + founder(외부연사 두 분이 CEO, 10/19 민찬. 폼에서 경험 문항을 안 거친다)
     재학생은 student 를 더하되, 대학원을 골랐거나 학년이 석사 · 박사면 대학원생이라 student 대신 grad(10/18 규칙표: 스터디 팀원은 학부생).
     타 학회원(other)은 구분만으로 학생인지 모르므로 직책 칸에 학부 · 학년 · 재학이 있으면 student(10/19 민찬)"""
     if role == "professor":
         return ["professor"]
+    if (role_raw or "").strip().startswith("기타"):
+        return ["employed", "founder"]
     got = {v for t in split_tags(exp_raw) for k, v in EXP_MAP if t.startswith(k)}
     if re.search(r"학부연구생|연구실\s?인턴|랩\s?인턴", title or ""):      # 경험에 안 골라도 학년 · 직책에 적었으면(career_of 와 같은 말)
         got.add("lab_intern")
@@ -257,7 +262,7 @@ def main() -> int:
             has_job = cols["job"] in rows[0]
             career = career_of(role, (r.get(cols["job"]) or "").strip(), title, has_job)
             if cols["exp"] in rows[0]:                     # 10/18 폼 경험 문항: 구분 여러 개(0017). career 는 그중 하나
-                careers = careers_of(role, r.get(cols["exp"], ""), title)
+                careers = careers_of(role, r.get(cols["exp"], ""), title, r.get(cols["role"], ""))
                 participants[-1]["careers"] = careers
                 career = next((c for c in CAREER_ORDER if c in careers), None)
             participants[-1]["career"] = career
