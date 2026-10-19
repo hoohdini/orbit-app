@@ -1,27 +1,26 @@
-"""포스터 세션 자리별 포스터 QR 과 포스터 · 퀴즈 적재 SQL 을 한 번에 낸다 (2026-10-19).
+"""포스터 세션: 포스터 목록 SQL, 자리별 포스터 QR, 퀴즈 SQL 을 낸다 (2026-10-19).
 
-포스터 코드는 행사장 자리 번호다. 1번 자리 = P01, 11번 자리 = P11. 자리표는 scripts/poster_positions.json 이다.
-QR 문자열은 docs/QR_FORMAT.md 의 포스터 형식 https://<앱주소>/poster?c=<code> 다. QR 에는 코드만 들어가므로
-QR 을 먼저 인쇄하고 제목 · 요약 · 퀴즈는 나중에 SQL 로 넣거나 고쳐도 된다.
+포스터 코드는 행사장 자리 번호다. 1번 자리 = P01, 11번 자리 = P11. 앱의 포스터 목록(/api/poster/list)은 코드 순서라 목록 번호가 자리 번호와 같다.
+QR 문자열은 docs/QR_FORMAT.md 의 포스터 형식 https://<앱주소>/poster?c=<code> 다. QR 에는 코드만 들어간다.
 
-포스터 내용 파일(posters.json)에는 퀴즈 정답이 들어간다. 저장소가 공개라서 이 파일과 결과 SQL 은 저장소 밖에 둔다.
-형식은 scripts/sample_posters.json 을 본다. 포스터가 새로 들어오면 내용 파일에 항목을 더하고 다시 돌린다.
+입력
+  scripts/event_posters.json   포스터 목록(공개 정보: 제목 · 발표자 · 태그 · 요약 · 발표자 이름). 저장소에 둔다
+  --quizzes <파일>             퀴즈와 정답. 저장소가 공개라서 저장소 밖에 둔다. 형식은 scripts/sample_quizzes.json
+
+결과
+  supabase/event_posters.sql       포스터 목록 적재. 저장소에 커밋한다. Supabase SQL Editor 에서 먼저 실행
+  <out>/qr_png/<code>.png          자리마다 QR (300dpi, 1800px)
+  <out>/qr_svg/<code>.svg          같은 QR 벡터. 일러스트레이터 · PPT 에 넣을 때
+  <out>/qr_label/<code>_label.png  안내 문구와 자리 번호를 붙인 타일
+  <out>/poster_quizzes.sql         --quizzes 를 주면. 포스터 목록 SQL 다음에 실행. 저장소에 올리지 않는다
+  <out>/index.csv                  자리, 코드, 발표, 제목, QR 주소, 퀴즈 유무
 
 사용법
   pip install qrcode[pil]
-  python scripts/build_posters.py --data D:/DSL/_event_data/posters.json --out D:/DSL/_event_data/poster_kit
-  python scripts/build_posters.py --data scripts/sample_posters.json --out /tmp/poster_kit     형식 확인용
+  python scripts/build_posters.py --out D:/DSL/_event_data/poster_kit --quizzes D:/DSL/_event_data/quizzes.json
+  python scripts/build_posters.py --out /tmp/poster_kit --quizzes scripts/sample_quizzes.json    형식 확인용(퀴즈 SQL 은 실행하지 않는다)
 
-결과
-  <out>/qr_png/<code>.png          자리마다 QR (300dpi, 1800px). 자리표의 11자리 전부
-  <out>/qr_svg/<code>.svg          같은 QR 벡터. 일러스트레이터 · PPT 에 넣을 때
-  <out>/qr_label/<code>_label.png  안내 문구와 자리 번호를 붙인 타일. 포스터에 그대로 붙일 때
-  <out>/posters_quiz.sql           Supabase SQL Editor 에 붙여 실행. 여러 번 실행해도 결과가 같다
-  <out>/index.csv                  자리, 코드, 발표, 제목, QR 주소, 등록 여부, 퀴즈, 정답
-
-내용 파일 항목: code, title, presenter, presenter_names(발표자 본인 응답을 빼는 데 씀, docs/DATA_SPEC.md P-03),
-tags, summary(포스터 화면의 요약. 퀴즈 버튼 바로 위에 보이므로 정답을 적지 않는다), question, choices(2개, 10/5 회의),
-answer_index(0 또는 1), evidence(정답 근거, SQL 에는 들어가지 않음)
+요약(summary)은 앱에서 퀴즈 버튼 바로 위에 보이므로 퀴즈 정답을 적지 않는다. 퀴즈는 보기 2개(10/5 회의).
 """
 from __future__ import annotations
 
@@ -32,7 +31,22 @@ import os
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+REPO = HERE.parent
 NAVY = (27, 36, 84)
+
+# 지울 예전 행. 개발용 seed(supabase/seed.sql)의 가짜 포스터와, 자리 번호로 바꾸기 전(10/19) 번호로 들어간 포스터.
+# 코드와 제목이 둘 다 맞을 때만 지운다(행사 중 제목을 고쳐도 응답 · 스탬프가 지워지지 않게)
+STALE = [
+    ("P01", "그래프 SID 생성형 추천"),
+    ("P02", "구인구직 매칭 데이터셋"),
+    ("P03", "시계열 이상탐지"),
+    ("P04", "LLM 기반 문서 요약"),
+    ("P05", "인과추론으로 본 마케팅 효과"),
+    ("P01", "그래프 Semantic ID로 생성형 추천의 콜드스타트 완화"),
+    ("P02", "Do MLLMs Capture How Interfaces Guide User Behavior?"),
+    ("P03", "Semi-Supervised Preference Optimization with Limited Feedback"),
+    ("P04", "사주명리학의 유의성에 대한 통계적 접근"),
+]
 
 
 def font(size: int, bold: bool = False):
@@ -40,10 +54,10 @@ def font(size: int, bold: bool = False):
     from PIL import ImageFont
 
     cands = [
-        ("/System/Library/Fonts/AppleSDGothicNeo.ttc", 0),                                   # macOS
-        ("C:/Windows/Fonts/malgunbd.ttf" if bold else "C:/Windows/Fonts/malgun.ttf", 0),       # Windows
+        ("/System/Library/Fonts/AppleSDGothicNeo.ttc", 0),                                     # macOS
+        ("C:/Windows/Fonts/malgunbd.ttf" if bold else "C:/Windows/Fonts/malgun.ttf", 0),         # Windows
         (f"/usr/share/fonts/opentype/noto/NotoSansCJK-{'Bold' if bold else 'Regular'}.ttc", 1),  # Linux (Noto CJK, 1 = KR)
-        ("/usr/share/fonts/truetype/nanum/NanumGothic.ttf", 0),                               # Linux (fonts-nanum)
+        ("/usr/share/fonts/truetype/nanum/NanumGothic.ttf", 0),                                 # Linux (fonts-nanum)
     ]
     for path, index in cands:
         if os.path.exists(path):
@@ -54,18 +68,85 @@ def font(size: int, bold: bool = False):
     return ImageFont.load_default()
 
 
-def sql_str(s: str) -> str:
-    return "'" + s.replace("'", "''") + "'"
+def s(x: str) -> str:
+    return "'" + x.replace("'", "''") + "'"
 
 
-def sql_arr(xs: list[str]) -> str:
-    return "array[" + ",".join(sql_str(x) for x in xs) + "]::text[]" if xs else "'{}'::text[]"
+def arr(xs: list[str]) -> str:
+    return "array[" + ",".join(s(x) for x in xs) + "]::text[]" if xs else "'{}'::text[]"
+
+
+def posters_sql(posters: list[dict], event_id: str) -> str:
+    codes = ",".join(s(p["code"]) for p in posters)
+    L = [
+        "-- 행사 포스터 목록 (scripts/build_posters.py 가 scripts/event_posters.json 으로 만든다. 직접 고치지 않는다)",
+        "-- Supabase 대시보드 > SQL Editor 에 통째로 붙여 실행한다. 여러 번 실행해도 결과가 같다.",
+        "-- 코드 = 행사장 자리 번호. 퀴즈는 저장소 밖 poster_quizzes.sql 을 이 파일 다음에 실행한다.",
+        f"-- presenter_ids(발표자 본인 응답을 커피챗 계산에서 뺌, docs/DATA_SPEC.md P-03)는 participants.event_id = '{event_id}' 에서 이름으로 찾는다.",
+        "-- 명단 적재 전에 실행하면 빈 배열이므로 적재 뒤 한 번 더 실행한다.",
+        "",
+        "begin;",
+        "",
+        "-- 예전 행(개발용 seed 가짜 포스터, 자리 번호 전 번호). 코드와 제목이 둘 다 맞을 때만 지운다. 딸린 퀴즈 · 기록도 같이 지워진다",
+        "delete from posters where (code, title) in (",
+        ",\n".join(f"  ({s(c)}, {s(t)})" for c, t in STALE),
+        ");",
+        "",
+        "insert into posters (code, title, presenter, tags, summary) values",
+        ",\n".join(f"  ({s(p['code'])}, {s(p['title'])}, {s(p['presenter'])}, {arr(p['tags'])}, {s(p['summary'])})" for p in posters),
+        "on conflict (code) do update set",
+        "  title = excluded.title, presenter = excluded.presenter, tags = excluded.tags, summary = excluded.summary;",
+        "",
+    ]
+    for p in posters:
+        if p.get("presenter_names"):
+            L.append(
+                f"update posters set presenter_ids = coalesce((select array_agg(id) from participants "
+                f"where event_id = {s(event_id)} and display_name = any({arr(p['presenter_names'])})), '{{}}') where code = {s(p['code'])};"
+            )
+    L += [
+        "",
+        "commit;",
+        "",
+        "-- 확인: 목록 순서 = 자리 번호, 발표자 id 수",
+        "select code, title, presenter, cardinality(presenter_ids) as presenters, (select count(*) from poster_quizzes q where q.poster_id = posters.id) as quizzes",
+        "from posters order by code;",
+        "",
+    ]
+    return "\n".join(L)
+
+
+def quizzes_sql(quizzes: list[dict]) -> str:
+    codes = ",".join(s(q["code"]) for q in quizzes)
+    L = [
+        "-- 포스터 퀴즈 (scripts/build_posters.py 로 생성). 정답이 들어 있으므로 저장소에 올리지 않는다.",
+        "-- supabase/event_posters.sql 을 먼저 실행한 뒤 SQL Editor 에서 실행한다. 여러 번 실행해도 결과가 같다.",
+        "",
+        "begin;",
+        "",
+        "-- 포스터당 1개, 이지선다. 지우고 새로 넣는다(시도 기록 quiz_attempts 는 poster_id 기준이라 남는다)",
+        f"delete from poster_quizzes where poster_id in (select id from posters where code in ({codes}));",
+        "insert into poster_quizzes (poster_id, question, choices, answer_index)",
+        "\nunion all\n".join(
+            f"  select id, {s(q['question'])}, {s(json.dumps(q['choices'], ensure_ascii=False))}::jsonb, {q['answer_index']} from posters where code = {s(q['code'])}"
+            for q in quizzes
+        )
+        + ";",
+        "",
+        "commit;",
+        "",
+        f"-- 확인: 퀴즈 {len(quizzes)}개가 보여야 한다. 모자라면 포스터 목록 SQL 을 먼저 실행하지 않은 것이다",
+        "select p.code, q.question, q.choices, q.answer_index from poster_quizzes q join posters p on p.id = q.poster_id",
+        f"where p.code in ({codes}) order by p.code;",
+        "",
+    ]
+    return "\n".join(L)
 
 
 def make_qr(payload: str):
     import qrcode
 
-    # Q(25% 복원): 인쇄물이 조금 구겨지거나 반사돼도 읽히게. 문자열이 짧아 칸 수는 그대로다
+    # Q(25% 복원): 인쇄물이 조금 구겨지거나 반사돼도 읽히게
     qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_Q, box_size=40, border=4)
     qr.add_data(payload)
     qr.make(fit=True)
@@ -73,7 +154,6 @@ def make_qr(payload: str):
 
 
 def label_tile(qr_img, slot: int):
-    """안내 문구 + QR + 자리 번호 타일."""
     from PIL import Image, ImageDraw
 
     W = 1600
@@ -87,108 +167,52 @@ def label_tile(qr_img, slot: int):
     return tile
 
 
-def build_sql(posters: list[dict], event_id: str) -> str:
-    codes = ",".join(sql_str(p["code"]) for p in posters)
-    L = [
-        "-- ORBIT.app 포스터 세션: 포스터 · 퀴즈 적재 (scripts/build_posters.py 로 생성)",
-        "-- Supabase 대시보드 > SQL Editor 에 통째로 붙여 실행한다. 여러 번 실행해도 결과가 같다.",
-        f"-- presenter_ids 는 participants.event_id = '{event_id}' 에서 이름으로 찾는다. 명단 적재 전이면 빈 배열이므로 적재 뒤 한 번 더 실행한다.",
-        "",
-        "begin;",
-        "",
-        "-- 같은 포스터가 다른 코드로 들어가 있으면 지운다(코드를 자리 번호로 바꾼 경우)",
-        f"delete from posters where title in ({','.join(sql_str(p['title']) for p in posters)}) and code not in ({codes});",
-        "",
-        "insert into posters (code, title, presenter, tags, summary) values",
-        ",\n".join(
-            f"  ({sql_str(p['code'])}, {sql_str(p['title'])}, {sql_str(p['presenter'])}, {sql_arr(p['tags'])}, {sql_str(p['summary'])})"
-            for p in posters
-        ),
-        "on conflict (code) do update set",
-        "  title = excluded.title, presenter = excluded.presenter, tags = excluded.tags, summary = excluded.summary;",
-        "",
-        "-- 발표자 본인 응답은 커피챗 계산에서 뺀다(docs/DATA_SPEC.md P-03)",
-    ]
-    for p in posters:
-        names = p.get("presenter_names") or []
-        if names:
-            L.append(
-                f"update posters set presenter_ids = coalesce((select array_agg(id) from participants "
-                f"where event_id = {sql_str(event_id)} and display_name = any({sql_arr(names)})), '{{}}') where code = {sql_str(p['code'])};"
-            )
-    L += [
-        "",
-        "-- 퀴즈는 포스터당 1개, 이지선다. 지우고 새로 넣는다(시도 기록 quiz_attempts 는 poster_id 기준이라 남는다)",
-        f"delete from poster_quizzes where poster_id in (select id from posters where code in ({codes}));",
-        "insert into poster_quizzes (poster_id, question, choices, answer_index)",
-        "\nunion all\n".join(
-            f"  select id, {sql_str(p['question'])}, {sql_str(json.dumps(p['choices'], ensure_ascii=False))}::jsonb, {p['answer_index']} "
-            f"from posters where code = {sql_str(p['code'])}"
-            for p in posters
-        )
-        + ";",
-        "",
-        "commit;",
-        "",
-        "-- 확인",
-        "select p.code, p.title, cardinality(p.presenter_ids) as presenters, q.question, q.choices, q.answer_index",
-        f"from posters p left join poster_quizzes q on q.poster_id = p.id where p.code in ({codes}) order by p.code;",
-        "",
-        "-- 개발용 seed(supabase/seed.sql)를 넣었던 DB 면 가짜 포스터가 남는다. 지우려면:",
-        "-- delete from posters where (code, title) in (('P02','구인구직 매칭 데이터셋'),('P03','시계열 이상탐지'),('P05','인과추론으로 본 마케팅 효과'));",
-        "",
-    ]
-    return "\n".join(L)
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", required=True, help="포스터 내용 JSON(퀴즈 정답 포함, 저장소 밖)")
-    ap.add_argument("--out", required=True, help="결과 폴더. 저장소 밖")
+    ap.add_argument("--out", required=True, help="QR · 퀴즈 SQL 을 낼 폴더. 저장소 밖")
+    ap.add_argument("--quizzes", help="퀴즈 JSON(정답 포함, 저장소 밖)")
     ap.add_argument("--app-url", default="https://orbit-app-dusky-theta.vercel.app", help="배포 주소")
     ap.add_argument("--event-id", default="orbit-2026", help="발표자 이름을 찾을 participants.event_id")
-    ap.add_argument("--positions", default=str(HERE / "poster_positions.json"), help="자리표")
+    ap.add_argument("--posters", default=str(HERE / "event_posters.json"))
+    ap.add_argument("--sql", default=str(REPO / "supabase" / "event_posters.sql"), help="포스터 목록 SQL 경로")
     a = ap.parse_args()
 
     import qrcode.image.svg
 
-    positions = json.loads(Path(a.positions).read_text(encoding="utf-8"))
-    posters = json.loads(Path(a.data).read_text(encoding="utf-8"))
-    known = {p["code"] for p in positions}
-    for p in posters:
-        if p["code"] not in known:
-            raise SystemExit(f"{p['code']} 가 자리표에 없다")
-        if len(p["choices"]) != 2 or p["answer_index"] not in (0, 1):
-            raise SystemExit(f"{p['code']} 퀴즈는 보기 2개, 정답 0 또는 1 이어야 한다")
-    content = {p["code"]: p for p in posters}
+    posters = json.loads(Path(a.posters).read_text(encoding="utf-8"))
+    codes = [p["code"] for p in posters]
+    if len(set(codes)) != len(codes) or any(p["code"] != f"P{p['slot']:02d}" for p in posters):
+        raise SystemExit("코드는 자리 번호(P01 ...)와 같고 겹치지 않아야 한다")
+    quizzes = json.loads(Path(a.quizzes).read_text(encoding="utf-8")) if a.quizzes else []
+    for q in quizzes:
+        if q["code"] not in codes:
+            raise SystemExit(f"{q['code']} 가 포스터 목록에 없다")
+        if len(q["choices"]) != 2 or q["answer_index"] not in (0, 1):
+            raise SystemExit(f"{q['code']} 퀴즈는 보기 2개, 정답 0 또는 1 이어야 한다")
+    has_quiz = {q["code"] for q in quizzes}
+
+    Path(a.sql).write_text(posters_sql(posters, a.event_id), encoding="utf-8")
 
     base = a.app_url.rstrip("/")
     out = Path(a.out)
     for sub in ("qr_png", "qr_svg", "qr_label"):
         (out / sub).mkdir(parents=True, exist_ok=True)
-
     rows = []
-    for pos in positions:
-        code = pos["code"]
-        payload = f"{base}/poster?c={code}"
+    for p in posters:
+        payload = f"{base}/poster?c={p['code']}"
         qr = make_qr(payload)
         img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
-        img.save(out / "qr_png" / f"{code}.png", dpi=(300, 300))
-        qr.make_image(image_factory=qrcode.image.svg.SvgPathImage).save(str(out / "qr_svg" / f"{code}.svg"))
-        label_tile(img, pos["slot"]).save(out / "qr_label" / f"{code}_label.png", dpi=(300, 300))
-        p = content.get(code)
-        if p:
-            rows.append([pos["slot"], code, pos["who"], p["title"], payload, "등록", p["question"], " / ".join(p["choices"]), p["choices"][p["answer_index"]]])
-        else:
-            rows.append([pos["slot"], code, pos["who"], "", payload, "내용 없음", "", "", ""])
-
+        img.save(out / "qr_png" / f"{p['code']}.png", dpi=(300, 300))
+        qr.make_image(image_factory=qrcode.image.svg.SvgPathImage).save(str(out / "qr_svg" / f"{p['code']}.svg"))
+        label_tile(img, p["slot"]).save(out / "qr_label" / f"{p['code']}_label.png", dpi=(300, 300))
+        rows.append([p["slot"], p["code"], p["presenter"], p["title"], payload, "있음" if p["code"] in has_quiz else "없음"])
     with open(out / "index.csv", "w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["자리", "코드", "발표", "제목", "QR 주소", "DB", "퀴즈", "보기", "정답"])
+        w.writerow(["자리", "코드", "발표", "제목", "QR 주소", "퀴즈"])
         w.writerows(rows)
-    if posters:
-        (out / "posters_quiz.sql").write_text(build_sql(posters, a.event_id), encoding="utf-8")
-    print(f"QR {len(positions)}자리, 내용 {len(posters)}개: {out}")
+    if quizzes:
+        (out / "poster_quizzes.sql").write_text(quizzes_sql(quizzes), encoding="utf-8")
+    print(f"포스터 {len(posters)}개 → {a.sql}, QR · 퀴즈 {len(quizzes)}개 → {out}")
     return 0
 
 

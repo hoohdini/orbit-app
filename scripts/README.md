@@ -48,17 +48,17 @@ python scripts/export_poster_qr.py --app-url http://localhost:3000 --out /tmp/po
 
 ## build_posters.py
 
-포스터 세션 자리별 QR 과 포스터 · 퀴즈 적재 SQL 을 한 번에 낸다. DB 없이 돈다.
+포스터 세션의 포스터 목록 SQL, 자리별 QR, 퀴즈 SQL 을 낸다. DB 없이 돈다.
 
 ```bash
 pip install qrcode[pil]
-python scripts/build_posters.py --data D:/DSL/_event_data/posters.json --out D:/DSL/_event_data/poster_kit
+python scripts/build_posters.py --out D:/DSL/_event_data/poster_kit --quizzes D:/DSL/_event_data/quizzes.json
 ```
 
-- 포스터 코드는 행사장 자리 번호다(1번 자리 = P01, 11번 자리 = P11). 자리표는 `poster_positions.json` 이다.
-- QR 에는 코드만 들어가므로 자리표 11자리 QR 을 먼저 인쇄해도 된다. 포스터를 받으면 내용 파일에 항목을 더하고 다시 돌려 나온 `posters_quiz.sql` 을 Supabase SQL Editor 에서 실행한다. 여러 번 실행해도 결과가 같다.
-- 내용 파일과 결과 SQL 에는 퀴즈 정답이 들어가므로 저장소 밖에 둔다(저장소가 공개다). 형식은 `sample_posters.json`.
-- 요약(summary)은 앱에서 퀴즈 버튼 바로 위에 보이므로 정답을 적지 않는다. 퀴즈는 보기 2개(10/5 회의).
-- 발표자 이름(presenter_names)으로 participants 에서 id 를 찾아 presenter_ids 에 넣는다. 명단 적재 뒤 SQL 을 한 번 더 실행한다.
-- 인쇄는 A1 포스터 기준 한 변 8cm 이상, 흰 여백을 자르지 않는다. 벡터가 필요하면 `qr_svg` 를 쓴다.
+- 포스터 목록의 정본은 `event_posters.json`(제목 · 발표자 · 태그 · 요약 · 발표자 이름)이다. 고친 뒤 스크립트를 돌리면 `supabase/event_posters.sql` 이 다시 만들어진다. 둘을 같은 PR 에 넣는다.
+- 포스터 코드는 행사장 자리 번호다(1번 자리 = P01, 11번 자리 = P11). 앱 포스터 목록은 코드 순서라 목록 번호가 자리 번호와 같다.
+- 적용 순서: Supabase SQL Editor 에서 `supabase/event_posters.sql` → `<out>/poster_quizzes.sql`. 둘 다 여러 번 실행해도 결과가 같다. 명단 적재 뒤 한 번 더 실행하면 presenter_ids(발표자 본인 응답 제외)가 채워진다.
+- 퀴즈 파일과 `poster_quizzes.sql` 에는 정답이 들어가므로 저장소 밖에 둔다(저장소가 공개다). 형식은 `sample_quizzes.json`.
+- 요약(summary)은 앱에서 퀴즈 버튼 바로 위에 보이므로 퀴즈 정답을 적지 않는다. 퀴즈는 보기 2개(10/5 회의).
+- QR 에는 코드만 들어가므로 먼저 인쇄해도 된다. 인쇄는 A1 포스터 기준 한 변 8cm 이상, 흰 여백을 자르지 않는다. 벡터가 필요하면 `qr_svg` 를 쓴다.
 - `export_poster_qr.py` 는 DB 에 이미 들어간 포스터로 QR 만 다시 뽑을 때 쓴다. 두 스크립트의 QR 문자열은 같다.
