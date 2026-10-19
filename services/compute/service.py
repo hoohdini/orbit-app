@@ -196,7 +196,7 @@ def _rec_scores(S, O, a, P, intents, rec_mode) -> np.ndarray:
 
 
 def _careers(P) -> list:
-    """사람마다 구분. 여러 개(careers, 0017, 폼 경험 문항)가 있으면 그것, 없으면 하나(career, 0015 · 0016)."""
+    """사람마다 구분. 여러 개(careers, 0017, 폼 경험 문항 · 구분 · 직책으로 명단 적재가 정함)가 있으면 그것, 없으면 하나(career, 0015 · 0016)."""
     return [p.get("careers") or p.get("career") for p in P]
 
 

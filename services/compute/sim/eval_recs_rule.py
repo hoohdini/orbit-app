@@ -126,11 +126,11 @@ def run(seed: int, enc, noise: float, seek: str = "blank") -> dict:
     a = scoring.directional(S, O)
     seat = scoring.pair_directional(S, O, True, 0.5)
     methods = {
-        "예전 min(지금 기본)": scoring.combine(a, "min"),
+        "예전 min(10/17 까지 기본)": scoring.combine(a, "min"),
         "예전 one_way": a,
         "배정용 보정 점수 min": scoring.combine(seat, "min"),
         "배정용 보정 점수 one_way": seat,
-        "rule(새 기본)": scoring.rec_rule_score(S, O, [p["intent_tags"] for p in P], [p["career"] for p in P]),
+        "rule(기본)": scoring.rec_rule_score(S, O, [p["intent_tags"] for p in P], [p["career"] for p in P]),
     }
     out = {}
     for name, M in methods.items():
