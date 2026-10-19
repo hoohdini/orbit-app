@@ -32,7 +32,7 @@ CSV 열 (첫 줄 헤더, UTF-8). 열 이름은 아래와 같거나 --map 으로 
   구분: '재학생(석/박사 연구원 포함)' · '졸업생' · '교수' · '타 학회원' · '기타(외부연사 등)' 처럼 앞부분으로 읽는다(타 학회원 · 기타 = other)
   재학생 · 졸업생 · 타 학회원 섹션이 같은 질문을 되풀이해 시트에 같은 이름 열이 여러 개 생긴다(소속 (학교·학과) · 소속처럼 앞부분만 같은 것도).
   한 사람은 한 섹션만 답하므로 열을 합쳐 처음 채워진 값을 쓴다(read_rows · resolve_cols)
-  구분 여러 개 careers(0017) = 경험(기업 재직 → employed · 기업 인턴 → intern · 학부연구생 → lab_intern · 대학원 → grad)
+  구분 여러 개 careers(0017) = 경험(기업 재직 → employed · 기업 인턴 → intern · 창업 → founder · 학부연구생 → lab_intern · 대학원 → grad)
   + 학년 · 직책 칸 말(석사 · 박사 · 석박 · 대학원 · M.S. · Ph.D → grad, 학부연구생 · 연구실 인턴 · 랩 인턴 → lab_intern, 경험에 안 골랐어도)
   + 재학생이면 student(grad 가 있으면 빼고), 타 학회원은 직책 칸에 학부 · 학년 · 재학이 있으면 student
   · 교수면 professor 만 · 기타(외부연사 등)면 employed + founder(10/19: 외부연사 두 분이 CEO, 다른 사람이 섞이면 그 사람도 재직자로 들어간다)
@@ -64,7 +64,7 @@ FORM_HEADERS = {"name": ("이름",), "phone": ("휴대폰 번호 뒤 4자리", "
                 "topic": ("직무 도메인",), "affiliation": ("소속",), "title": ("학년", "직책"),
                 "intent": ("게더링에 기대하는 점", "개더링에 기대하는 점"), "exp": ("해당하는 경험",)}
 # 폼 '해당하는 경험을 모두 골라 주세요' 선택지(앞부분) → 구분(careers, 0017). '해당 없음'은 아무것도 아니다
-EXP_MAP = (("기업 재직", "employed"), ("기업 인턴", "intern"), ("학부연구생", "lab_intern"), ("대학원", "grad"))
+EXP_MAP = (("기업 재직", "employed"), ("기업 인턴", "intern"), ("창업", "founder"), ("학부연구생", "lab_intern"), ("대학원", "grad"))
 CAREER_ORDER = ("professor", "employed", "grad", "lab_intern", "student")   # career(0015, 하나)로 고를 때의 순서. intern 은 0015 에 없다
 OPERATORS = ("박성하", "황수민", "김민찬", "김나혜", "김현희")
 DEFAULT_COLS = {"name": "이름", "affiliation": "소속", "role": "구분", "cohort": "기수", "phone": "휴대폰", "offer": "하는일", "seek": "찾는사람", "topic": "주제태그", "intent": "관계태그", "host": "호스트", "fixed": "고정테이블", "teams": "활동팀",
@@ -171,7 +171,7 @@ def careers_of(role: str, exp_raw: str, title: str, role_raw: str = "") -> list[
     studying = role in ("student", "staff") or (role == "other" and re.search(r"학부|학년|재학", title or ""))   # 타 학회원은 직책 칸에 학부 · 학년을 적었으면 학생
     if studying and "grad" not in got:
         got.add("student")
-    return [c for c in ("employed", "intern", "grad", "lab_intern", "student") if c in got]
+    return [c for c in ("employed", "intern", "founder", "grad", "lab_intern", "student") if c in got]
 
 
 def last4(phone: str) -> str | None:
