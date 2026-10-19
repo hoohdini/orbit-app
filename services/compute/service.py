@@ -189,18 +189,26 @@ def _rec_mode(rec_mode: str | None) -> str:
 def _rec_scores(S, O, a, P, intents, rec_mode) -> np.ndarray:
     """개인 추천 점수. 기본 rule(10/18): 찾는 사람 → 하는 일 · 하는 일끼리 · '줄 수 있는 것' 규칙을 섞은 한 방향(scoring.rec_rule_score).
     예전 방식(min · one_way · avg · harmonic)은 REC_SCORE 나 요청의 rec_mode 로."""
-    careers = [p.get("career") for p in P]
-    if _rec_mode(rec_mode) == "rule" and any(careers):
-        return scoring.rec_rule_score(S, O, intents, careers)
-    # 구분을 아무도 모르면(0015 전 DB · 예전 명단) 규칙이 0 이라 평가하지 않은 조합만 남는다 → 예전 min
+    if _rec_mode(rec_mode) == "rule" and _rule_ready(P, intents):
+        return scoring.rec_rule_score(S, O, intents, _careers(P))
+    # 규칙 재료가 없으면(0015 전 DB · 예전 명단 · 아무도 규칙 있는 선택지를 안 고름) 평가하지 않은 조합만 남는다 → 예전 min
     return scoring.rec_matrix(a, "min" if _rec_mode(rec_mode) == "rule" else _rec_mode(rec_mode))
+
+
+def _careers(P) -> list:
+    """사람마다 구분. 여러 개(careers, 0017, 폼 경험 문항 · 구분 · 직책으로 명단 적재가 정함)가 있으면 그것, 없으면 하나(career, 0015 · 0016)."""
+    return [p.get("careers") or p.get("career") for p in P]
+
+
+def _rule_ready(P, intents) -> bool:
+    return bool(scoring.gives_matrix(intents, _careers(P)).any())
 
 
 def _rec_params(P, intents, rec_mode) -> dict:
     """계산 기록(assign_versions.params)에 어떤 점수로 추천 목록을 만들었는지 남긴다."""
-    known = sum(1 for p in P if p.get("career"))
+    known = sum(1 for c in _careers(P) if c)
     mode = _rec_mode(rec_mode)
-    return {"rec_mode": mode if (mode != "rule" or known) else "min(구분 없음)", "career_known": known,
+    return {"rec_mode": mode if (mode != "rule" or _rule_ready(P, intents)) else "min(규칙 재료 없음)", "career_known": known,
             "intent_unknown": scoring.intent_unknown(intents)}
 
 

@@ -3,16 +3,19 @@
 
 사람 · 배치 · 아는 사이 = sim/make_seat_eval_dataset.make(seed) 그대로. 폼 답만 10/17 구글폼 모양으로 바꾼다(자유 문장 없음)
   하는 일 = 직책(+ 소속 70%), 분야 태그 = 재직자 · 교수는 직무 도메인, 학생 · 대학원생은 관심 도메인(학생은 직무 도메인을 안 고름)
-  찾는 사람 = '관심 분야: <관심 도메인>', 기대하는 점(관계태그) = 숨은 원하는 것 그대로, 구분(career) = 단계에서(재직 · 대학원 · 재학 · 교수)
+  찾는 사람 = 빈칸(--seek blank, 기본: 10/18 사전 등록 폼에 찾는 사람 문항이 없어 서비스가 자기 하는 일로 대신함 → 찾는 사람 → 하는 일 점수 = 하는 일끼리 점수)
+            또는 '관심 분야: <숨은 관심 도메인>'(--seek interest, 10/18 처음 잰 조건. 폼에서는 나오지 않는 정보)
+  기대하는 점 = 숨은 원하는 것을 10/18 사전 등록 폼 선택지로 옮긴 것(FORM_INTENT), 구분(career) = 단계에서 하나(재직 · 대학원 · 재학 · 교수.
+  기업 인턴 · 학부연구생 · 창업자 · 여러 구분은 아직 재지 않음)
 숨은 관심 도메인: 60% 는 자기 분야 포함, 40% 는 다른 분야 포함(1~3개)
 좋은 상대
   T1 = 상대가 내 필요를 채움(need > 0) 그리고 분야가 겹침, 처음 보는 사이(sim/eval_seating.py 정답 그대로)
   T2 = 같은데 분야 대신 '상대 주 분야가 내 관심 도메인 안'
 비교: 예전(찾는 사람 → 하는 일 cos, min · one_way), 배정용 보정 점수(seat_directional 과 같은 계산), rule(scoring.rec_rule_score)
 --noise p: 숨은 정답의 '줄 수 있는 것'을 사람마다 흔든다(항목마다 p 확률로 빼고, p 확률로 표에 없는 것 하나 더함, 1 이면 완전 무작위).
-           규칙표(scoring.GIVES)가 실제와 어긋날 때 이득이 얼마나 남는지 본다
+           규칙표(scoring.WANTS)가 실제와 어긋날 때 이득이 얼마나 남는지 본다
 
-실행  python sim/eval_recs_rule.py --seeds 2026-2045 [--noise 0.4]      (약 2분, 모델 필요)
+실행  python sim/eval_recs_rule.py --seeds 2026-2045 [--noise 0.4] [--seek interest]      (약 2분, 모델 필요)
 """
 from __future__ import annotations
 
@@ -36,6 +39,10 @@ from service import TABLETALK_COHORT_CAP  # noqa: E402
 
 DOM = list(DOMAINS)
 EMPLOYED = ("주니어", "시니어", "창업자")
+# 숨은 원하는 것 → 10/18 사전 등록 폼 '개더링에 기대하는 점' 선택지. 채용(선배가 사람 구함)은 폼에 맞는 선택지가 없어 뺀다
+FORM_INTENT = {"취업정보": "취업·이직 정보", "이직정보": "취업·이직 정보", "멘토링": "커리어 조언·현업 이야기",
+               "대학원진학": "대학원 진학·연구", "연구협업": "대학원 진학·연구", "스터디": "스터디·프로젝트 팀원 찾기",
+               "프로젝트팀원": "스터디·프로젝트 팀원 찾기", "창업": "창업·사이드 프로젝트"}
 
 
 def career(stage: str) -> str:
@@ -51,7 +58,7 @@ def title(rng, p) -> str:
     return rng.choice(JOB[s]) if s in JOB else {"창업자": "대표", "교수": "교수"}[s]
 
 
-def form(P: list[dict], seed: int, noise: float) -> list[dict]:
+def form(P: list[dict], seed: int, noise: float, seek: str = "blank") -> list[dict]:
     hw, rng, nz = random.Random(seed * 7 + 1), random.Random(seed * 7 + 5), random.Random(seed * 31 + int(noise * 100))
     order = lambda xs: sorted(set(xs), key=DOM.index)
     for p in P:
@@ -68,8 +75,8 @@ def form(P: list[dict], seed: int, noise: float) -> list[dict]:
         job = [d1] + ([d2] if rng.random() < 0.7 else []) if p["career"] in ("employed", "professor") else []
         p["topic_tags"] = order(job) or order(p["wanted"])
         p["f_offer"] = title(rng, p) + (f" · {p['affiliation']}" if rng.random() < 0.7 else "")
-        p["f_seek"] = "관심 분야: " + ", ".join(order(p["wanted"]))
-        p["intent_tags"] = [g for g in GOALS if g in p["goals"]]
+        p["f_seek"] = "관심 분야: " + ", ".join(order(p["wanted"])) if seek == "interest" else ""
+        p["intent_tags"] = sorted({FORM_INTENT[g] for g in p["goals"] if g in FORM_INTENT})
         if noise >= 1.0:
             p["gives"] = nz.sample(GOALS, nz.randint(2, 4))
         elif noise > 0:
@@ -101,8 +108,8 @@ def service_lists(M: np.ndarray, P, met: np.ndarray) -> np.ndarray:
     return lists
 
 
-def run(seed: int, enc, noise: float) -> dict:
-    P = form(make(seed), seed, noise)
+def run(seed: int, enc, noise: float, seek: str = "blank") -> dict:
+    P = form(make(seed), seed, noise, seek)
     n = len(P)
     know = acquainted([dict(cohort=p["cohort"], affiliation=p["affiliation"], teams=p["teams"]) for p in P])
     T = {"T1": ev.truth(P, know)["good"], "T2": truth2(P, know)["good"]}
@@ -119,11 +126,11 @@ def run(seed: int, enc, noise: float) -> dict:
     a = scoring.directional(S, O)
     seat = scoring.pair_directional(S, O, True, 0.5)
     methods = {
-        "예전 min(지금 기본)": scoring.combine(a, "min"),
+        "예전 min(10/17 까지 기본)": scoring.combine(a, "min"),
         "예전 one_way": a,
         "배정용 보정 점수 min": scoring.combine(seat, "min"),
         "배정용 보정 점수 one_way": seat,
-        "rule(새 기본)": scoring.rec_rule_score(S, O, [p["intent_tags"] for p in P], [p["career"] for p in P]),
+        "rule(기본)": scoring.rec_rule_score(S, O, [p["intent_tags"] for p in P], [p["career"] for p in P]),
     }
     out = {}
     for name, M in methods.items():
@@ -138,12 +145,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", default="2026-2045")
     ap.add_argument("--noise", type=float, default=0.0)
+    ap.add_argument("--seek", choices=("blank", "interest"), default="blank", help="찾는 사람 문장: blank = 폼처럼 빈칸(기본), interest = 숨은 관심 도메인")
     a = ap.parse_args()
     lo, hi = (int(x) for x in a.seeds.split("-")) if "-" in a.seeds else (int(a.seeds), int(a.seeds))
     enc, rs = Encoder(), []
     for s in range(lo, hi + 1):
-        rs.append(run(s, enc, a.noise))
-    print(f"시드 {lo}~{hi} · 정답 흔듦 {a.noise} · 추천 10명 중 좋은 상대 수(평균) · 좋은 상대 0명 비율")
+        rs.append(run(s, enc, a.noise, a.seek))
+    print(f"시드 {lo}~{hi} · 정답 흔듦 {a.noise} · 찾는 사람 {a.seek} · 추천 10명 중 좋은 상대 수(평균) · 좋은 상대 0명 비율")
     for t in ("T1", "T2"):
         print(f"== {t}")
         for k in rs[0]:

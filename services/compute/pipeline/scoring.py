@@ -81,47 +81,70 @@ def combine(a: np.ndarray, mode: str = "min") -> np.ndarray:
     return c
 
 
-# '줄 수 있는 것' 규칙(10/18 민찬, sim/eval_recs_rule.py). 상대의 구분(participants.career, 0015) → 그 사람이 줄 수 있는 것.
-# 키는 폼 '기대하는 점' 체크 = profiles.intent_tags 와 같은 말이어야 한다(괄호 설명 · 띄어쓰기는 무시). 폼 선택지가 바뀌면 여기를 같이 고친다
-# 값 = 얼마나 줄 수 있나(1 = 충분히). 학부연구생(연구실 인턴)은 대학원생보다 한 단계 낮게 대학원진학 · 연구협업 0.5(10/18 민찬)
-GIVES = {
-    "employed": {"취업정보": 1.0, "이직정보": 1.0, "채용": 1.0, "멘토링": 1.0},
-    "grad": {"대학원진학": 1.0, "연구협업": 1.0},
-    "lab_intern": {"대학원진학": 0.5, "연구협업": 0.5, "스터디": 1.0, "프로젝트팀원": 1.0},
-    "student": {"스터디": 1.0, "프로젝트팀원": 1.0},
-    "professor": {"대학원진학": 1.0, "연구협업": 1.0, "멘토링": 1.0},
+# '줄 수 있는 것' 규칙(10/18 민찬, sim/eval_recs_rule.py). 내가 고른 '기대하는 점' → 그걸 줄 수 있는 상대 구분과 정도(1 = 충분히).
+# 상대 구분은 여러 개일 수 있다(participants.careers, 0017: 폼 '해당하는 경험' 기업 재직 · 기업 인턴 · 창업 · 학부연구생 · 대학원 + 재학생 · 교수 · 기타(외부연사 CEO) = 재직자 + 창업자). 가장 높은 값을 쓴다
+# 키는 사전 등록 구글폼(10/18 성하)의 '개더링에 기대하는 점 · 현재 관심사' 선택지 그대로 = profiles.intent_tags. 괄호 설명 · 띄어쓰기는 무시.
+# 폼 선택지가 바뀌면 여기를 같이 고친다(모르는 선택지는 계산 기록 params.intent_unknown 에 남는다)
+SAME = "same"                         # 키로 쓰면: 상대도 같은 선택지를 골랐으면 그 값(줄 사람이 구분이 아니라 관심으로 정해지는 것)
+WANTS = {
+    "커리어 조언·현업 이야기": {"employed": 1.0, "intern": 0.5},   # 기업 인턴은 재직자보다 한 단계 낮게(민찬, 학부연구생과 같은 0.5)
+    "취업·이직 정보": {"employed": 1.0, "intern": 0.5},
+    "대학원 진학·연구": {"grad": 1.0, "professor": 1.0, "lab_intern": 0.5},     # 학부연구생은 대학원생보다 한 단계 낮게(민찬)
+    "스터디·프로젝트 팀원 찾기": {"student": 1.0, "lab_intern": 1.0},
+    "최신 AI·데이터 트렌드": {"employed": 0.5, "grad": 0.5},
+    "창업·사이드 프로젝트": {"founder": 1.0, SAME: 0.5},   # 창업자(경험 '창업' · 외부연사 CEO) 1, 같은 선택지를 고른 사람(같이 할 사람)은 한 단계 낮게 0.5(10/19 민찬)
 }
+NO_RULE = ("비슷한 분야 사람 만나기", "다른 기수와의 교류")   # 규칙 없음. 분야 점수(하는 일끼리)가 맡음
 REC_RULE_WEIGHTS = (0.25, 0.25, 0.5)  # 찾는 사람 → 하는 일, 하는 일끼리(분야), 규칙. 표준화한 뒤 섞는다
 
 
 def _intent_key(x: str) -> str:
-    """폼 선택지 → 규칙표 키. 괄호 설명과 띄어쓰기를 뺀다. 예: '프로젝트팀원(사이드 프로젝트 · 공모전)' → '프로젝트팀원'."""
-    return re.sub(r"\(.*?\)|\s", "", x or "")
+    """폼 선택지 → 규칙표 키. 괄호 설명과 띄어쓰기를 빼고 가운뎃점 변형(ㆍ ・ ‧ ∙ •)을 · 로. 예: '취업ㆍ이직 정보(현업)' → '취업·이직정보'."""
+    return re.sub(r"[ㆍ・‧∙•]", "·", re.sub(r"\(.*?\)|\s", "", x or ""))
 
 
-def gives_matrix(intents: list[list[str]], careers: list[str | None]) -> np.ndarray:
-    """g[i, j] = i 가 원하는 것(기대하는 점)마다 j 의 구분이 줄 수 있는 정도(GIVES 값)를 더해 원하는 것 수로 나눈 것(0~1). 한 방향. 구분을 모르면 0."""
+_WANTS = {_intent_key(k): v for k, v in WANTS.items()}
+
+
+def _career_set(c) -> set[str]:
+    """구분 하나(career, 0015) · 여러 개(careers, 0017) · 모름(None)을 모두 집합으로."""
+    return {c} if isinstance(c, str) else set(c or [])
+
+
+def gives_matrix(intents: list[list[str]], careers: list) -> np.ndarray:
+    """g[i, j] = i 가 고른 기대하는 점 중 규칙이 있는 것마다 j 가 줄 수 있는 정도를 더해 그 개수로 나눈 것(0~1). 한 방향.
+    구분 규칙은 j 의 구분 중 가장 높은 값(모르면 0). 경험이 여럿이어도 같은 정보를 두 배로 줄 수는 없어 더하지 않는다.
+    SAME 키는 j 도 같은 선택지를 골랐으면 그 값(구분 값과 함께 있으면 둘 중 큰 값). 규칙 없는 선택지(NO_RULE · 기타)는 세지 않는다.
+    careers[j] 는 구분 하나(str) · 여러 개(list) · None 모두 받는다."""
     n = len(intents)
     g = np.zeros((n, n))
-    norm = _intent_key                                     # '취업 정보' · '채용(같이 일할 사람 찾기)' 도 '취업정보' · '채용' 으로
-    give = [{norm(x): v for x, v in GIVES.get(c or "", {}).items()} for c in careers]
-    for i, want in enumerate(intents):
-        w = {norm(x) for x in (want or [])}
+    mine = [{_intent_key(x) for x in (w or [])} for w in intents]
+    cs = [_career_set(c) for c in careers]
+    for i in range(n):
+        w = [x for x in mine[i] if x in _WANTS]
         if not w:
             continue
         for j in range(n):
-            if i != j and give[j]:
-                g[i, j] = sum(give[j].get(x, 0.0) for x in w) / len(w)
+            if i == j:
+                continue
+            s = 0.0
+            for x in w:
+                rule = _WANTS[x]
+                v = max((rule.get(c, 0.0) for c in cs[j]), default=0.0)
+                if x in mine[j]:
+                    v = max(v, rule.get(SAME, 0.0))
+                s += v
+            g[i, j] = s / len(w)
     return g
 
 
-def rec_rule_score(S: np.ndarray, O: np.ndarray, intents: list[list[str]], careers: list[str | None],
+def rec_rule_score(S: np.ndarray, O: np.ndarray, intents: list[list[str]], careers: list,
                    weights: tuple[float, float, float] = REC_RULE_WEIGHTS) -> np.ndarray:
     """개인 추천용 한 방향 점수(10/18). 세 점수를 표준화(_z)해 weights 로 섞는다. 값은 cos 가 아니다.
     1) 찾는 사람 → 하는 일 cos(평균 뺀 벡터) 2) 하는 일끼리 cos(같은 분야, 평균 뺀 벡터) 3) gives_matrix.
-    문장 비교 모델은 '재직자 → 취업정보' 같은 연결을 잡지 못해(가상 데이터 상관 0.04~0.15) 규칙으로 직접 넣는다.
-    가상 80명(시드 20개, 서비스 추천 함수 그대로, sim/eval_recs_rule.py)에서 10명 중 좋은 상대 2.60(예전 min) → 3.65.
-    구분을 아무도 모르면 service._rec_scores 가 예전 min 으로 돌아간다(1 · 2 만 남은 조합은 평가하지 않았으므로)."""
+    문장 비교 모델은 '재직자 → 취업 · 이직 정보' 같은 연결을 잡지 못해(가상 데이터 상관 거의 0, 폼 조건 평균 0.03) 규칙으로 직접 넣는다.
+    가상 80명(시드 20개, 서비스 추천 함수 그대로, sim/eval_recs_rule.py, 폼처럼 찾는 사람 빈칸)에서 10명 중 좋은 상대 2.79(예전 min) → 3.49.
+    규칙 재료가 없으면(구분을 모르거나 아무도 규칙 있는 선택지를 안 고름) service._rec_scores 가 예전 min 으로 돌아간다(1 · 2 만 남은 조합은 평가하지 않았으므로)."""
     Sc, Oc = unit(S - S.mean(0)), unit(O - O.mean(0))
     g = gives_matrix(intents, careers)
     parts = [_z(directional(Sc, Oc)), _z(directional(Oc, Oc)), _z(g) if g.std() > 0 else np.zeros_like(g)]
@@ -131,8 +154,8 @@ def rec_rule_score(S: np.ndarray, O: np.ndarray, intents: list[list[str]], caree
 
 
 def intent_unknown(intents: list[list[str]]) -> list[str]:
-    """GIVES 어느 구분에도 없는 기대하는 점(폼 선택지와 표의 말이 어긋났는지 보려고 계산 기록에 남긴다)."""
-    known = {_intent_key(x) for v in GIVES.values() for x in v}
+    """규칙표(WANTS · NO_RULE)에 없는 기대하는 점(폼 선택지와 표의 말이 어긋났는지 · 기타 답을 보려고 계산 기록에 남긴다)."""
+    known = set(_WANTS) | {_intent_key(x) for x in NO_RULE}
     return sorted({t for w in intents for t in (w or []) if _intent_key(t) not in known})
 
 
