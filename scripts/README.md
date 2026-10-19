@@ -45,3 +45,20 @@ python scripts/export_poster_qr.py --app-url http://localhost:3000 --out /tmp/po
 - 결과 폴더에 포스터별 `<code>.png`, 전부 이어 붙인 `sheet.png`(화면에 띄우고 폰으로 찍어 보는 데모용), `index.csv`(코드, 제목, 발표자, 부스, 파일명)가 생긴다. 저장소에 올리지 않는다.
 - `--label` 을 주면 QR 아래에 코드 · 제목 · 부스를 같이 그린다. 인쇄용은 이 옵션이 편하다.
 - 개발 서버로 폰 테스트를 할 때는 `--app-url http://<맥 IP>:3000` 처럼 같은 와이파이 주소를 준다. 폰 기본 카메라로 찍으면 링크가 열린다(앱 안 카메라는 https 에서만 열린다).
+
+## build_posters.py
+
+포스터 세션의 포스터 목록 SQL, 자리별 QR, 퀴즈 SQL 을 낸다. DB 없이 돈다.
+
+```bash
+pip install qrcode[pil]
+python scripts/build_posters.py --out D:/DSL/_event_data/poster_kit --quizzes D:/DSL/_event_data/quizzes.json
+```
+
+- 포스터 목록의 정본은 `event_posters.json`(제목 · 발표자 · 태그 · 요약 · 발표자 이름)이다. 고친 뒤 스크립트를 돌리면 `supabase/event_posters.sql` 이 다시 만들어진다. 둘을 같은 PR 에 넣는다.
+- 포스터 코드는 행사장 자리 번호다(1번 자리 = P01, 11번 자리 = P11). 앱 포스터 목록은 코드 순서라 목록 번호가 자리 번호와 같다.
+- 적용 순서: Supabase SQL Editor 에서 `supabase/event_posters.sql` → `<out>/poster_quizzes.sql`. 둘 다 여러 번 실행해도 결과가 같다. 명단 적재 뒤 한 번 더 실행하면 presenter_ids(발표자 본인 응답 제외)가 채워진다.
+- 퀴즈 파일과 `poster_quizzes.sql` 에는 정답이 들어가므로 저장소 밖에 둔다(저장소가 공개다). 형식은 `sample_quizzes.json`.
+- 요약(summary)은 앱에서 퀴즈 버튼 바로 위에 보이므로 퀴즈 정답을 적지 않는다. 퀴즈는 보기 2개(10/5 회의).
+- QR 에는 코드만 들어가므로 먼저 인쇄해도 된다. 인쇄는 A1 포스터 기준 한 변 8cm 이상, 흰 여백을 자르지 않는다. 벡터가 필요하면 `qr_svg` 를 쓴다.
+- `export_poster_qr.py` 는 DB 에 이미 들어간 포스터로 QR 만 다시 뽑을 때 쓴다. 두 스크립트의 QR 문자열은 같다.

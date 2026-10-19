@@ -60,6 +60,8 @@
       presenter_ids = (select array_agg(id) from participants where event_id = 'orbit-2026' and display_name in ('발표자1','발표자2'))
     where code = 'P01';
 
+행사 포스터 11개(요약 · 발표자 포함)는 `supabase/event_posters.sql` 로 넣는다. 정본은 `scripts/event_posters.json` 이고 `scripts/build_posters.py` 가 SQL 을 만든다(10/19). 포스터 코드는 행사장 자리 번호(P01 ~ P11)다. 퀴즈는 정답이 들어가 저장소 밖 SQL 로 넣는다.
+
 동명이인이 있으면 이름 대신 id 를 직접 넣는다. '연세대 응용통계'처럼 넓은 소속이면 많은 응답이 빠질 수 있어 커피챗 계산 결과의 poster_filter.same_affiliation 수를 리허설에서 본다.
 
 ## 이미 아는 사이 (10/5)
