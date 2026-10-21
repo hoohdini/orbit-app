@@ -1,19 +1,20 @@
 "use client";
 // Offer · Seek 수정과 관심 태그(피그마 10/11). 글자 80, 관심 태그 5개. 태그 추가는 같은 화면 위에 덮는 고르기 화면(피그마 태그 추가).
-// 관심 태그는 Offer · Seek 가 같이 쓴다(명함의 INTERESTS). 저장은 /api/my/profile — 명함에만 반영되고 추천에는 반영되지 않는다.
+// 관심 태그는 Offer(topic_tags, 명함의 INTERESTS) · Seek(seek_tags) 가 따로 갖는다(10/21). 저장은 /api/my/profile — 명함에만 반영되고 추천에는 반영되지 않는다.
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
 import Loading from "@/components/Loading";
 import { Notice, Section, bigBtn } from "../../ui";
 
-type Profile = { offer_text: string; seek_text: string; topic_tags: string[] };
+type Profile = { offer_text: string; seek_text: string; topic_tags: string[]; seek_tags: string[] };
 const TEXT_MAX = 80;
 const TAG_MAX = 5;
 
 export default function TextEdit({ field }: { field: "offer" | "seek" }) {
   const router = useRouter();
   const key = field === "offer" ? "offer_text" : "seek_text";
+  const tagKey = field === "offer" ? "topic_tags" : "seek_tags";
   const [text, setText] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [picking, setPicking] = useState(false);
@@ -24,9 +25,9 @@ export default function TextEdit({ field }: { field: "offer" | "seek" }) {
     api<Profile>("/api/my/profile").then((r) => {
       if (!r.ok) return setError(r.message);
       setText(r.data[key]);
-      setTags(r.data.topic_tags);
+      setTags(r.data[tagKey] ?? []);
     });
-  }, [key]);
+  }, [key, tagKey]);
 
   if (text === null) return error ? <p className="m-5 text-sm text-ink-2">{error}</p> : <Loading />;
   if (picking) return <TagPicker initial={tags} onDone={(t) => (setTags(t), setPicking(false))} />;
@@ -34,7 +35,7 @@ export default function TextEdit({ field }: { field: "offer" | "seek" }) {
   async function save() {
     setBusy(true);
     setError(null);
-    const r = await api("/api/my/profile", { json: { [key]: text!.trim(), topic_tags: tags } });
+    const r = await api("/api/my/profile", { json: { [key]: text!.trim(), [tagKey]: tags } });
     setBusy(false);
     if (!r.ok) return setError(r.message);
     router.push("/my/card");
