@@ -30,6 +30,10 @@
   --color-muted: #8e9cbf; /* 어두운 배경 위 보조 글자 */
   --color-line: #d9d9d9;
   --color-field: #f4f4f4; /* 입력 칸 */
+
+  /* 온보딩 · 명함 탭에서 쓰는 글씨체(10/21). 기본값은 영문만 Inter 라서 한글과 글씨체가 섞인다.
+     font-spoqa 를 붙이면 영문도 Spoqa Han Sans Neo 로 나온다. 웹폰트는 맨 위에서 이미 불러온다 */
+  --font-spoqa: "Spoqa Han Sans Neo", system-ui, sans-serif;
 }
 
 @keyframes toast-in {

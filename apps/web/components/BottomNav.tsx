@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { IconFlag, IconHome, IconPeople, IconUser } from "./figma/Icons";
+import { IconCard, IconFlag, IconPeople, IconUser } from "./figma/Icons";
 
 const INBOX_POLL_MS = 15_000;
 
@@ -32,7 +32,7 @@ function useInboxCount(): number {
 }
 
 const items = [
-  { href: "/card", label: "명함", also: [] as string[], Icon: IconHome },
+  { href: "/card", label: "명함", also: [] as string[], Icon: IconCard },
   { href: "/networking", label: "네트워킹", also: ["/tabletalk", "/coffeechat"], Icon: IconPeople },
   { href: "/event", label: "이벤트·미션", also: ["/poster"], Icon: IconFlag },
   { href: "/my", label: "마이", also: [] as string[], Icon: IconUser },
