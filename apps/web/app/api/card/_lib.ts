@@ -36,7 +36,7 @@ export type MetAt = "table" | "poster" | "coffeechat" | "other";
 export function metOf(phase: string | null | undefined): MetAt {
   if (phase === "tabletalk" || phase === "tabletalk_end") return "table";
   if (phase === "poster") return "poster";
-  if (phase === "coffeechat_seated" || phase === "coffeechat_free") return "coffeechat";
+  if (phase === "coffeechat_seated" || phase === "coffeechat_free") return "coffeechat"; // coffeechat_free 는 10/21 에 뺀 단계. 그 전에 쌓인 교환 기록용
   return "other";
 }
 
@@ -106,5 +106,5 @@ export function normalizeLink(key: LinkKey, raw: string): string | null {
 
 // 알림 문구. 화면과 로그가 같은 문장을 쓴다.
 export function sharedMessage(name: string): string {
-  return `${name} 님에게 명함이 공유되었습니다`;
+  return `${name}님에게 명함이 공유되었습니다`; // 앱 다른 곳과 같게 이름에 님을 붙여 쓴다(10/21 민찬)
 }

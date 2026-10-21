@@ -7,6 +7,17 @@
   python scripts/import_participants.py 명단.csv --event-id orbit-2026 --pin-out D:/DSL/_event_data/pins.csv
   python scripts/import_participants.py 명단.csv --dry-run          # DB 에 쓰지 않고 요약만
   python scripts/import_participants.py 명단.csv --names-only       # 이름·소속·구분·기수만(명찰 QR 인쇄용 id 발급). 숫자·프로필은 나중에
+  python scripts/import_participants.py 명단.csv --event-id orbit-2026 --pin-out 저장소밖/pins.csv \
+      --fixed-names 저장소밖/table1.txt --exclude "배소윤,박현진"     # 10/31 행사 명단(10/21 민찬 결정)
+
+1번 테이블 고정(--fixed-names, 10/21 민찬 결정). 구글폼 CSV 에는 고정테이블 열도 운영진 구분도 없어서 이름으로 정한다.
+  행사장 10테이블 중 1번 = 운영진 7 + 연사 교수 3 = 10명. 나머지는 계산 서비스가 2~10번에 고르게 앉힌다.
+  값은 쉼표 목록("이름1,이름2,...") 또는 이름을 줄마다(또는 쉼표로) 적은 텍스트 파일 경로. 이름은 표시 이름과 글자까지 같아야 맞는다.
+  주면 이 목록이 기준이다: 목록에 있는 사람은 fixed_table 1, 없는 사람은 비운다(예전 적재의 고정이 남지 않게. 고정테이블 열에 1 이 있으면 그 사람도 1).
+  CSV 에 없는 이름은 줄마다 알리고, 최종 고정 인원을 찍는다. 10명이 아니면 경고한다(계산 서비스 FIXED_TABLE_MAX = 10, 넘으면 fixed_over).
+  --names-only · --dry-run 과 같이 쓸 수 있다(dry-run 은 DB 에 쓰지 않고 인원만 찍는다)
+명단에서 빼기(--exclude, 10/21 민찬 결정). 오지 않는 사람을 이름으로 빼고 적재한다. 값 형식은 --fixed-names 와 같다.
+  뺀 사람과 CSV 에 없는 이름을 찍는다. 이미 DB 에 들어간 사람은 지우지 않는다(계산 서비스가 그 사람도 앉히므로, DB 에 있으면 경고한다)
 
 같은 사람(event_id + 이름 + 소속)이 이미 있으면 새로 만들지 않고 갱신한다(2026-09-26). 명찰에 인쇄한 명함 QR 이 participant id 를 담으므로
 다시 돌려도 id 가 바뀌면 안 된다. 기존 사람의 숫자 4자리는 휴대폰 열이 있을 때만 다시 계산하고, 비어 있으면 그대로 둔다(무작위를 두 번 주지 않는다).
@@ -66,7 +77,8 @@ FORM_HEADERS = {"name": ("이름",), "phone": ("휴대폰 번호 뒤 4자리", "
 # 폼 '해당하는 경험을 모두 골라 주세요' 선택지(앞부분) → 구분(careers, 0017). '해당 없음'은 아무것도 아니다
 EXP_MAP = (("기업 재직", "employed"), ("기업 인턴", "intern"), ("창업", "founder"), ("학부연구생", "lab_intern"), ("대학원", "grad"))
 CAREER_ORDER = ("professor", "employed", "grad", "lab_intern", "student")   # career(0015, 하나)로 고를 때의 순서. intern 은 0015 에 없다
-OPERATORS = ("박성하", "황수민", "김민찬", "김나혜", "김현희")
+OPERATORS = ("박성하", "황수민", "김민찬", "김나혜", "김현희",   # 앱 운영(모델링팀)
+             "안재민", "현승원", "김재현", "이지원", "조유빈", "이은민")   # 15기 운영진(박성하 포함 7명). 콘솔을 같이 연다(10/21 민찬)
 DEFAULT_COLS = {"name": "이름", "affiliation": "소속", "role": "구분", "cohort": "기수", "phone": "휴대폰", "offer": "하는일", "seek": "찾는사람", "topic": "주제태그", "intent": "관계태그", "host": "호스트", "fixed": "고정테이블", "teams": "활동팀",
                 "job": "재직", "title": "직책", "interest": "관심도메인", "exp": "경험"}
 
@@ -174,6 +186,16 @@ def careers_of(role: str, exp_raw: str, title: str, role_raw: str = "") -> list[
     return [c for c in ("employed", "intern", "founder", "grad", "lab_intern", "student") if c in got]
 
 
+def name_list(v: str | None) -> list[str]:
+    """--fixed-names · --exclude 값. 있는 파일 경로면 그 파일(줄마다 또는 쉼표), 아니면 쉼표 목록. 순서 유지 · 중복 제거"""
+    if not v:
+        return []
+    if not Path(v).is_file() and re.search(r"[/\\]|\.(txt|csv)$", v):   # 경로를 잘못 쓰면 이름 한 개로 읽혀 고정이 전부 지워진다(10/21 검토)
+        sys.exit(f"파일이 없다: {v}")
+    raw = Path(v).read_text(encoding="utf-8-sig") if Path(v).is_file() else v
+    return list(dict.fromkeys(n.strip() for n in re.split(r"[,\n]", raw) if n.strip()))
+
+
 def last4(phone: str) -> str | None:
     digits = re.sub(r"\D", "", phone or "")
     return digits[-4:] if len(digits) >= 4 else None
@@ -187,6 +209,8 @@ def main() -> int:
     ap.add_argument("--map", action="append", default=[], help="열 이름 바꾸기. 예: --map phone=전화번호")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--names-only", action="store_true", help="이름·소속·구분·기수·호스트만 적재한다. 숫자와 프로필은 넣지 않는다")
+    ap.add_argument("--fixed-names", help="1번 테이블(교수 · 운영진석)에 고정할 이름. 쉼표 목록 또는 텍스트 파일 경로. 주면 목록 밖 사람의 고정은 비운다")
+    ap.add_argument("--exclude", help="명단에서 뺄 이름(오지 않는 사람). 쉼표 목록 또는 텍스트 파일 경로")
     args = ap.parse_args()
 
     cols = dict(DEFAULT_COLS)
@@ -215,6 +239,16 @@ def main() -> int:
         return 2
 
     form_1018 = cols["exp"] in rows[0]                     # 경험 문항이 있는 10/18 사전 등록 폼
+    fixed_names, exclude = name_list(args.fixed_names), name_list(args.exclude)
+    both = [n for n in fixed_names if n in exclude]
+    if both:
+        print(f"--fixed-names 와 --exclude 에 모두 있는 이름: {both}. 한쪽에서 뺀다", file=sys.stderr)
+        return 2
+    csv_names = {(r.get(cols["name"]) or "").strip() for r in rows}
+    for n in exclude:
+        if n not in csv_names:
+            print(f"--exclude: CSV 에 없는 이름 '{n}'", file=sys.stderr)
+    skipped = []
     participants, profiles, random_pins = [], [], []
     for i, r in enumerate(rows, start=2):
         name = (r.get(cols["name"]) or "").strip()
@@ -223,6 +257,9 @@ def main() -> int:
             continue
         if form_1018 and not (r.get(cols["role"]) or "").strip():  # 10/18 폼에서 앱 동의를 안 하면 구분이 비고 사주 섹션 이름만 남는다(필수 문항이라 그 밖에는 안 빔). 예전 명단은 그대로 other
             print(f"{i}행: 구분이 비어 건너뛴다({name})", file=sys.stderr)
+            continue
+        if name in exclude:
+            skipped.append(name)
             continue
         role = role_of(r.get(cols["role"]))
         pin = None if args.names_only else last4(r.get(cols["phone"], ""))
@@ -248,7 +285,9 @@ def main() -> int:
                 "_pin_from_phone": pin_from_phone,
             }
         )
-        if cols["fixed"] in rows[0]:
+        if fixed_names:                                    # 이름 목록이 기준(위 설명). 열의 1 도 살린다
+            participants[-1]["fixed_table"] = 1 if name in fixed_names or fixed_raw == "1" else None
+        elif cols["fixed"] in rows[0]:
             participants[-1]["fixed_table"] = int(fixed_raw) if fixed_raw else None
         if cols["teams"] in rows[0]:
             participants[-1]["teams"] = [t.strip() for t in (r.get(cols["teams"]) or "").split(";") if t.strip()]
@@ -281,6 +320,21 @@ def main() -> int:
                 "intent_tags": split_tags(r.get(cols["intent"], "")),
             }
         )
+
+    if exclude:
+        print(f"--exclude: 뺀 사람 {len(skipped)}명 {skipped}")
+    if fixed_names:
+        loaded = {p["display_name"] for p in participants}
+        for n in fixed_names:
+            hits = sum(1 for p in participants if p["display_name"] == n)
+            if n not in loaded:
+                print(f"--fixed-names: CSV 에 없는 이름 '{n}'(표시 이름과 글자까지 같아야 한다)", file=sys.stderr)
+            elif hits > 1:
+                print(f"--fixed-names: '{n}' 이 CSV 에 {hits}명이다(동명이인 모두 1번에 고정된다)", file=sys.stderr)
+        n_fixed = sum(1 for p in participants if p.get("fixed_table") == 1)
+        print(f"1번 테이블 고정 {n_fixed}명")
+        if n_fixed != 10:
+            print(f"경고: 1번 테이블 고정이 {n_fixed}명이다. 10명(운영진 7 + 연사 교수 3)이어야 한다(계산 서비스 FIXED_TABLE_MAX 10, 넘으면 fixed_over)", file=sys.stderr)
 
     roles = {}
     for p in participants:
@@ -328,6 +382,9 @@ def main() -> int:
         client = create_client(url.split("/rest/")[0], key)
         rows_db = client.table("participants").select("id, display_name, affiliation, login_pin_hash").eq("event_id", args.event_id).execute().data or []
         existing = {(r["display_name"], r["affiliation"] or ""): r for r in rows_db}
+        left = sorted({r["display_name"] for r in rows_db} & set(exclude))
+        if left:
+            print(f"--exclude 한 사람이 이미 DB 에 있다: {left}. 이 스크립트는 지우지 않으니 계산 서비스가 그 사람도 앉힌다. 빼려면 DB 에서 직접 정리한다", file=sys.stderr)
 
     # 숫자 결정. 새 사람: 휴대폰 뒤 4자리, 없으면 무작위. 기존 사람: 휴대폰이 있으면 다시 계산, 없으면 유지
     for p in participants:

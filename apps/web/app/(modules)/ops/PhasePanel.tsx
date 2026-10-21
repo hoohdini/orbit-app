@@ -1,6 +1,7 @@
 "use client";
 // 식순 진행 · 단계 전환(개발 지시서 v0.2 A-02)과 공지 송출(A-06). 참가자 화면은 15초 안에 따라온다.
 // 단계를 마무리(wrapup)로 처음 넘기면 미션이 마감된다. 실수로 넘겼으면 앞 단계로 돌리며 미션 마감 풀기를 누른다.
+// 마감 풀기는 마무리 · 시상이면 바로 앞 단계인 커피챗(coffeechat_seated)으로 돌린다(10/21 자유 이동 단계를 뺌).
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { PHASES, NOTICE_PRESETS } from "@/lib/phase";
@@ -55,7 +56,7 @@ export default function PhasePanel() {
         <h2 className="text-base font-semibold">식순 진행</h2>
         <span className="text-xs text-gray-500">{st?.phase ? `지금 ${PHASES[idx]?.label ?? st.phase}${st.phase_at ? ` · ${hm(st.phase_at)}부터` : ""}` : "단계 없음"}</span>
       </div>
-      <ol className="mt-3 grid grid-cols-3 gap-2 md:grid-cols-9">
+      <ol className="mt-3 grid grid-cols-3 gap-2 md:grid-cols-8">
         {PHASES.map((p, i) => (
           <li key={p.key}>
             <button
@@ -69,7 +70,7 @@ export default function PhasePanel() {
           </li>
         ))}
       </ol>
-      <button type="button" disabled={busy || !st?.phase} onClick={() => st?.phase && go(st.phase === "wrapup" || st.phase === "award" ? "coffeechat_free" : st.phase, true)} className="mt-2 text-xs text-gray-500 underline">
+      <button type="button" disabled={busy || !st?.phase} onClick={() => st?.phase && go(st.phase === "wrapup" || st.phase === "award" ? "coffeechat_seated" : st.phase, true)} className="mt-2 text-xs text-gray-500 underline">
         미션 마감 풀기(실수로 마무리로 넘겼을 때)
       </button>
 

@@ -7,8 +7,8 @@ export const PHASES = [
   { key: "tabletalk", label: "테이블토크" },
   { key: "tabletalk_end", label: "테이블토크 마무리" },
   { key: "poster", label: "포스터 세션" },
-  { key: "coffeechat_seated", label: "커피챗 첫 배치" },
-  { key: "coffeechat_free", label: "커피챗 자유 이동" },
+  // 커피챗 중에는 이동하지 않는다(10/21 민찬 결정, 이동 불가). 예전 coffeechat_free(자유 이동) 단계는 뺐다
+  { key: "coffeechat_seated", label: "커피챗" },
   { key: "wrapup", label: "마무리" },
   { key: "award", label: "시상 · 추첨" },
 ] as const;
@@ -31,7 +31,7 @@ export function recsOpen(p: Phase | null): boolean {
 }
 
 // 미션 운영 구간(E-01). 서비스 소개(tabletalk)부터 마무리(wrapup) 전까지. 그 전은 곧 시작, 그 뒤는 읽기 전용
-export const MISSION_OPEN: readonly Phase[] = ["tabletalk", "tabletalk_end", "poster", "coffeechat_seated", "coffeechat_free"];
+export const MISSION_OPEN: readonly Phase[] = ["tabletalk", "tabletalk_end", "poster", "coffeechat_seated"];
 export const MISSION_CLOSED: readonly Phase[] = ["wrapup", "award"];
 export type MissionWindow = "not_started" | "open" | "closed";
 export function missionWindow(p: Phase | null): MissionWindow {

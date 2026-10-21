@@ -4,7 +4,7 @@ precompute  행사 전날 · 체크인 마감
             새 코드북: 전원 임베딩 → 코드북 학습 · 저장 → 주소 · 라벨 → 테이블토크 배정 초안(좌석 순서 포함)
             reuse_codebook=True: 저장된 코드북을 그대로 쓰고 주소가 없는 사람(현장 등록자)에게 주소만 붙인다.
               테이블토크는 전날 확정이라 다시 배정하지 않는다(개발 지시서 v0.2 결정 3). 현장 등록자 자리는 운영 콘솔 워크인 추가(A-05)가 정한다
-coffeechat  테이블토크 뒤(포스터세션 중, v0.2 B-04). 3~4명 그룹 첫 배치 한 번. 그 뒤는 자유 이동(추천 목록). 저장된 벡터 + 명함 교환 간선 + 만족도 답 + 포스터 관심도 → 만남 반영 → 커피챗 배정 초안 → 개인 추천
+coffeechat  테이블토크 뒤(포스터세션 중, v0.2 B-04). 3~4명 그룹 배치 한 번. 커피챗 중에는 이동하지 않는다(10/21 민찬 결정, 이동 불가). 저장된 벡터 + 명함 교환 간선 + 만족도 답 + 포스터 관심도 → 만남 반영 → 커피챗 배정 초안 → 개인 추천
             포스터 관심도는 부르는 시점까지 들어온 답만 쓴다. 포스터세션 끝 무렵에 부를수록 많이 반영된다
 
 배정마다 사람별 이유(table_members.reason)를 남긴다. 운영진 대시보드가 이걸로 배정을 확인한다(9/27 회의)
@@ -13,7 +13,7 @@ coffeechat  테이블토크 뒤(포스터세션 중, v0.2 B-04). 3~4명 그룹 �
 
 테이블토크 배정(v0.2 B-02 · B-03)
   participants.fixed_table 이 있는 사람(교수 · 운영진석)은 그 테이블에 고정하고 알고리즘에서 뺀다. 보통 1번
-  나머지는 남은 번호(2~9번) 8테이블에 고르게(인원 차 1 이하). 같은 기수는 테이블당 3명까지, 4명째부터 1명당 0.5점 감점(10/5 결정, 명단 기수별 인원 보고 다시)
+  나머지는 남은 번호(2~10번) 9테이블에 고르게(인원 차 1 이하, 행사장 10테이블 중 1번 제외. 10/21 민찬 결정). 같은 기수는 테이블당 3명까지, 4명째부터 1명당 0.5점 감점(10/5 결정, 명단 기수별 인원 보고 다시)
   테이블마다 좌석 순서를 정해 table_members.seat_no 에 저장한다(이웃 점수 합 최대)
 """
 from __future__ import annotations
@@ -52,7 +52,7 @@ def _heartbeat(repo, what: str) -> None:
     repo.ops_set("compute_heartbeat", {"at": datetime.now(timezone.utc).isoformat(), "last": what})
 
 
-TABLETALK_TABLES = 8
+TABLETALK_TABLES = 9             # 알고리즘 테이블 2~10번. 행사장 10테이블 중 1번은 운영진 7 + 연사 교수 3 = 10명 고정(10/21 민찬 결정)
 FIXED_TABLE_NO = 1               # 교수 · 운영진석. 고정할 사람이 없어도 알고리즘은 이 번호를 쓰지 않는다(행사장 1번 테이블)
 FIXED_TABLE_MAX = 10             # 넘으면 결과에 fixed_over 로 알린다(넘치는 운영진은 서서 진행, 일반 테이블 좌석은 빼지 않음)
 TABLETALK_COHORT_CAP = 3         # 같은 기수 4명째부터 감점(10/5 민찬 결정). 운영진 행사 진행 문서 '같은 기수 2~3명을 함께 배치'에 맞춤.
@@ -214,7 +214,7 @@ def _rec_params(P, intents, rec_mode) -> dict:
 
 def _write_recs(repo, v: int, P, ids, scores, met, tags, intents, prefix, n_exact, n_explore, seed) -> np.ndarray:
     """개인 추천 목록(B-06). 추천 점수(_rec_scores) − 이미 아는 사이 감점(pipeline/people.py), 이미 만난 사람(met) 제외, 노출 상한 · 탐색 칸.
-    전날(테이블토크 버전, 입장 ~ 포스터세션용)과 커피챗(자유 이동용) 두 번 만든다. 화면(H-04)은 여기서 거르기만 한다."""
+    전날(테이블토크 버전, 입장 ~ 포스터세션용)과 커피챗 뒤(커피챗 버전) 두 번 만든다. 화면(H-04)은 여기서 거르기만 한다."""
     scores = scores.copy()
     same = peoplem.acquainted(P)
     # 이미 아는 사이는 크게 뺀다. cos 점수(범위 1 미만)에서는 예전처럼 1.0, 표준화 점수(rule)에서는 점수 폭만큼 빼서 같은 효과(사실상 뒤로)
@@ -269,14 +269,14 @@ def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = 
     A = scoring.table_matrix(scoring.seat_directional(S, O), is_host, table_mode)   # 배정만 보정 점수(10/17 비교 평가)
 
     bad = sorted({int(x) for x in fixed_no if x not in (0, FIXED_TABLE_NO)})
-    if bad:                                              # 2~9번 고정은 테이블 크기 균등과 맞물려 아직 지원하지 않는다
+    if bad:                                              # 2~10번 고정은 테이블 크기 균등과 맞물려 아직 지원하지 않는다
         raise ValueError(f"고정 테이블은 {FIXED_TABLE_NO}번만 쓸 수 있다. 명단의 고정테이블 값 {bad} 을 고친다")
     reg = np.where(fixed_no == 0)[0]                     # 알고리즘이 앉힐 사람
     if len(reg) < 5:
         raise ValueError(f"고정 테이블을 뺀 배정 인원이 {len(reg)}명뿐이다 (5명 이상 필요)")
     sizes = seating.even_sizes(len(reg), n_tables)
     taken = set(fixed_no.tolist()) | {FIXED_TABLE_NO}
-    free = [t for t in range(1, 100) if t not in taken][:len(sizes)]   # 고정 번호를 건너뛴 번호. 보통 2~9
+    free = [t for t in range(1, 100) if t not in taken][:len(sizes)]   # 고정 번호를 건너뛴 번호. 보통 2~10
     r = seating.assign(A[np.ix_(reg, reg)], is_host[reg], cohort[reg], random_ratio=random_ratio, iters=iters,
                        seed=seed, sizes=sizes, cohort_penalty=TABLETALK_COHORT_PENALTY, cohort_cap=TABLETALK_COHORT_CAP)
     table = fixed_no.copy()
@@ -518,7 +518,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
                                       for (i, j), (k, t) in ev.items()])
         n_reasons = len(ev)
 
-    # 자유 이동용 추천 목록(B-06). 테이블토크 · 커피챗 동석자와 명함을 교환한 사람은 뺀다
+    # 커피챗 버전 추천 목록(B-06). 테이블토크 · 커피챗 동석자와 명함을 교환한 사람은 뺀다
     met = forbid | seating.same_table_pairs(r.table) | (W > 0)
     np.fill_diagonal(met, True)
     exposure = _write_recs(repo, v, P, ids, _rec_scores(S2, O2, a, P, intents, rec_mode), met, tags, intents,

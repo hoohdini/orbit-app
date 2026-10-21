@@ -1,7 +1,7 @@
 """테이블 배정. 성하 06_event_loop.py 의 assign_tables 를 옮기고 담금질을 증분 계산으로 바꿨다.
 
 순서
-  1. 테이블 수 · 크기. 커피챗은 5~6명(table_sizes). 테이블토크는 부르는 쪽이 sizes 로 준다(개발 지시서 v0.2 B-02: 8테이블 균등, even_sizes)
+  1. 테이블 수 · 크기. 커피챗은 5~6명(table_sizes). 테이블토크는 부르는 쪽이 sizes 로 준다(9테이블 균등, even_sizes. 10/21 민찬 결정으로 v0.2 B-02 의 8테이블에서 바꿈)
   2. 호스트를 테이블마다 돌아가며 한 명씩
   3. 나머지를 무작위 순서로 한 명씩, 이미 앉은 사람과의 평균 점수가 가장 높은 테이블로 (한 자리마다 즉시 갱신)
      확률 random_ratio 로는 무작위 빈 테이블 — 점수가 약할 때만 이득 (연구 저장소 docs/31 G13)
@@ -34,7 +34,7 @@ def table_sizes(n: int, lo: int = 5, hi: int = 6) -> list[int]:
     return sizes
 
 
-def even_sizes(n: int, n_tables: int = 8) -> list[int]:
+def even_sizes(n: int, n_tables: int = 9) -> list[int]:
     """n 명을 n_tables 개 테이블에 고르게(크기 차이 1 이하). 테이블당 MIN_TABLE 명이 안 되면 테이블 수를 줄인다(적은 인원 시험용)."""
     k = max(1, min(n_tables, n // MIN_TABLE))
     return [n // k + (1 if i < n % k else 0) for i in range(k)]
@@ -117,7 +117,7 @@ def assign(A: np.ndarray, is_host: np.ndarray, cohort: np.ndarray | None = None,
            seed: int = 0, lo: int = 5, hi: int = 6, sizes: list[int] | None = None,
            cohort_penalty: float = COHORT_PENALTY, cohort_cap: int | None = None) -> Seating:
     """A: 대칭 쌍 점수 (n, n). is_host: 호스트 여부. cohort: 기수(-1 은 모름). forbid: 같은 테이블 금지 쌍.
-    sizes 를 주면 그 크기대로(테이블토크 8테이블, 커피챗 3~4명 그룹), 안 주면 lo~hi 명.
+    sizes 를 주면 그 크기대로(테이블토크 9테이블, 커피챗 3~4명 그룹), 안 주면 lo~hi 명.
     cohort_cap 을 주면 같은 기수 상한을 모든 테이블에 그 값으로, 안 주면 테이블 인원의 40%."""
     rng = random.Random(seed)
     n = len(A)
