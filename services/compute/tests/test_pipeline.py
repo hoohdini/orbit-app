@@ -97,8 +97,8 @@ def test_blank_seek():
 
 
 def test_even_sizes_and_cohort_limit():
-    assert seating.even_sizes(72) == [9] * 8                          # v0.2: 8테이블 균등
-    assert seating.even_sizes(70) == [9] * 6 + [8] * 2               # 인원 차 1 이하
+    assert seating.even_sizes(72) == [8] * 9                          # 9테이블 균등(10/21 민찬 결정, 2~10번)
+    assert seating.even_sizes(70) == [8] * 7 + [7] * 2               # 인원 차 1 이하
     assert seating.even_sizes(20) == [4] * 5                          # 적으면 테이블당 4명 이상
     assert [seating.cohort_limit(k) for k in (5, 6, 8, 9, 10)] == [2, 2, 3, 3, 4]   # 40% 내림. 5~6명은 예전 규칙(2명)과 같음
 

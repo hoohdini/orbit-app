@@ -11,7 +11,7 @@ import { requireSession } from "@/lib/session";
 import { logEvent } from "@/lib/log";
 import { collectGuard } from "@/lib/consent";
 import { parseMaxAttempts, QUIZ_MISSION_GOAL } from "../_lib";
-import { quizStampCount } from "../_server";
+import { posterProgress } from "../_server";
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
       .eq("poster_id", posterId);
     if (flagErr) throw flagErr;
 
-    const quizStamps = await quizStampCount(s.pid);
+    const quizStamps = (await posterProgress(s.pid)).quiz_stamps; // 마감 뒤 정답은 세지 않는다(lib/missions.ts 와 같은 규칙, 10/21 민찬)
 
     await logEvent("poster_answer", s.pid, { poster_id: posterId, correct });
     // stamp_count 는 예전 화면용(= quiz_stamps)

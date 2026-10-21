@@ -85,11 +85,11 @@ def test_full_loop():
     v1 = r1["version"]
     members = [m for m in repo.t["table_members"] if m["version"] == v1]
     t1 = {m["participant_id"]: m["table_no"] for m in members}
-    assert len(members) == 75 and r1["tables"] == 9
+    assert len(members) == 75 and r1["tables"] == 10
     assert {t1[p] for p in fixed} == {1} and sum(t == 1 for t in t1.values()) == 3       # 1번 = 교수 · 운영진석만
-    size = {t: sum(1 for x in t1.values() if x == t) for t in range(2, 10)}
-    assert set(size) == set(t1.values()) - {1} and max(size.values()) - min(size.values()) <= 1   # 2~9번 고르게(72명 → 9명씩)
-    for t in range(1, 10):                                                # 좌석 번호 1..k, 겹치지 않음
+    size = {t: sum(1 for x in t1.values() if x == t) for t in range(2, 11)}
+    assert set(size) == set(t1.values()) - {1} and max(size.values()) - min(size.values()) <= 1   # 2~10번 고르게(72명 → 8명씩)
+    for t in range(1, 11):                                                # 좌석 번호 1..k, 겹치지 않음
         seats = sorted(m["seat_no"] for m in members if m["table_no"] == t)
         assert seats == list(range(1, len(seats) + 1))
     assert all(m["reason"]["seat_no"] == m["seat_no"] for m in members)
