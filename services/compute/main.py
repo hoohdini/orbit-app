@@ -69,7 +69,7 @@ class PrecomputeRequest(BaseModel):
     reuse_codebook: bool = False          # 체크인 마감 때 true — 저장된 코드북으로 현장 등록자에게 주소만 붙인다(테이블토크는 전날 확정)
     table_mode: str = "min"               # 테이블 점수 결합: min | avg | harmonic
     random_ratio: float = 0.0             # 무작위로 앉히는 자리 비율 (리허설 정확도 0.65 미만이면 0.15~0.40)
-    n_tables: int = Field(8, ge=4, le=12)  # 테이블토크 알고리즘 테이블 수(교수 · 운영진석 1번 제외). 개발 지시서 v0.2 결정 9
+    n_tables: int = Field(9, ge=4, le=12)  # 테이블토크 알고리즘 테이블 수(교수 · 운영진석 1번 제외, 2~10번). 10/21 민찬 결정(행사장 10테이블)
 
 
 class SearchRequest(BaseModel):
