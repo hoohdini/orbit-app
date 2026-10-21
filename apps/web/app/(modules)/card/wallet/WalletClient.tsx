@@ -5,6 +5,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/client";
+import { SkeletonRows } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
+import { EMPTY } from "@/components/emptyCopy";
 import type { Card, MetAt } from "@/app/api/card/_lib";
 import { FILTERS, fieldLine, hhmm, metLabel, whoLine } from "../walletText";
 
@@ -34,16 +37,9 @@ export default function WalletClient() {
       </div>
 
       {!data ? (
-        <p className="pt-6 text-center text-sm text-ink-3">불러오는 중</p>
+        <SkeletonRows rows={4} />
       ) : cards.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-navy p-8 text-center">
-          <p className="text-sm text-ink-2">{data.cards.length === 0 ? "아직 교환한 명함이 없어요" : "여기에 해당하는 명함이 없어요"}</p>
-          {data.cards.length === 0 && (
-            <Link href="/card/scan?via=card" className="mt-4 inline-flex h-12 items-center rounded-2xl bg-navy px-5 text-sm font-bold text-white">
-              명함 스캔하기
-            </Link>
-          )}
-        </div>
+        <EmptyState copy={data.cards.length === 0 ? EMPTY.walletNone : EMPTY.walletFilter} />
       ) : (
         <ul className="overflow-hidden rounded-3xl border border-navy bg-white py-1">
           {cards.map((c, i) => (

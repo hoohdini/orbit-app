@@ -11,6 +11,8 @@ import Eclipse from "@/components/figma/Eclipse";
 import { parseCardId } from "@/app/api/card/_lib";
 import DarkScreen from "../DarkScreen";
 import ExchangeResult, { ResultCard } from "../ExchangeResult";
+import EmptyState from "@/components/EmptyState";
+import { EMPTY } from "@/components/emptyCopy";
 
 type Person = { id: string; display_name: string; affiliation: string | null };
 
@@ -89,7 +91,11 @@ export default function ScanClient({ via }: { via: "card" | "event" }) {
             />
             {shown && (
               <ul className="mt-2 max-h-56 divide-y divide-line overflow-y-auto">
-                {shown.length === 0 && <li className="py-3 text-xs text-ink-3">입장한 사람 중에 없어요</li>}
+                {shown.length === 0 && (
+                  <li>
+                    <EmptyState copy={EMPTY.searchNone} compact />
+                  </li>
+                )}
                 {shown.map((p) => (
                   <li key={p.id}>
                     <button type="button" onClick={() => setTarget({ payload: p.id, source: "manual", n: Date.now() })} className="flex w-full items-center justify-between py-3 text-left text-sm">

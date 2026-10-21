@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import Loading from "@/components/Loading";
 import { refreshOrbitState } from "@/components/useOrbitState";
+import { toast } from "@/components/Toast";
 
 type Item = "collect" | "share";
 type Me = { consents?: Record<Item, { state: "agreed" | "refused" | "pending" }> };
@@ -39,9 +40,13 @@ export default function ConsentItem({ item }: { item: Item }) {
     setMsg(null);
     const r = await api("/api/onboarding/consent", { json: { agreed, item } });
     setBusy(false);
-    if (!r.ok) return setMsg(r.message);
+    if (!r.ok) {
+      toast(r.message, "error");
+      return setMsg(r.message);
+    }
     setState(agreed ? "agreed" : "refused");
     setMsg("저장했어요");
+    toast(agreed ? "동의를 저장했어요" : "동의 철회를 저장했어요");
     refreshOrbitState();
   }
 

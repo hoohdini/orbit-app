@@ -7,6 +7,8 @@ import Link from "next/link";
 import { api } from "@/lib/client";
 import type { Card } from "@/app/api/card/_lib";
 import { hhmm, metLabel } from "../../walletText";
+import { toast } from "@/components/Toast";
+import Loading from "@/components/Loading";
 
 const LINKS: { key: "email" | "linkedin" | "github" | "url"; label: string }[] = [
   { key: "email", label: "이메일" },
@@ -36,9 +38,10 @@ export default function CardDetail({ id }: { id: string }) {
     setSaved("saving");
     const r = await api<{ note: string | null }>("/api/card/note", { json: { target_id: id, note: note.trim() } });
     setSaved(r.ok ? "saved" : "error");
+    toast(r.ok ? "메모를 저장했어요" : "저장하지 못했어요. 다시 눌러 주세요", r.ok ? "success" : "error");
   }
 
-  if (card === undefined) return <p className="mt-10 text-center text-sm text-ink-3">불러오는 중</p>;
+  if (card === undefined) return <Loading />;
   if (card === null)
     return (
       <p className="mt-10 text-center text-sm text-ink-2">

@@ -8,6 +8,7 @@ import Loading from "@/components/Loading";
 import type { Card } from "@/app/api/card/_lib";
 import ClassicCard, { CLASSIC_CARD_W } from "@/components/figma/ClassicCard";
 import { useFit } from "@/components/figma/useFit";
+import { toast } from "@/components/Toast";
 import { Notice, Row, RowGroup, Section, bigBtn } from "../ui";
 
 type Profile = { offer_text: string; seek_text: string; topic_tags: string[]; edited: boolean; visibility: string; links: Record<string, string> };
@@ -34,6 +35,7 @@ export default function CardEdit() {
     setState("saving");
     const r = await api("/api/card/settings", { json: { visibility: vis } });
     setState(r.ok ? "saved" : "error");
+    toast(r.ok ? "공개 범위를 저장했어요" : "저장하지 못했어요. 다시 눌러 주세요", r.ok ? "success" : "error");
   }
 
   const linkCount = Object.values(p.links).filter(Boolean).length;
