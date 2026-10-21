@@ -55,9 +55,9 @@ export const INTEREST_KEYS = INTEREST_CHOICES.map((c) => c.key) as [InterestChoi
 // 질문: 오늘 이 분야와 관련된 분을 더 만나 보고 싶나요?  키는 DB poster_responses.reason 에 그대로 저장된다(0011 의 check 와 같아야 한다).
 // 어떤 답이든 스탬프는 준다. 관심 분야가 아니라는 답은 계산 서비스가 그 주제 쪽에서 조금 밀어낸다(pipeline/signals.py)
 export const REASON_CHOICES = [
-  { key: "want", label: "꼭 만나 보고 싶어요" },
-  { key: "maybe", label: "기회가 되면 좋아요" },
-  { key: "not_mine", label: "제 관심 분야는 아니에요" },
+  { key: "want", label: "꼭 만나 보고 싶다" },
+  { key: "maybe", label: "기회가 되면 좋다" },
+  { key: "not_mine", label: "내 관심 분야는 아니다" },
 ] as const;
 
 export type ReasonChoice = (typeof REASON_CHOICES)[number]["key"];
