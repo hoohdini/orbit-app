@@ -172,7 +172,9 @@ function LoginForm({ next }: { next: string | null }) {
             </ul>
           </div>
         )}
-        <p className="mt-3 text-center text-xs leading-relaxed text-ink-3">숫자 4자리는 보통 휴대폰 번호 뒤 4자리예요. 기억나지 않으면 등록 데스크의 운영진에게 말씀해 주세요</p>
+        <p className="mt-3 text-center text-xs leading-relaxed tracking-tight break-keep text-ink-3">숫자 4자리는 휴대폰 번호 뒤 4자리입니다.
+          <br />
+          기억나지 않으면 등록 데스크의 운영진에게 문의해주세요</p>
       </form>
     </OnboardingFrame>
   );

@@ -1,12 +1,13 @@
 "use client";
-// 명함 편집(피그마 10/11). 미리보기(Pass) · 공개 범위(전체 공개 · 내가 찍은 사람만) · Offer · Seek · 연락처, 저장하기.
+// 명함 편집(피그마 10/11). 미리보기(명함 시안 A) · 공개 범위(전체 공개 · 내가 찍은 사람만) · Offer · Seek · 연락처, 저장하기.
 // 공개 범위는 저장하기를 눌러야 바뀐다(/api/card/settings). Offer · Seek 는 각 수정 화면에서 저장한다(/api/my/profile, 명함에만 반영).
 // 연락처 링크 편집은 피그마에 없지만 명함 상세의 연락처가 여기서 정해지므로 줄 하나로 남겼다.
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import Loading from "@/components/Loading";
 import type { Card } from "@/app/api/card/_lib";
-import Pass from "@/components/figma/Pass";
+import ClassicCard, { CLASSIC_CARD_W } from "@/components/figma/ClassicCard";
+import { useFit } from "@/components/figma/useFit";
 import { Notice, Row, RowGroup, Section, bigBtn } from "../ui";
 
 type Profile = { offer_text: string; seek_text: string; topic_tags: string[]; edited: boolean; visibility: string; links: Record<string, string> };
@@ -16,6 +17,7 @@ export default function CardEdit() {
   const [card, setCard] = useState<Card | null>(null);
   const [vis, setVis] = useState<"all" | "scanned">("all");
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [cardBox, zoom] = useFit<HTMLDivElement>(CLASSIC_CARD_W, 1.2); // 폭에 맞춰 명함 미리보기를 줄이고 늘린다
 
   useEffect(() => {
     api<Profile>("/api/my/profile").then((r) => {
@@ -38,7 +40,9 @@ export default function CardEdit() {
   return (
     <main className="space-y-5 px-5 py-7">
       <Section title="미리보기">
-        <Pass card={card} />
+        <div ref={cardBox} className="w-full">
+          <ClassicCard card={card} zoom={zoom} />
+        </div>
       </Section>
       <Section title="공개 범위">
         <div className="flex gap-2">
