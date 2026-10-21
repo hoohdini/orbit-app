@@ -11,6 +11,8 @@ import Eclipse from "@/components/figma/Eclipse";
 import { parseCardId } from "@/app/api/card/_lib";
 import DarkScreen from "../DarkScreen";
 import ExchangeResult, { ResultCard } from "../ExchangeResult";
+import EmptyState from "@/components/EmptyState";
+import { EMPTY } from "@/components/emptyCopy";
 
 type Person = { id: string; display_name: string; affiliation: string | null };
 
@@ -68,7 +70,7 @@ export default function ScanClient({ via }: { via: "card" | "event" }) {
         {target ? (
           <ExchangeResult key={target.n} payload={target.payload} source={target.source} via={via} onDone={reset} />
         ) : notQr ? (
-          <ResultCard title="ORBIT QR이 아니에요" body="행사 포스터나 명함의 QR을 찍어 주세요" action="다시 찍기" onAction={reset} />
+          <ResultCard title="ORBIT QR이 아닙니다" body="행사 포스터나 명함의 QR을 찍어 주세요" action="다시 찍기" onAction={reset} />
         ) : searchOpen || denied ? (
           <section className="rounded-3xl bg-white p-5 text-ink">
             <div className="flex items-center justify-between">
@@ -79,7 +81,7 @@ export default function ScanClient({ via }: { via: "card" | "event" }) {
                 </button>
               )}
             </div>
-            <p className="mt-1 text-xs text-ink-3">이름으로 교환하면 상대가 확인해야 교환이 끝나요</p>
+            <p className="mt-1 text-xs text-ink-3">이름으로 교환하면 상대가 확인해야 교환이 끝납니다</p>
             <input
               className="mt-3 w-full rounded-xl bg-field px-4 py-3 text-base text-ink outline-none ring-navy placeholder:text-ink-3 focus:ring-1"
               value={q}
@@ -89,7 +91,11 @@ export default function ScanClient({ via }: { via: "card" | "event" }) {
             />
             {shown && (
               <ul className="mt-2 max-h-56 divide-y divide-line overflow-y-auto">
-                {shown.length === 0 && <li className="py-3 text-xs text-ink-3">입장한 사람 중에 없어요</li>}
+                {shown.length === 0 && (
+                  <li>
+                    <EmptyState copy={EMPTY.searchNone} compact />
+                  </li>
+                )}
                 {shown.map((p) => (
                   <li key={p.id}>
                     <button type="button" onClick={() => setTarget({ payload: p.id, source: "manual", n: Date.now() })} className="flex w-full items-center justify-between py-3 text-left text-sm">
@@ -108,7 +114,7 @@ export default function ScanClient({ via }: { via: "card" | "event" }) {
           <div className="pb-6 text-center">
             <p className="text-[15px] font-medium">명찰이나 포스터의 QR을 원 안에 맞춰 주세요</p>
             <button type="button" onClick={() => setSearchOpen(true)} className="mt-3 text-sm font-medium text-muted underline">
-              카메라를 쓸 수 없나요? 이름으로 찾기
+              카메라를 쓸 수 없다면 이름으로 찾기
             </button>
           </div>
         )}

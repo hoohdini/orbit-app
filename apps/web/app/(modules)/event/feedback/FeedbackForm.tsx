@@ -38,7 +38,7 @@ export default function FeedbackForm() {
   return (
     <main className="space-y-3 px-5 pt-5 pb-6">
       <section className="rounded-3xl border border-navy bg-white px-5 py-4">
-        <h2 className="text-[17px] font-medium text-navy">ORBIT.app은 어땠나요?</h2>
+        <h2 className="text-[17px] font-medium text-navy">ORBIT.app은 어땠습니까?</h2>
         <div className="mt-3 flex gap-2" role="radiogroup" aria-label="별점">
           {RATINGS.map((n) => (
             <button key={n} type="button" role="radio" aria-checked={rating === n} onClick={() => setRating(n)} className={`h-9 flex-1 rounded-full border text-sm font-medium ${rating === n ? "border-navy bg-navy text-white" : "border-line bg-white text-ink"}`}>
@@ -47,14 +47,14 @@ export default function FeedbackForm() {
           ))}
         </div>
         <div className="mt-2 flex justify-between text-xs text-ink-3">
-          <span>아쉬워요</span>
-          <span>최고예요</span>
+          <span>아쉽다</span>
+          <span>최고다</span>
         </div>
       </section>
 
       <section className="rounded-3xl border border-navy bg-white px-5 py-4">
         <h2 className="text-[17px] font-medium text-navy">
-          어떤 점이 좋았나요? <span className="ml-1 text-xs font-normal text-ink-3">복수 선택</span>
+          어떤 점이 좋았습니까? <span className="ml-1 text-xs font-normal text-ink-3">복수 선택</span>
         </h2>
         <div className="mt-3 flex flex-wrap gap-2">
           {FEEDBACK_TAGS.map((t) => {

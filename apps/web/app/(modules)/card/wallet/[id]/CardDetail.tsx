@@ -7,6 +7,8 @@ import Link from "next/link";
 import { api } from "@/lib/client";
 import type { Card } from "@/app/api/card/_lib";
 import { hhmm, metLabel } from "../../walletText";
+import { toast } from "@/components/Toast";
+import Loading from "@/components/Loading";
 
 const LINKS: { key: "email" | "linkedin" | "github" | "url"; label: string }[] = [
   { key: "email", label: "이메일" },
@@ -36,13 +38,14 @@ export default function CardDetail({ id }: { id: string }) {
     setSaved("saving");
     const r = await api<{ note: string | null }>("/api/card/note", { json: { target_id: id, note: note.trim() } });
     setSaved(r.ok ? "saved" : "error");
+    toast(r.ok ? "메모를 저장했습니다" : "저장하지 못했습니다. 다시 눌러 주세요", r.ok ? "success" : "error");
   }
 
-  if (card === undefined) return <p className="mt-10 text-center text-sm text-ink-3">불러오는 중</p>;
+  if (card === undefined) return <Loading />;
   if (card === null)
     return (
       <p className="mt-10 text-center text-sm text-ink-2">
-        교환한 명함이 아니에요.{" "}
+        교환한 명함이 아닙니다.{" "}
         <Link href="/card/wallet" className="underline">
           목록으로
         </Link>
@@ -104,7 +107,7 @@ export default function CardDetail({ id }: { id: string }) {
               })}
             </div>
           ) : (
-            <p className="mt-3 text-xs text-ink-3">공개한 연락처가 없어요</p>
+            <p className="mt-3 text-xs text-ink-3">공개한 연락처가 없습니다</p>
           )}
         </section>
       </div>
@@ -122,13 +125,13 @@ export default function CardDetail({ id }: { id: string }) {
           }}
           maxLength={200}
           rows={3}
-          placeholder="이 분과 나눈 이야기를 적어 두세요(나만 봐요)"
+          placeholder="이 분과 나눈 이야기를 적어 두세요(나만 볼 수 있음)"
           className="mt-1 w-full resize-none px-[6px] text-base text-ink outline-none placeholder:text-ink-3"
         />
         <p className="text-right text-[11px] text-ink-3">{note.length}/200</p>
       </section>
       <button type="button" onClick={save} disabled={saved === "saving"} className="flex h-14 w-full items-center justify-center rounded-2xl bg-navy text-base font-bold text-white disabled:bg-field disabled:text-ink-3">
-        {saved === "saving" ? "저장 중" : saved === "saved" ? "저장했어요" : saved === "error" ? "저장하지 못했어요. 다시 누르기" : "메모 저장"}
+        {saved === "saving" ? "저장 중" : saved === "saved" ? "저장했습니다" : saved === "error" ? "저장하지 못했습니다. 다시 누르기" : "메모 저장"}
       </button>
       <p className="text-center text-[11px] text-ink-3">
         {metLabel(card)} · {hhmm(card.exchanged_at)} 교환
@@ -150,7 +153,7 @@ function TextBox({ label, text }: { label: string; text: string }) {
   return (
     <section className="min-h-[105px] rounded-2xl border border-navy bg-strip px-4 py-[14px]">
       <p className="text-[13px] font-bold text-navy">{label}</p>
-      <p className="mt-1 line-clamp-4 text-[13px] leading-[18px] text-ink">{text || "비어 있어요"}</p>
+      <p className="mt-1 line-clamp-4 text-[13px] leading-[18px] text-ink">{text || "비어 있습니다"}</p>
     </section>
   );
 }

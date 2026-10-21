@@ -41,12 +41,12 @@ export default function RecsList() {
   const box = "mx-5 mt-[7px] overflow-hidden rounded-3xl border border-navy bg-white";
   if (error) return <p className={`${box} p-6 text-center text-sm text-ink-2`}>{error}</p>;
   if (!recs) return <p className={`${box} p-6 text-center text-sm text-ink-3`}>불러오는 중</p>;
-  if (recs.folded) return <p className={`${box} p-6 text-center text-sm text-ink-2`}>지금은 앞에 계신 분과 대화하는 시간이에요. 세션이 끝나면 다시 볼 수 있어요</p>;
-  if (recs.people.length === 0) return <p className={`${box} p-6 text-center text-sm text-ink-2`}>추천 목록이 곧 준비돼요</p>;
+  if (recs.folded) return <p className={`${box} p-6 text-center text-sm text-ink-2`}>지금은 앞에 계신 분과 대화하는 시간입니다. 세션이 끝나면 다시 볼 수 있습니다</p>;
+  if (recs.people.length === 0) return <p className={`${box} p-6 text-center text-sm text-ink-2`}>추천 목록이 곧 준비됩니다</p>;
 
   return (
     <>
-      <p className="mx-5 mt-3 text-xs text-ink-2">번호는 나와 가까운 순서예요. 행사 내내 같은 목록이에요</p>
+      <p className="mx-5 mt-3 text-xs text-ink-2">번호는 나와 가까운 순서입니다. 행사 내내 같은 목록입니다</p>
       <ol className={`${box} py-1`}>
         {recs.people.map((p, i) => (
           <li key={p.id} className={`flex items-start gap-[14px] px-5 py-[14px] ${i < recs.people.length - 1 ? "border-b border-navy" : ""}`}>
@@ -63,7 +63,7 @@ export default function RecsList() {
           </li>
         ))}
       </ol>
-      {recs.almost_done && <p className="mt-3 text-center text-xs text-ink-3">목록의 모든 분과 명함을 주고받았어요</p>}
+      {recs.almost_done && <p className="mt-3 text-center text-xs text-ink-3">목록의 모든 분과 명함을 주고받았습니다</p>}
       <p className="mx-5 mt-3 text-center text-xs text-ink-3">
         만나면{" "}
         <Link href="/card/scan?via=card" className="underline">

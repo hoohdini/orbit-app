@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import Loading from "@/components/Loading";
 import { refreshOrbitState } from "@/components/useOrbitState";
+import { toast } from "@/components/Toast";
 
 type Item = "collect" | "share";
 type Me = { consents?: Record<Item, { state: "agreed" | "refused" | "pending" }> };
@@ -13,13 +14,13 @@ const BODY: Record<Item, string[]> = {
     "수집·이용 목적: 행사 참가자 간 네트워킹(테이블 배정, 명함 교환, 추천, 미션 운영)",
     "수집 항목: 사전 등록 정보(이름, 소속, 구분, 기수, 관심 태그, 하는 일 · 찾는 사람), 행사 중 앱 사용 기록(명함 교환, 만족도, 포스터 응답, 퀴즈)",
     "보유 기간: 행사 종료 후 30일까지. 이후 즉시 파기",
-    "동의하지 않으면: 자리 안내와 식순은 볼 수 있지만 명함 교환, 포스터 응답, 미션 기록은 남지 않아요",
+    "동의하지 않으면: 자리 안내와 식순은 볼 수 있지만 명함 교환, 포스터 응답, 미션 기록은 남지 않습니다",
   ],
   share: [
     "목적: 내 명함을 다른 참가자와 주고받고, 다른 분의 오늘 만나면 좋을 분 · 궤도 · 이름 검색에 나를 보여 주기",
     "보이는 항목: 이름, 소속, 구분, 기수, 하는 일 · 찾는 사람, 관심 태그, 공개 범위 안의 연락처",
     "보유 기간: 행사 종료 후 30일까지. 이후 즉시 파기",
-    "동의하지 않으면: 다른 분의 추천 · 궤도 · 이름 검색에 나오지 않고 명함을 주고받을 수 없어요",
+    "동의하지 않으면: 다른 분의 추천 · 궤도 · 이름 검색에 나오지 않고 명함을 주고받을 수 없습니다",
   ],
 };
 
@@ -39,9 +40,13 @@ export default function ConsentItem({ item }: { item: Item }) {
     setMsg(null);
     const r = await api("/api/onboarding/consent", { json: { agreed, item } });
     setBusy(false);
-    if (!r.ok) return setMsg(r.message);
+    if (!r.ok) {
+      toast(r.message, "error");
+      return setMsg(r.message);
+    }
     setState(agreed ? "agreed" : "refused");
-    setMsg("저장했어요");
+    setMsg("저장했습니다");
+    toast(agreed ? "동의를 저장했습니다" : "동의 철회를 저장했습니다");
     refreshOrbitState();
   }
 

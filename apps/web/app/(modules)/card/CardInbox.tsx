@@ -57,13 +57,13 @@ export default function CardInbox() {
         {req ? (
           <>
             <p className="text-base font-bold text-navy">{req.message}</p>
-            <p className="mt-0.5 text-xs text-gray-500">상대가 이름으로 찾아 명함 교환을 요청했어요. 실제로 만났다면 확인을 눌러 주세요</p>
+            <p className="mt-0.5 text-xs text-gray-500">상대가 이름으로 찾아 명함 교환을 요청했습니다. 실제로 만났다면 확인을 눌러 주세요</p>
             <div className="mt-2">
               <CardView card={req.card} compact />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button type="button" disabled={busy} onClick={() => confirm(true)} className="rounded-2xl bg-navy py-3 text-sm font-bold text-white">
-                네, 교환했어요
+                네, 교환했습니다
               </button>
               <button type="button" disabled={busy} onClick={() => confirm(false)} className="rounded-2xl border border-line py-3 text-sm">
                 아니요
@@ -80,7 +80,7 @@ export default function CardInbox() {
                   닫기
                 </button>
               </div>
-              <p className="mt-0.5 text-xs text-gray-500">상대가 내 QR을 찍어 서로 명함을 주고받았어요. 교환한 명함 목록에 들어가 있어요</p>
+              <p className="mt-0.5 text-xs text-gray-500">상대가 내 QR을 찍어 서로 명함을 주고받았습니다. 교환한 명함 목록에 들어가 있습니다</p>
               <div className="mt-2">
                 <CardView card={first.card} compact />
               </div>
@@ -91,7 +91,7 @@ export default function CardInbox() {
               )}
               {inbox.new.length > 1 && (
                 <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                  <span>{inbox.new.length - 1}건 더 있어요</span>
+                  <span>{inbox.new.length - 1}건 더 있습니다</span>
                   <button type="button" onClick={() => dismiss(true)} className="underline">
                     모두 확인
                   </button>

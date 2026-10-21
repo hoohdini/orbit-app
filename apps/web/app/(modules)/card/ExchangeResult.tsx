@@ -13,11 +13,11 @@ type ScanData = { card: Card; already_saved: boolean; status: "pending" | "confi
 type State = { kind: "loading" } | { kind: "ok"; data: ScanData } | { kind: "error"; code: string; message: string };
 
 const ERRORS: Record<string, [string, string]> = {
-  NOT_FOUND: ["ORBIT QR이 아니에요", "행사 포스터나 명함의 QR을 찍어 주세요"],
-  SELF_SCAN: ["내 명함 QR이에요", "상대의 명찰이나 화면에 뜬 QR을 찍어 주세요"],
-  TARGET_UNAVAILABLE: ["이 분과는 앱으로 교환할 수 없어요", "앱 이용에 동의하지 않은 분이에요. 직접 인사를 나눠 주세요"],
-  CONSENT_REFUSED: ["이용 동의가 필요해요", "마이페이지에서 동의하면 명함을 교환할 수 있어요"],
-  CONSENT_REQUIRED: ["이용 동의가 필요해요", "마이페이지에서 동의하면 명함을 교환할 수 있어요"],
+  NOT_FOUND: ["ORBIT QR이 아닙니다", "행사 포스터나 명함의 QR을 찍어 주세요"],
+  SELF_SCAN: ["내 명함 QR입니다", "상대의 명찰이나 화면에 뜬 QR을 찍어 주세요"],
+  TARGET_UNAVAILABLE: ["이 분과는 앱으로 교환할 수 없습니다", "앱 이용에 동의하지 않은 분입니다. 직접 인사를 나눠 주세요"],
+  CONSENT_REFUSED: ["이용 동의가 필요합니다", "마이페이지에서 동의하면 명함을 교환할 수 있습니다"],
+  CONSENT_REQUIRED: ["이용 동의가 필요합니다", "마이페이지에서 동의하면 명함을 교환할 수 있습니다"],
 };
 
 export function ResultCard({ title, body, children, action, onAction, actionHref, sub }: { title: string; body: string; children?: React.ReactNode; action: string; onAction?: () => void; actionHref?: string; sub?: React.ReactNode }) {
@@ -66,22 +66,22 @@ export default function ExchangeResult({ payload, source = "qr", via, onDone }: 
   );
 
   if (state.kind === "loading") {
-    return <div className="w-full rounded-3xl bg-white px-5 py-8 text-center text-sm text-ink-2">명함을 주고받는 중이에요</div>;
+    return <div className="w-full rounded-3xl bg-white px-5 py-8 text-center text-sm text-ink-2">명함을 주고받는 중입니다</div>;
   }
   if (state.kind === "error") {
-    const [title, body] = ERRORS[state.code] ?? ["교환하지 못했어요", state.message];
+    const [title, body] = ERRORS[state.code] ?? ["교환하지 못했습니다", state.message];
     return <ResultCard title={title} body={body} action={state.code === "NOT_FOUND" || state.code === "SELF_SCAN" ? "다시 찍기" : "확인"} {...close} />;
   }
 
   const { card, status, already_saved, ask_first_meet } = state.data;
   const name = card.display_name;
   if (status === "pending") {
-    return <ResultCard title={`${name}님의 확인을 기다리고 있어요`} body="상대 화면에 교환 확인 요청이 떴어요. 상대가 확인하면 교환이 끝나요" action="확인" {...close} sub={walletLink} />;
+    return <ResultCard title={`${name}님의 확인을 기다리고 있습니다`} body="상대 화면에 교환 확인 요청이 떴습니다. 상대가 확인하면 교환이 끝납니다" action="확인" {...close} sub={walletLink} />;
   }
   return (
     <ResultCard
-      title={already_saved ? "이미 교환한 명함이에요" : "명함 교환이 완료되었어요"}
-      body={already_saved ? `${name}님과는 이미 명함을 주고받았어요` : `두 번 교환할 필요 없이 ${name}님도 바로 교환돼요`}
+      title={already_saved ? "이미 교환한 명함입니다" : "명함 교환이 완료되었습니다"}
+      body={already_saved ? `${name}님과는 이미 명함을 주고받았습니다` : `두 번 교환할 필요 없이 ${name}님도 바로 교환됩니다`}
       action="확인"
       {...close}
       sub={walletLink}

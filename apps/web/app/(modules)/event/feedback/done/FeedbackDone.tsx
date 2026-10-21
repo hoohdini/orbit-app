@@ -23,7 +23,7 @@ export default function FeedbackDone() {
   if (f === null)
     return (
       <main className="px-5 pt-8 text-center">
-        <p className="text-sm text-ink-2">아직 남긴 피드백이 없어요</p>
+        <p className="text-sm text-ink-2">아직 남긴 피드백이 없습니다</p>
         <Link href="/event/feedback" className="mt-5 flex h-14 items-center justify-center rounded-2xl bg-navy text-lg font-bold text-white">
           피드백 남기기
         </Link>

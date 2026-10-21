@@ -33,7 +33,7 @@ export default function PosterList() {
         관심 포스터 {Math.min(d.progress.responses, d.progress.poster_goal)}/{d.progress.poster_goal} · 퀴즈 스탬프 {Math.min(d.progress.quiz_stamps, d.progress.quiz_goal)}/{d.progress.quiz_goal}
       </p>
       {d.posters.length === 0 ? (
-        <p className="rounded-3xl border border-dashed border-line p-6 text-center text-sm text-ink-2">포스터 목록이 곧 준비돼요</p>
+        <p className="rounded-3xl border border-dashed border-line p-6 text-center text-sm text-ink-2">포스터 목록이 곧 준비됩니다</p>
       ) : (
         <ol className="overflow-hidden rounded-3xl border border-navy bg-white py-1">
           {d.posters.map((p, i) => {
@@ -42,7 +42,7 @@ export default function PosterList() {
                 <span className="w-6 shrink-0 text-sm font-medium text-navy">{String(i + 1).padStart(2, "0")}</span>
                 <span className="min-w-0 flex-1">
                   <span className={`block truncate text-[15px] font-bold ${p.scanned ? "text-ink" : "text-ink-3"}`}>{p.title}</span>
-                  <span className="block truncate text-xs text-ink-3">{p.scanned ? [p.tags[0], p.presenter].filter(Boolean).join(" · ") : "QR을 찍으면 열려요"}</span>
+                  <span className="block truncate text-xs text-ink-3">{p.scanned ? [p.tags[0], p.presenter].filter(Boolean).join(" · ") : "QR을 찍으면 열립니다"}</span>
                 </span>
                 <Stamp on={p.quiz_solved} size={32} />
               </>

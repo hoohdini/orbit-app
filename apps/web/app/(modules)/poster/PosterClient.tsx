@@ -26,7 +26,7 @@ type View = {
 type Answer = { correct: boolean; quiz_stamps: number; quiz_goal: number };
 type Step = "summary" | "quiz" | "result" | "interest";
 
-const REASON_Q = "오늘 이 분야와 관련된 분을 더 만나 보고 싶나요?";
+const REASON_Q = "오늘 이 분야와 관련된 분을 더 만나 보고 싶습니까?";
 
 export default function PosterClient({ code, id, via }: { code: string | null; id: number | null; via: "card" | "event" | null }) {
   const router = useRouter();
@@ -78,7 +78,7 @@ export default function PosterClient({ code, id, via }: { code: string | null; i
     setNote(null);
     const r = await api("/api/poster/response", { json: { poster_id: v.poster.id, reason, shown_order: v.reasons.map((c) => c.key) } });
     setBusy(false);
-    if (!r.ok) return setNote(r.code === "SCAN_REQUIRED" ? "포스터를 찍은 지 15분이 지났어요. 포스터 앞에서 QR을 다시 찍어 주세요" : r.message);
+    if (!r.ok) return setNote(r.code === "SCAN_REQUIRED" ? "포스터를 찍은 지 15분이 지났습니다. 포스터 앞에서 QR을 다시 찍어 주세요" : r.message);
     router.push("/event/posters"); // 피그마 A25: 제출 뒤 포스터 목록으로
   }
 
@@ -98,7 +98,7 @@ export default function PosterClient({ code, id, via }: { code: string | null; i
         {head}
         <section className="rounded-3xl bg-strip px-5 py-4">
           <p className="text-sm font-bold text-navy">포스터 요약</p>
-          <p className="mt-2 whitespace-pre-line text-[13px] leading-relaxed text-ink">{v.poster.summary || "요약이 곧 준비돼요"}</p>
+          <p className="mt-2 whitespace-pre-line text-[13px] leading-relaxed text-ink">{v.poster.summary || "요약이 곧 준비됩니다"}</p>
         </section>
         {v.quiz && (
           <div>
@@ -109,7 +109,7 @@ export default function PosterClient({ code, id, via }: { code: string | null; i
           </div>
         )}
         {v.my_reason ? (
-          <span className={`${btn} bg-field text-ink-3`}>이미 고른 관심 포스터예요</span>
+          <span className={`${btn} bg-field text-ink-3`}>이미 고른 관심 포스터입니다</span>
         ) : (
           <button type="button" onClick={() => setStep("interest")} className={`${btn} bg-navy text-white`}>
             관심 포스터로 선택하기
@@ -183,8 +183,8 @@ export default function PosterClient({ code, id, via }: { code: string | null; i
           <div className="flex items-center gap-4 rounded-3xl border border-navy bg-strip px-5 py-4">
             <Stamp on size={44} />
             <div>
-              <p className="text-base font-bold text-navy">정답이에요</p>
-              <p className="text-[13px] text-ink-2">{label} 스탬프를 받았어요</p>
+              <p className="text-base font-bold text-navy">정답입니다</p>
+              <p className="text-[13px] text-ink-2">{label} 스탬프를 받았습니다</p>
             </div>
           </div>
           <Link href="/event/posters" className={`${btn} bg-navy text-white`}>
@@ -197,7 +197,7 @@ export default function PosterClient({ code, id, via }: { code: string | null; i
       ) : (
         <>
           <div className="rounded-3xl border border-line px-5 py-4">
-            <p className="text-base font-bold text-ink">아쉽지만 오답이에요</p>
+            <p className="text-base font-bold text-ink">아쉽지만 오답입니다</p>
             <p className="text-[13px] text-ink-2">요약을 다시 보고 한 번 더 풀어 보세요</p>
           </div>
           <button type="button" onClick={() => (setPicked(null), setResult(null), setStep("quiz"))} className={`${btn} bg-navy text-white`}>

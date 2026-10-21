@@ -86,7 +86,7 @@ function LoginForm({ next }: { next: string | null }) {
     setBusy(false);
     if (!r.ok) {
       setChoose(null);
-      setError(r.status === 423 ? "여러 번 틀려서 잠시 잠겼어요. 10분 뒤에 다시 시도해 주세요." : r.status === 401 ? "이름 혹은 숫자 4자리가 일치하지 않습니다. 다시 한 번 확인해 주세요." : r.message);
+      setError(r.status === 423 ? "여러 번 틀려서 잠시 잠겼습니다. 10분 뒤에 다시 시도해 주세요." : r.status === 401 ? "이름 혹은 숫자 4자리가 일치하지 않습니다. 다시 한 번 확인해 주세요." : r.message);
       return;
     }
     if (r.data.choose) {
@@ -156,7 +156,7 @@ function LoginForm({ next }: { next: string | null }) {
         )}
         {choose && (
           <div className="mt-2 rounded-xl border border-navy bg-white p-3">
-            <p className="text-sm text-ink-2">같은 이름이 여러 명이에요. 본인을 골라 주세요</p>
+            <p className="text-sm text-ink-2">같은 이름이 여러 명입니다. 본인을 골라 주세요</p>
             <ul className="mt-2 space-y-2">
               {choose.map((c) => (
                 <li key={c.id}>
@@ -172,7 +172,9 @@ function LoginForm({ next }: { next: string | null }) {
             </ul>
           </div>
         )}
-        <p className="mt-3 text-center text-xs leading-relaxed text-ink-3">숫자 4자리는 보통 휴대폰 번호 뒤 4자리예요. 기억나지 않으면 등록 데스크의 운영진에게 말씀해 주세요</p>
+        <p className="mt-3 text-center text-xs leading-relaxed tracking-tight break-keep text-ink-3">숫자 4자리는 휴대폰 번호 뒤 4자리입니다.
+          <br />
+          기억나지 않으면 등록 데스크의 운영진에게 문의해주세요</p>
       </form>
     </OnboardingFrame>
   );

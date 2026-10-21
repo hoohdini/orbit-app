@@ -27,8 +27,8 @@ export default function MyQr() {
       close="/card"
       footer={
         <div className="pb-6 text-center">
-          <p className="text-[15px] font-medium">내 QR을 상대에게 공유해요</p>
-          <p className="mt-2 text-sm text-muted">상대가 찍으면 서로 명함을 주고받아요</p>
+          <p className="text-[15px] font-medium">내 QR을 상대에게 공유합니다</p>
+          <p className="mt-2 text-sm text-muted">상대가 찍으면 서로 명함을 주고받습니다</p>
         </div>
       }
     >

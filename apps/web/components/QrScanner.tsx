@@ -76,7 +76,7 @@ export default function QrScanner({ onDecode, onDenied, paused = false, cooldown
       <div id={REGION_ID} className="size-full" />
       {status !== "running" && (
         <p className="absolute inset-0 flex items-center justify-center px-8 text-center text-xs text-muted">
-          {status === "starting" ? "카메라를 여는 중" : "카메라를 열 수 없어요. 권한을 허용하거나 아래에서 이름으로 찾아 주세요"}
+          {status === "starting" ? "카메라를 여는 중" : "카메라를 열 수 없습니다. 권한을 허용하거나 아래에서 이름으로 찾아 주세요"}
         </p>
       )}
     </div>

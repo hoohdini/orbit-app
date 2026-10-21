@@ -3,6 +3,7 @@
 import BottomNav from "./BottomNav";
 import StatusBand from "./StatusBand";
 import SatisfactionGate from "./SatisfactionGate";
+import ScrollKeeper from "./ScrollKeeper";
 
 // header 를 주면 상태 띠 위에 둔다(피그마 하위 화면: Header 바로 아래 StatusStrip)
 export default function TabShell({ children, showMission = false, extra, header }: { children: React.ReactNode; showMission?: boolean; extra?: React.ReactNode; header?: React.ReactNode }) {
@@ -13,6 +14,7 @@ export default function TabShell({ children, showMission = false, extra, header 
       {children}
       {extra}
       <SatisfactionGate />
+      <ScrollKeeper />
       <BottomNav />
     </div>
   );

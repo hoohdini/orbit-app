@@ -11,9 +11,9 @@ import { LEGACY_NO as NO, type LegacyMissions as Missions } from "../../missions
 
 type Key = "recommended" | "first_meet" | "generation";
 const COPY: Record<Key, { head: string; body: string }> = {
-  recommended: { head: "오늘 만나면 좋을 분과 명함을 교환해 보세요", body: "홈의 ‘오늘 만나면 좋을 분’에 떴던 분 1명과 명함을 교환하면 완료돼요." },
-  first_meet: { head: "처음 만난 분과 명함을 교환해 보세요", body: "첫 대화로 체크된 명함 교환 2건이면 완료돼요." },
-  generation: { head: "나와 구분이 다른 분과 명함을 교환해 보세요", body: "재학생과 졸업생·교수·외부 사이에서, 나와 구분이 다른 분 1명과 명함을 교환하면 완료돼요." },
+  recommended: { head: "오늘 만나면 좋을 분과 명함을 교환해 보세요", body: "홈의 ‘오늘 만나면 좋을 분’에 떴던 분 1명과 명함을 교환하면 완료됩니다." },
+  first_meet: { head: "처음 만난 분과 명함을 교환해 보세요", body: "첫 대화로 체크된 명함 교환 2건이면 완료됩니다." },
+  generation: { head: "나와 구분이 다른 분과 명함을 교환해 보세요", body: "재학생과 졸업생·교수·외부 사이에서, 나와 구분이 다른 분 1명과 명함을 교환하면 완료됩니다." },
 };
 const roleLabel: Record<string, string> = { student: "재학생", alumni: "졸업생", professor: "교수", staff: "운영진", other: "외부" };
 
@@ -66,7 +66,7 @@ export default function MissionDetail({ mkey }: { mkey: Key }) {
                 </Link>
               </li>
             ))}
-            {firsts && firsts.length < mission.goal && <li className="rounded-2xl border border-dashed border-line px-4 py-3 text-center text-xs text-ink-3">다음 첫 대화가 여기에 담겨요</li>}
+            {firsts && firsts.length < mission.goal && <li className="rounded-2xl border border-dashed border-line px-4 py-3 text-center text-xs text-ink-3">다음 첫 대화가 여기에 담깁니다</li>}
           </ul>
         </section>
       )}
