@@ -78,7 +78,7 @@ export default function PosterClient({ code, id, via }: { code: string | null; i
     setNote(null);
     const r = await api("/api/poster/response", { json: { poster_id: v.poster.id, reason, shown_order: v.reasons.map((c) => c.key) } });
     setBusy(false);
-    if (!r.ok) return setNote(r.code === "SCAN_REQUIRED" ? "포스터를 찍은 지 15분이 지났어요. 포스터 앞에서 QR을 다시 찍어 주세요" : r.message);
+    if (!r.ok) return setNote(r.code === "SCAN_REQUIRED" ? "포스터를 찍은 지 15분이 지났습니다. 포스터 앞에서 QR을 다시 찍어 주세요" : r.message);
     router.push("/event/posters"); // 피그마 A25: 제출 뒤 포스터 목록으로
   }
 

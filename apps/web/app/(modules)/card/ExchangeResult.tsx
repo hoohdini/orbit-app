@@ -14,7 +14,7 @@ type State = { kind: "loading" } | { kind: "ok"; data: ScanData } | { kind: "err
 
 const ERRORS: Record<string, [string, string]> = {
   NOT_FOUND: ["ORBIT QR이 아닙니다", "행사 포스터나 명함의 QR을 찍어 주세요"],
-  SELF_SCAN: ["내 명함 QR이에요", "상대의 명찰이나 화면에 뜬 QR을 찍어 주세요"],
+  SELF_SCAN: ["내 명함 QR입니다", "상대의 명찰이나 화면에 뜬 QR을 찍어 주세요"],
   TARGET_UNAVAILABLE: ["이 분과는 앱으로 교환할 수 없습니다", "앱 이용에 동의하지 않은 분입니다. 직접 인사를 나눠 주세요"],
   CONSENT_REFUSED: ["이용 동의가 필요합니다", "마이페이지에서 동의하면 명함을 교환할 수 있습니다"],
   CONSENT_REQUIRED: ["이용 동의가 필요합니다", "마이페이지에서 동의하면 명함을 교환할 수 있습니다"],
