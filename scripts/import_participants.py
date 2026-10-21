@@ -189,6 +189,8 @@ def name_list(v: str | None) -> list[str]:
     """--fixed-names · --exclude 값. 있는 파일 경로면 그 파일(줄마다 또는 쉼표), 아니면 쉼표 목록. 순서 유지 · 중복 제거"""
     if not v:
         return []
+    if not Path(v).is_file() and re.search(r"[/\\]|\.(txt|csv)$", v):   # 경로를 잘못 쓰면 이름 한 개로 읽혀 고정이 전부 지워진다(10/21 검토)
+        sys.exit(f"파일이 없다: {v}")
     raw = Path(v).read_text(encoding="utf-8-sig") if Path(v).is_file() else v
     return list(dict.fromkeys(n.strip() for n in re.split(r"[,\n]", raw) if n.strip()))
 
