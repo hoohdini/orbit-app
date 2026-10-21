@@ -77,7 +77,8 @@ FORM_HEADERS = {"name": ("이름",), "phone": ("휴대폰 번호 뒤 4자리", "
 # 폼 '해당하는 경험을 모두 골라 주세요' 선택지(앞부분) → 구분(careers, 0017). '해당 없음'은 아무것도 아니다
 EXP_MAP = (("기업 재직", "employed"), ("기업 인턴", "intern"), ("창업", "founder"), ("학부연구생", "lab_intern"), ("대학원", "grad"))
 CAREER_ORDER = ("professor", "employed", "grad", "lab_intern", "student")   # career(0015, 하나)로 고를 때의 순서. intern 은 0015 에 없다
-OPERATORS = ("박성하", "황수민", "김민찬", "김나혜", "김현희")
+OPERATORS = ("박성하", "황수민", "김민찬", "김나혜", "김현희",   # 앱 운영(모델링팀)
+             "안재민", "현승원", "김재현", "이지원", "조유빈", "이은민")   # 15기 운영진(박성하 포함 7명). 콘솔을 같이 연다(10/21 민찬)
 DEFAULT_COLS = {"name": "이름", "affiliation": "소속", "role": "구분", "cohort": "기수", "phone": "휴대폰", "offer": "하는일", "seek": "찾는사람", "topic": "주제태그", "intent": "관계태그", "host": "호스트", "fixed": "고정테이블", "teams": "활동팀",
                 "job": "재직", "title": "직책", "interest": "관심도메인", "exp": "경험"}
 

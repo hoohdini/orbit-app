@@ -31,7 +31,7 @@
 1. 노트북 두 곳의 설정이 배포와 같은 행사를 가리키는지 본다.
    - apps/web/.env.local 과 Vercel 환경변수: SUPABASE_URL 이 같은 프로젝트, EVENT_ID 가 같은 값(실제 행사는 orbit-2026)
    - services/compute/.env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY 가 같은 프로젝트, COMPUTE_SECRET 이 apps/web/.env.local 의 값과 같다
-2. 참가자 명단을 적재한다. 운영자 5명은 OPERATORS 명단으로 is_admin 이 자동으로 켜진다(docs/OPERATORS.md).
+2. 참가자 명단을 적재한다. 운영자 11명(모델링팀 5 + 15기 운영진, 박성하 겹침)은 OPERATORS 명단으로 is_admin 이 자동으로 켜진다(docs/OPERATORS.md).
    python scripts/import_participants.py 명단.csv --event-id orbit-2026 --pin-out 저장소밖/pins.csv --fixed-names 저장소밖/table1.txt --exclude "배소윤,박현진"
    - table1.txt 에 1번 테이블(운영진 7 + 연사 교수 3 = 10명) 이름을 줄마다 적는다. 출력의 '1번 테이블 고정 10명' 과 CSV 에 없는 이름 줄이 없는지 본다(10/21 민찬 결정). 먼저 --dry-run 으로 본다
 3. 노트북 전원 어댑터, 절전 끄기(시스템 설정의 잠자기 안 함), 행사장 와이파이 접속을 확인한다. 노트북이 잠들면 계산 서비스도 멈춘다.
