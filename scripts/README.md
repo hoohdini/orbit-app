@@ -64,7 +64,7 @@ pip install qrcode[pil]
 python scripts/build_posters.py --out D:/DSL/_event_data/poster_kit --quizzes D:/DSL/_event_data/quizzes.json
 ```
 
-- 포스터 목록의 정본은 `event_posters.json`(제목 · 발표자 · 태그 · 요약 · 발표자 이름)이다. 요약은 앱 문체(–다체)로 쓴다. 부스(booth)는 JSON 에 있을 때만 들어가고, 없으면 SQL 이 null 로 덮어써 예전 seed 값(A1 · B2)을 지운다(10/21). 고친 뒤 스크립트를 돌리면 `supabase/event_posters.sql` 이 다시 만들어진다. 둘을 같은 PR 에 넣는다.
+- 포스터 목록의 정본은 `event_posters.json`(제목 · 발표자 · 태그 · 요약 · 발표자 이름)이다. 요약은 발표자 글이라 문체를 앱에 맞추지 않는다. 부스(booth)는 JSON 에 있을 때만 들어가고, 없으면 SQL 이 null 로 덮어써 예전 seed 값(A1 · B2)을 지운다(10/21). 고친 뒤 스크립트를 돌리면 `supabase/event_posters.sql` 이 다시 만들어진다. 둘을 같은 PR 에 넣는다.
 - 포스터 코드는 행사장 자리 번호다(1번 자리 = P01, 11번 자리 = P11). 앱 포스터 목록은 코드 순서라 목록 번호가 자리 번호와 같다.
 - 적용 순서: Supabase SQL Editor 에서 `supabase/event_posters.sql` → `<out>/poster_quizzes.sql`. 둘 다 여러 번 실행해도 결과가 같다. 명단 적재 뒤 한 번 더 실행하면 presenter_ids(발표자 본인 응답 제외)가 채워진다.
 - 퀴즈 파일과 `poster_quizzes.sql` 에는 정답이 들어가므로 저장소 밖에 둔다(저장소가 공개다). 형식은 `sample_quizzes.json`.
