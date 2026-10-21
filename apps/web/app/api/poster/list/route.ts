@@ -3,21 +3,20 @@
 import { db } from "@/lib/db";
 import { ok, handle } from "@/lib/api";
 import { requireSession } from "@/lib/session";
-import { POSTER_MISSION_GOAL, QUIZ_MISSION_GOAL } from "../_lib";
-import { quizStampCount, scannedPosterIds } from "../_server";
+import { posterProgress, scannedPosterIds } from "../_server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   return handle(async () => {
     const s = await requireSession();
-    const [posters, quizzes, mine, correct, scanned, quizStamps] = await Promise.all([
+    const [posters, quizzes, mine, correct, scanned, progress] = await Promise.all([
       db().from("posters").select("id, code, title, presenter, tags, booth").order("code"),
       db().from("poster_quizzes").select("poster_id"),
       db().from("poster_responses").select("poster_id, reason").eq("participant_id", s.pid),
       db().from("quiz_attempts").select("poster_id").eq("participant_id", s.pid).eq("is_correct", true),
       scannedPosterIds(s.pid),
-      quizStampCount(s.pid),
+      posterProgress(s.pid), // 마감 뒤 기록은 세지 않는다(lib/missions.ts 와 같은 규칙, 10/21 민찬)
     ]);
     for (const r of [posters, quizzes, mine, correct]) if (r.error) throw r.error;
     const hasQuiz = new Set((quizzes.data ?? []).map((q) => q.poster_id as number));
@@ -39,7 +38,7 @@ export async function GET() {
       posters: list,
       total: list.length,
       scanned_count: list.filter((p) => p.scanned).length,
-      progress: { responses: reasonOf.size, poster_goal: POSTER_MISSION_GOAL, quiz_stamps: quizStamps, quiz_goal: QUIZ_MISSION_GOAL },
+      progress,
     });
   });
 }

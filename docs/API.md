@@ -37,7 +37,7 @@
 | card | /api/card/me | GET | 없음 | { card, visibility, qr_payload, wallet_count, unseen_count } qr_payload 는 명찰과 같은 `<origin>/card?p=<id>` | 있음 |
 | card | /api/card/scan | POST | qr_payload, source?(qr 기본, manual), via?(card · event, 스캐너를 연 탭) | { card, already_saved, status(confirmed · pending), ask_first_meet } 한 번 찍으면 양방향 2행(나→상대 source, 상대→나 auto). qr 은 바로 성립, manual(이름 검색)은 상대 확인 전 pending(v0.2 H-05-BE2). pending 인 사이를 QR 로 찍으면 바로 성립. ask_first_meet 이 true 면 교환 결과 화면에서 오늘 처음 대화한 분인가요? 를 묻는다. 본인 400 SELF_SCAN, 다른 행사·형식 오류 404, 상대가 동의 거부(이용 또는 명함 공개, 0014) 409 TARGET_UNAVAILABLE, 내가 명함 공개 거부 403 SHARE_REFUSED | 있음 |
 | card | /api/card/wallet | GET | 없음 | { cards: [card…], received_count } 최근 순. card.source 가 auto 면 받은 것. card.status 가 pending 이면 상대 확인 전, first_meet · note 는 내가 고른 답과 메모. card.met 은 어디서 만났나 칩(table · poster · coffeechat · other, 교환 때 단계로 정함, 0013. other 는 전체에만), card.together 는 함께 있던 자리 {table_no, group_no}(공개 배정에서 나와 같은 테이블토크 테이블 · 커피챗 그룹이면 그 번호, 아니면 null) | 있음 |
-| card | /api/card/inbox | GET | 없음 | { new: [{exchange_id, message, card, ask_first_meet}], count, requests: [{exchange_id, message, card}] } new 는 아직 안 본 "OO 님에게 명함이 공유되었습니다"(성립한 것만). ask_first_meet 이면 받은 쪽도 오늘 처음 대화한 분인가요? 를 한 번 묻는다. requests 는 상대가 이름 검색으로 보낸 확인 요청(OO님과 명함을 교환하셨나요?) | 있음 |
+| card | /api/card/inbox | GET | 없음 | { new: [{exchange_id, message, card, ask_first_meet}], count, requests: [{exchange_id, message, card}] } new 는 아직 안 본 "OO님에게 명함이 공유되었습니다"(성립한 것만). QR 교환인지 이름 검색 교환인지는 주지 않는다. ask_first_meet 이면 받은 쪽도 오늘 처음 대화한 분인가요? 를 한 번 묻는다. requests 는 상대가 이름 검색으로 보낸 확인 요청(OO님과 명함을 교환하셨나요?) | 있음 |
 | card | /api/card/confirm | POST | exchange_id(requests 의 것), accept | { status(confirmed · rejected), confirmed_at } 이름 검색 교환 확인. 거절하면 두 행을 지운다. 내 요청이 아니면 404, 이미 성립 409 NOT_PENDING(v0.2 H-05-BE2) | 있음 |
 | card | /api/card/first-meet | POST | target_id, first_meet(true · false · null 건너뛰기), note?(200자) | { first_meet, first_meet_at, note } 오늘 처음 대화한 분인가요? 와 한 줄 남기기. 내 행에만 쓴다. 성립한 교환이 아니면 404(v0.2 H-05, 미션 ④ 새로운 연결) | 있음 |
 | card | /api/card/note | POST | target_id, note(200자, 빈 문자열이면 지움) | { note } 명함 상세의 메모 저장(10/11). first_meet 답은 건드리지 않는다. 내 행에만 쓰고 확인 대기(pending) 교환에도 쓸 수 있다. 교환한 사이가 아니면 404 | 있음 |
@@ -56,7 +56,7 @@
 | poster | /api/poster/scan | POST | qr_payload, via? | { poster: {id, code, title, presenter, tags, booth, summary}, reasons: [{key, label}](흥미 3단계, 고정 순서), my_reason, quiz: {id, question, choices} 또는 null, quiz_solved, solved_choice(내가 맞힌 답, 아니면 null), progress: {responses, poster_goal, quiz_stamps, quiz_goal} } 퀴즈 없는 포스터도 스캔된다(v0.2 E-02). 화면 질문은 '오늘 이 분야와 관련된 분을 더 만나 보고 싶나요?'(선택지 아래 안내 문구는 10/17 뺌: 목록 스탬프가 퀴즈 표시라 헷갈림). 내 참여 상태는 P-1 요약 3종(기본 · 이미 참여) 분기용(10/11) | 있음 |
 | poster | /api/poster/response | POST | poster_id, reason(아래 선택지), shown_order | { saved, count, goal: 2, done } 최근 15분 스캔 필요, 재응답은 덮어씀, 어떤 답이든 제출하면 그 포스터 스탬프(미션 ①). **배포 순서: DB 에 0011 · 0012 적용과 be/ 머지를 같이 → compute/ 머지** | 있음 |
 | poster | /api/poster/answer | POST | quiz_id, choice_index | { correct: bool, quiz_stamps, quiz_goal: 3, stamp_count(= quiz_stamps, 예전 화면용), ticket_issued: false } 퀴즈는 이지선다(10/5 회의). 10/11 성하 결정(피그마): 정답이면 그 포스터 퀴즈 스탬프 1개(미션 ②, 서로 다른 포스터 3개), 재시도 무제한(POSTER_MAX_ATTEMPTS 를 설정했을 때만 제한), 오답이면 정답을 알려 주지 않는다. 그 포스터를 한 번이라도 스캔했어야 한다(아니면 403 SCAN_REQUIRED) | 있음 |
-| poster | /api/poster/list | GET | 없음 | { posters: [{id, code, title, presenter, tags, booth, scanned, my_reason, has_quiz, quiz_solved}], total, scanned_count, progress: {responses, poster_goal, quiz_stamps, quiz_goal} } 포스터 세션 목록(P-0, 10/11). scanned 가 false 인 포스터는 화면에서 열지 않는다 | 있음 |
+| poster | /api/poster/list | GET | 없음 | { posters: [{id, code, title, presenter, tags, booth, scanned, my_reason, has_quiz, quiz_solved}], total, scanned_count, progress: {responses, poster_goal, quiz_stamps, quiz_goal} } 포스터 세션 목록(P-0, 10/11). scanned 가 false 인 포스터는 화면에서 열지 않는다. progress 는 미션 마감(closed_at) 뒤 응답 · 정답을 세지 않는다(/api/poster/missions 와 같은 규칙, scan · detail · answer 의 숫자도 같음, 10/21). 마감 뒤에도 응답은 저장된다(추천 계산용) | 있음 |
 | poster | /api/poster/detail | GET | id | /api/poster/scan 과 같은 모양. 목록에서 다시 열 때(피그마 A31). 한 번도 스캔하지 않았으면 403 SCAN_REQUIRED, 스캔 기록은 남기지 않는다 | 있음 |
 | poster | /api/poster/interest | POST | poster_id, choice(아래 선택지) | { saved: true } 예전 화면용. v0.2 부터는 /api/poster/response | 있음 |
 | poster | /api/poster/stamps | GET | 없음 | { stamps: [...], total, tickets: [...] } | 있음 |
@@ -102,8 +102,7 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 | tabletalk | 서비스 소개 · 테이블토크 | 접힘 | 진행 |
 | tabletalk_end | 테이블토크 마무리(만족도) | 접힘 | 진행 |
 | poster | 포스터 세션 | 열림 | 진행 |
-| coffeechat_seated | 커피챗 첫 배치 | 접힘 | 진행 |
-| coffeechat_free | 커피챗 자유 이동 | 열림 | 진행 |
+| coffeechat_seated | 커피챗(이동 없음, 10/21 민찬 결정으로 자유 이동 단계 coffeechat_free 를 뺌) | 접힘 | 진행 |
 | wrapup | 마무리(커피챗 만족도) | 열림 | 마감, 읽기 전용 |
 | award | 시상 · 추첨 | 열림 | 마감, 읽기 전용 |
 

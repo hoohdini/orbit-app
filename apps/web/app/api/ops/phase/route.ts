@@ -1,4 +1,4 @@
-// POST /api/ops/phase { phase }  행사 단계 전환(개발 지시서 v0.2 A-02). 정해진 9개 값만 받는다(lib/phase.ts).
+// POST /api/ops/phase { phase }  행사 단계 전환(개발 지시서 v0.2 A-02). 정해진 8개 값만 받는다(lib/phase.ts. 10/21 커피챗 자유 이동 단계를 뺌).
 // 참가자 화면은 상태 API(/api/state) 15초 폴링으로 따라온다. 바꾼 사람과 시각은 phase_meta 와 event_log(ops_phase, 감사 로그 A-09)에 남는다.
 // 처음 마무리(wrapup) · 시상(award)으로 넘어가는 순간을 미션 마감 시각(mission_closed_at)으로 고정한다. 앞 단계로 되돌려도 마감은 풀리지 않는다
 // (실수로 넘겼으면 reopen_missions: true 로 함께 보내 마감을 지운다).

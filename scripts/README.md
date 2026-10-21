@@ -19,6 +19,15 @@ python scripts/import_participants.py 명단.csv --event-id orbit-2026 --pin-out
 - 적재 뒤에는 계산 서비스 `/precompute` 로 주소와 테이블토크 배정을 만든다.
 - 같은 사람(event_id + 이름 + 소속)이 이미 있으면 새로 만들지 않고 갱신한다. 명찰 QR 이 participant id 를 담으므로 id 가 바뀌면 안 된다. 기존 사람의 숫자는 휴대폰 열이 있을 때만 다시 계산한다.
 - `--names-only` 는 이름·소속·구분·기수만 넣는다. 사전 등록 명단으로 먼저 id 를 발급해 명찰 QR 을 인쇄하고, 프로필·숫자는 나중에 전체 적재로 채우는 순서다(빈 명함 → 채워진 명함).
+- `--fixed-names` 는 1번 테이블(교수 · 운영진석)에 고정할 이름이다(10/21 민찬 결정). 구글폼 CSV 에는 고정테이블 열도 운영진 구분도 없어서 이름으로 정한다. 행사장 10테이블 중 1번 = 운영진 7 + 연사 교수 3 = 10명이고, 나머지는 계산 서비스가 2~10번에 고르게 앉힌다. 쉼표 목록 또는 이름을 줄마다 적은 텍스트 파일 경로를 받는다. 표시 이름과 글자까지 같아야 맞는다. 주면 목록이 기준이라 목록 밖 사람의 고정은 비운다. CSV 에 없는 이름은 줄마다 알리고, 고정 인원이 10명이 아니면 경고한다.
+- `--exclude` 는 명단에서 뺄 이름(오지 않는 사람)이다. 형식은 `--fixed-names` 와 같다. 뺀 사람과 CSV 에 없는 이름을 찍는다. 이미 DB 에 들어간 사람은 지우지 않으므로(계산 서비스가 그 사람도 앉힌다) DB 에 있으면 경고한다.
+- 두 옵션 모두 `--names-only` · `--dry-run` 과 같이 쓴다. 10/31 행사 명단은 먼저 dry-run 으로 인원을 보고 적재한다.
+
+```bash
+# 저장소밖/table1.txt: 운영진 7명 + 연사 교수 3명 이름을 줄마다
+python scripts/import_participants.py 명단.csv --event-id orbit-2026 --pin-out 저장소밖/pins.csv --fixed-names 저장소밖/table1.txt --exclude "배소윤,박현진" --dry-run
+python scripts/import_participants.py 명단.csv --event-id orbit-2026 --pin-out 저장소밖/pins.csv --fixed-names 저장소밖/table1.txt --exclude "배소윤,박현진"
+```
 
 ## export_badge_qr.py
 
@@ -55,7 +64,7 @@ pip install qrcode[pil]
 python scripts/build_posters.py --out D:/DSL/_event_data/poster_kit --quizzes D:/DSL/_event_data/quizzes.json
 ```
 
-- 포스터 목록의 정본은 `event_posters.json`(제목 · 발표자 · 태그 · 요약 · 발표자 이름)이다. 고친 뒤 스크립트를 돌리면 `supabase/event_posters.sql` 이 다시 만들어진다. 둘을 같은 PR 에 넣는다.
+- 포스터 목록의 정본은 `event_posters.json`(제목 · 발표자 · 태그 · 요약 · 발표자 이름)이다. 요약은 앱 문체(–다체)로 쓴다. 부스(booth)는 JSON 에 있을 때만 들어가고, 없으면 SQL 이 null 로 덮어써 예전 seed 값(A1 · B2)을 지운다(10/21). 고친 뒤 스크립트를 돌리면 `supabase/event_posters.sql` 이 다시 만들어진다. 둘을 같은 PR 에 넣는다.
 - 포스터 코드는 행사장 자리 번호다(1번 자리 = P01, 11번 자리 = P11). 앱 포스터 목록은 코드 순서라 목록 번호가 자리 번호와 같다.
 - 적용 순서: Supabase SQL Editor 에서 `supabase/event_posters.sql` → `<out>/poster_quizzes.sql`. 둘 다 여러 번 실행해도 결과가 같다. 명단 적재 뒤 한 번 더 실행하면 presenter_ids(발표자 본인 응답 제외)가 채워진다.
 - 퀴즈 파일과 `poster_quizzes.sql` 에는 정답이 들어가므로 저장소 밖에 둔다(저장소가 공개다). 형식은 `sample_quizzes.json`.

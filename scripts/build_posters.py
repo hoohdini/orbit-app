@@ -4,7 +4,7 @@
 QR 문자열은 docs/QR_FORMAT.md 의 포스터 형식 https://<앱주소>/poster?c=<code> 다. QR 에는 코드만 들어간다.
 
 입력
-  scripts/event_posters.json   포스터 목록(공개 정보: 제목 · 발표자 · 태그 · 요약 · 발표자 이름). 저장소에 둔다
+  scripts/event_posters.json   포스터 목록(공개 정보: 제목 · 발표자 · 태그 · 요약 · 발표자 이름, booth 는 있을 때만). 저장소에 둔다. 요약은 앱 문체(–다체)로 쓴다(10/21)
   --quizzes <파일>             퀴즈와 정답. 저장소가 공개라서 저장소 밖에 둔다. 형식은 scripts/sample_quizzes.json
 
 결과
@@ -92,10 +92,11 @@ def posters_sql(posters: list[dict], event_id: str) -> str:
         ",\n".join(f"  ({s(c)}, {s(t)})" for c, t in STALE),
         ");",
         "",
-        "insert into posters (code, title, presenter, tags, summary) values",
-        ",\n".join(f"  ({s(p['code'])}, {s(p['title'])}, {s(p['presenter'])}, {arr(p['tags'])}, {s(p['summary'])})" for p in posters),
+        "-- booth 도 늘 덮어쓴다(JSON 에 booth 가 없으면 null). 예전 seed 의 부스 값(A1 · B2)이 남지 않게(10/21 민찬)",
+        "insert into posters (code, title, presenter, tags, booth, summary) values",
+        ",\n".join(f"  ({s(p['code'])}, {s(p['title'])}, {s(p['presenter'])}, {arr(p['tags'])}, {s(p['booth']) if p.get('booth') else 'null'}, {s(p['summary'])})" for p in posters),
         "on conflict (code) do update set",
-        "  title = excluded.title, presenter = excluded.presenter, tags = excluded.tags, summary = excluded.summary;",
+        "  title = excluded.title, presenter = excluded.presenter, tags = excluded.tags, booth = excluded.booth, summary = excluded.summary;",
         "",
     ]
     for p in posters:
