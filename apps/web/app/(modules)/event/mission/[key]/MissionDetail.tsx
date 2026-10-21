@@ -7,7 +7,7 @@ import { api } from "@/lib/client";
 import Loading from "@/components/Loading";
 import Stamp from "@/components/figma/Stamp";
 import type { Card } from "@/app/api/card/_lib";
-import { NO, type Missions } from "../../missions";
+import { LEGACY_NO as NO, type LegacyMissions as Missions } from "../../missions";
 
 type Key = "recommended" | "first_meet" | "generation";
 const COPY: Record<Key, { head: string; body: string }> = {

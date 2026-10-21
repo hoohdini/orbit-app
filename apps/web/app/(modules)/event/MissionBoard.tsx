@@ -1,15 +1,17 @@
 "use client";
-// 이벤트·미션 탭 현황판(피그마 E-01 기본 · 진행 · 전체 완료 · 마감, 10/11). 포스터 미션 2개 타일, 네트워킹 미션 3줄, 미션 스탬프 5칸, 아래 QR 스캔하기.
-// 진행 중 타일을 누르면 ① ② 는 포스터 세션 목록, ③ ④ ⑤ 는 미션 상세로 간다. 완료 타일은 동작 없음(A01 ~ A05).
-// 다섯 미션을 모두 마치면 미션 완료! 모달을 한 번 띄운다(S02). 마감(wrapup 뒤)이면 읽기 전용이고 QR 버튼을 막는다(S01).
+// 이벤트·미션 탭 현황판(피그마 E-01 기본 · 진행 · 전체 완료 · 마감, 10/21 개편). 포스터 미션 2개 타일, 네트워킹 미션(명함 교환 한 줄, 스탬프 2개), 피드백 미션 한 줄, 미션 스탬프 5칸, 아래 QR 스캔하기.
+// 진행 중 타일을 누르면 ① ② 는 포스터 세션 목록, ③ 은 명함 탭(/card), ④ 는 후기 화면으로 간다. 완료 타일은 동작 없음(A01 ~ A05).
+// 스탬프 5칸을 모두 모으면 미션 완료! 모달을 한 번 띄운다(S02). 마감(wrapup 뒤)이면 읽기 전용이고 QR 버튼을 막는다(S01).
+// 서버가 새 구성을 내기 전에는 mock.ts 의 가짜 데이터를 쓴다(USE_MOCK).
 // 탭은 처음부터 열려 있지만 미션 기록은 테이블토크부터 센다(10/11 성하 결정: 서버 미션 구간 그대로).
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/client";
+import { api, type ApiResult } from "@/lib/client";
 import Loading from "@/components/Loading";
 import Stamp from "@/components/figma/Stamp";
 import { useOrbitState } from "@/components/useOrbitState";
-import { HREF, NO, TODO, type Mission, type Missions } from "./missions";
+import { HREF, NO, TODO, stampsOf, type Mission, type Missions } from "./missions";
+import { USE_MOCK, mockMissions } from "./mock";
 
 const doneKey = "orbit:mission-complete-shown";
 const POLL_MS = 15_000;
@@ -22,8 +24,9 @@ export default function MissionBoard() {
 
   useEffect(() => {
     let alive = true;
-    const load = () =>
-      api<Missions>("/api/poster/missions").then((r) => {
+    const load = () => {
+      const req: Promise<ApiResult<Missions>> = USE_MOCK ? Promise.resolve({ ok: true, data: mockMissions(), status: 200 }) : api<Missions>("/api/poster/missions");
+      return req.then((r) => {
         if (!alive || !r.ok) return;
         setM(r.data);
         if (r.data.done_count === r.data.total) {
@@ -35,6 +38,7 @@ export default function MissionBoard() {
           } catch {}
         }
       });
+    };
     load();
     const t = setInterval(load, POLL_MS);
     return () => {
@@ -47,7 +51,8 @@ export default function MissionBoard() {
   const closed = m.window === "closed";
   const by = (k: Mission["key"]) => m.missions.find((x) => x.key === k)!;
   const posterSet = [by("poster"), by("quiz")];
-  const netSet = [by("recommended"), by("first_meet"), by("generation")];
+  const exchange = by("exchange");
+  const feedback = by("feedback");
 
   return (
     <main className="space-y-8 px-5 pt-4 pb-6">
@@ -64,18 +69,21 @@ export default function MissionBoard() {
       </section>
 
       <section className="space-y-2.5">
-        <Head title="네트워킹 미션" done={netSet.filter((x) => x.done).length} total={3} />
-        {netSet.map((x) => (
-          <Tile key={x.key} m={x} closed={closed} />
-        ))}
+        <Head title="네트워킹 미션" done={stampsOf(exchange).filter(Boolean).length} total={2} />
+        <Tile m={exchange} closed={closed} />
+      </section>
+
+      <section className="space-y-2.5">
+        <Head title="피드백 미션" done={feedback.done ? 1 : 0} total={1} />
+        <Tile m={feedback} closed={closed} />
       </section>
 
       <section className="rounded-3xl border border-navy bg-strip px-5 pt-3 pb-5">
         <p className="text-[15px] font-bold tracking-[-0.15px] text-ink">미션 스탬프</p>
         <div className="mx-auto mt-2 grid max-w-[313px] grid-cols-5 gap-[min(12px,2.5vw)]">
           {/* 모은 개수만큼 왼쪽부터 채운다. 칸은 폭에 맞춰 줄어든다(최대 53) */}
-          {m.missions.map((x, i) => (
-            <Stamp key={x.key} on={i < m.done_count} fluid />
+          {Array.from({ length: m.total }, (_, i) => (
+            <Stamp key={i} on={i < m.done_count} fluid />
           ))}
         </div>
       </section>
@@ -120,6 +128,8 @@ function Head({ title, done, total }: { title: string; done: number; total: numb
 
 // 미션 타일(포스터 미션은 2칸 타일, 네트워킹 미션은 한 줄). 완료는 연한 남색 바탕 · 진한 테두리 · 스탬프
 function Tile({ m, closed, tile = false }: { m: Mission; closed: boolean; tile?: boolean }) {
+  // 스탬프가 여러 개인 미션(명함 교환 3명 · 5명)은 칸마다 따로 찍힌다
+  const flags = m.milestones ? stampsOf(m) : [m.done];
   const body = tile ? (
     <>
       <p className="text-xs font-medium text-ink-2">미션 {NO[m.key]}</p>
@@ -135,10 +145,12 @@ function Tile({ m, closed, tile = false }: { m: Mission; closed: boolean; tile?:
       <p className={`text-[13px] ${m.done ? "font-medium text-navy" : "text-ink-2"}`}>{m.done ? "완료" : TODO[m.key](m)}</p>
     </>
   );
-  const cls = `relative block rounded-[20px] border-[1.5px] ${tile ? "px-4 py-[14px]" : "px-4 py-[11px] pr-16"} ${m.done ? "border-navy bg-strip" : "border-[#a6abb3] bg-white"}`;
+  const cls = `relative block rounded-[20px] border-[1.5px] ${tile ? "px-4 py-[14px]" : `px-4 py-[11px] ${flags.length > 1 ? "pr-[104px]" : "pr-16"}`} ${m.done ? "border-navy bg-strip" : "border-[#a6abb3] bg-white"}`;
   const stamp = (
-    <span className={`absolute ${tile ? "right-3 top-2.5" : "right-4 top-1/2 -translate-y-1/2"}`}>
-      <Stamp on={m.done} />
+    <span className={`absolute flex gap-1.5 ${tile ? "right-3 top-2.5" : "right-4 top-1/2 -translate-y-1/2"}`}>
+      {flags.map((on, i) => (
+        <Stamp key={i} on={on} />
+      ))}
     </span>
   );
   if (m.done || closed)
