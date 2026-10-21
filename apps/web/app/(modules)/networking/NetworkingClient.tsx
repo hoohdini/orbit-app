@@ -23,8 +23,9 @@ type Round = "tabletalk" | "coffeechat";
 type View = { assignment: Assignment; orbit: OrbitData | null; offline: boolean };
 
 // 커피챗 배정을 꺼내도 되는 단계(포스터 세션 16:55 공개 이후). 단계가 아직 없으면(운영 전) 공개 여부만 본다
-const CC_READY = ["poster", "coffeechat_seated", "coffeechat_free", "wrapup", "award"];
-const CC_NOW = ["coffeechat_seated", "coffeechat_free", "wrapup", "award"];
+// 커피챗 중 이동 없음(10/21 민찬 결정)이라 자유 이동 단계(coffeechat_free)는 없다
+const CC_READY = ["poster", "coffeechat_seated", "wrapup", "award"];
+const CC_NOW = ["coffeechat_seated", "wrapup", "award"];
 const cacheKey = (round: Round) => `orbit:networking:${round}`;
 const ackKey = (version: number) => `orbit:coffeechat-ack:${version}`;
 
@@ -143,7 +144,7 @@ export default function NetworkingClient() {
               <div className="text-right">
                 <p className="text-lg font-bold text-navy">{isTT ? `${view.assignment.no}번 테이블` : `커피챗 ${view.assignment.no}그룹`}</p>
                 <p className="mt-1 text-[13px] text-ink-2">
-                  {view.assignment.members.length}명 · {isTT ? "좌석 순서대로" : "첫 10분 대화 후 자유 이동"}
+                  {view.assignment.members.length}명 · {isTT ? "좌석 순서대로" : "이동 없이 이 그룹에서 대화"}
                 </p>
               </div>
             </div>
@@ -175,7 +176,6 @@ export default function NetworkingClient() {
                 );
               })}
             </ol>
-            {!isTT && s.phase === "coffeechat_free" && <p className="rounded-2xl bg-strip/60 px-4 py-3 text-sm text-ink-2">이제 명함 탭의 오늘 만나면 좋을 분을 따라 자유롭게 이동해 보세요</p>}
             {!isTT && canSwitch && (
               <button type="button" onClick={() => setRound("tabletalk")} className="h-12 w-full rounded-2xl border border-navy bg-white text-base font-medium text-navy">
                 테이블토크 배정 다시 보기
