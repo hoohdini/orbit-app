@@ -1,4 +1,3 @@
-@import url("https://cdn.jsdelivr.net/gh/spoqa/spoqa-han-sans@latest/css/SpoqaHanSansNeo.css");
 @import "tailwindcss";
 
 /* 앱은 밝은 테마 하나만 쓴다. 화면이 전부 흰 카드 위 검은 글자로 설계되어 있어,
@@ -12,7 +11,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter), "Spoqa Han Sans Neo", system-ui, sans-serif;
+  --font-sans: var(--font-inter), var(--font-spoqa), "Spoqa Han Sans Neo", system-ui, sans-serif; /* Spoqa 는 layout.tsx 의 next/font/local(10/21) */
   --font-mono: var(--font-geist-mono);
 }
 
