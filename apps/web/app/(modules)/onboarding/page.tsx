@@ -7,6 +7,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/client";
 import { useFit } from "@/components/figma/useFit";
+import Eclipse from "@/components/figma/Eclipse";
 import { safeNext, withNext } from "./_next";
 import OnboardingFrame from "./_frame";
 
@@ -30,31 +31,32 @@ function Entry() {
 }
 
 // 시작 화면(피그마 iPhone 16 - 9). 장식은 폭에 맞춰 비율로, 시작하기는 화면 아래 큰 버튼(10/11)
+// 10/21: 가운데 장식을 명함 탭 홈과 같은 개기일식(Eclipse 의 poster 모양, 가운데 QR 은 뺀다)으로 바꿨다.
+// 크기는 예전 splash-disc 그대로다(검은 원 지름 176 이 되도록 무대 폭 247. 280 × 247/393 = 176).
+// 10/21: 글자 크기 · 굵기와 행성 크기는 그대로 두고 전체를 52 위로 올렸다(무대 660 → 590). 시작하기 버튼이 화면 밖으로 밀려 있었다
 function Splash({ onStart }: { onStart: () => void }) {
   const [ref, s] = useFit<HTMLDivElement>(393, 1.15);
   return (
-    <div className="flex min-h-dvh justify-center overflow-clip bg-gradient-to-b from-navy to-navy-2 text-white">
+    <div className="flex min-h-dvh justify-center overflow-clip bg-gradient-to-b from-navy to-navy-2 font-spoqa text-white">
       <div ref={ref} className="flex w-full max-w-md flex-col">
-        <div className="relative w-full shrink-0" style={{ height: 660 * s }}>
-          <div className="absolute left-1/2 top-0 h-[660px] w-[393px] origin-top" style={{ transform: `translateX(-50%) scale(${s})` }}>
-            <h1 className="absolute inset-x-0 top-[100px] text-center text-[32px] font-semibold leading-[39px]">
+        <div className="relative w-full shrink-0" style={{ height: 590 * s }}>
+          <div className="absolute left-1/2 top-0 h-[590px] w-[393px] origin-top" style={{ transform: `translateX(-50%) scale(${s})` }}>
+            <h1 className="absolute inset-x-0 top-[48px] text-center text-[32px] font-semibold leading-[39px]">
               2026
               <br />
               DSL Gathering Night
               <br />: The ORBIT
             </h1>
-            <p className="absolute inset-x-0 top-[260px] text-center text-base">
+            <p className="absolute inset-x-0 top-[208px] text-center text-base">
               연세대학교 백양누리
               <br />B110 최영홀 &amp; B111 김순전홀
               <br />
               2026. 10. 31. 15:00
             </p>
-            {/* eslint-disable @next/next/no-img-element */}
-            <img alt="" src="/figma/splash-line1.svg" className="pointer-events-none absolute left-[31px] top-[474px] h-[57px] w-[334px] max-w-none -rotate-[44.08deg]" />
-            <img alt="" src="/figma/splash-line2.svg" className="pointer-events-none absolute left-[38px] top-[483px] h-[38px] w-[315px] max-w-none -rotate-[44.37deg]" />
-            <img alt="" src="/figma/splash-ring.svg" className="absolute left-[84px] top-[388.5px] size-[228px] max-w-none" />
-            <img alt="" src="/figma/splash-disc.svg" className="absolute left-[110px] top-[418.5px] size-[176px] max-w-none" />
-            {/* eslint-enable @next/next/no-img-element */}
+            {/* 검은 원 지름 · 비율은 예전 splash-disc 와 같은 176. 전체를 52 올렸으므로 가운데는 (198, 454.5) */}
+            <div className="absolute left-[74.5px] top-[322.5px] w-[247px]">
+              <Eclipse guide={false} poster />
+            </div>
           </div>
         </div>
         <div className="flex-1" />

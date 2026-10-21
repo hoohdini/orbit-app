@@ -10,6 +10,19 @@ export function IconHome({ className }: P) {
   );
 }
 
+// 명함 탭(10/21). 직사각형 명함 안에 사람 한 명과 글줄 두 개. 선 굵기 · 색은 다른 탭 아이콘과 같다
+export function IconCard({ className }: P) {
+  return (
+    <svg {...base} strokeWidth={1.8} className={className} aria-hidden>
+      <rect x="2.8" y="5" width="18.4" height="14" rx="2.4" />
+      <path d="M9 12.1C10.05 12.1 10.9 11.25 10.9 10.2C10.9 9.15 10.05 8.3 9 8.3C7.95 8.3 7.1 9.15 7.1 10.2C7.1 11.25 7.95 12.1 9 12.1Z" />
+      <path d="M6.3 15.7C6.75 14.2 7.8 13.4 9 13.4C10.2 13.4 11.25 14.2 11.7 15.7" />
+      <path d="M14.3 10.2H18.4" />
+      <path d="M14.3 13.8H18.4" />
+    </svg>
+  );
+}
+
 export function IconPeople({ className }: P) {
   return (
     <svg {...base} strokeWidth={1.8} className={className} aria-hidden>

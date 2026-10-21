@@ -32,7 +32,7 @@ export default function OnboardingFrame({
   const w = WAVES[wave];
   const [ref, s] = useFit<HTMLDivElement>(393, 1.15);
   return (
-    <div className="flex min-h-dvh justify-center overflow-clip bg-white text-ink">
+    <div className="flex min-h-dvh justify-center overflow-clip bg-white font-spoqa text-ink">
       <div ref={ref} className="relative flex w-full max-w-md flex-col">
         <div className="relative w-full shrink-0" style={{ height: stageH * s }}>
           <div className="absolute left-1/2 top-0 w-[393px] origin-top" style={{ height: stageH, transform: `translateX(-50%) scale(${s})` }}>

@@ -2,6 +2,7 @@
 // 틀(하단 메뉴 · 상태 띠 · 받은 명함 알림)은 화면마다 CardShell 로 씌운다. 피그마의 QR 스캔 · 내 명함 QR 은 하단 메뉴 없는 전면 화면이라서다(10/11).
 export const dynamic = "force-dynamic";
 
+// 글씨체는 명함 탭 전체에 Spoqa Han Sans Neo(10/21). display:contents 라서 상자가 생기지 않아 기존 배치는 그대로다
 export default function CardLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <div className="contents font-spoqa">{children}</div>;
 }
