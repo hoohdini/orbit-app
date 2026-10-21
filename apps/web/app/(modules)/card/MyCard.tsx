@@ -35,11 +35,11 @@ export default function MyCard() {
 
       {refused ? (
         <p className="mt-2 rounded-[25px] border border-navy bg-white p-5 text-sm text-ink-2">
-          이용 동의를 하지 않아 명함 교환과 추천을 쓸 수 없어요.{" "}
+          이용 동의를 하지 않아 명함 교환과 추천을 쓸 수 없습니다.{" "}
           <Link href="/my/info" className="underline">
             마이페이지
           </Link>
-          에서 다시 동의할 수 있어요
+          에서 다시 동의할 수 있습니다
         </p>
       ) : (
         <nav className="mt-2 space-y-[9px]">

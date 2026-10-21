@@ -129,7 +129,7 @@ export default function NetworkingClient() {
             {view.orbit ? (
               <Orbit people={view.orbit.inner} others={view.orbit.outer} round={shown} />
             ) : (
-              <p className="rounded-3xl border border-line p-6 text-center text-xs text-ink-3">궤도를 불러오지 못했어요</p>
+              <p className="rounded-3xl border border-line p-6 text-center text-xs text-ink-3">궤도를 불러오지 못했습니다</p>
             )}
             <p className="text-xs text-ink-2">가까울수록 나와 잘 맞는 {isTT ? "구성원" : "그룹원"}입니다.</p>
           </section>
@@ -149,7 +149,7 @@ export default function NetworkingClient() {
             </div>
             <p className="flex items-center gap-1.5 text-xs text-ink-2">
               <span className="size-1.5 rounded-full bg-accent" aria-hidden />
-              {view.offline ? "연결이 끊겨 기기에 저장된 배정을 보여 주고 있어요." : "배정 결과가 기기에 저장되어 통신이 끊겨도 볼 수 있습니다."}
+              {view.offline ? "연결이 끊겨 기기에 저장된 배정을 보여 주고 있습니다." : "배정 결과가 기기에 저장되어 통신이 끊겨도 볼 수 있습니다."}
             </p>
 
             <ol className="overflow-hidden rounded-3xl border border-navy bg-white py-1">

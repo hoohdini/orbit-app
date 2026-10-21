@@ -21,17 +21,17 @@ export default function FirstMeetAsk({ targetId, onDone }: { targetId: string; o
   }
 
   if (done !== undefined) {
-    return <p className="rounded-xl bg-strip/50 px-3 py-2 text-xs text-ink-2">{done ? "새로운 연결로 기록했어요" : "기록했어요"}</p>;
+    return <p className="rounded-xl bg-strip/50 px-3 py-2 text-xs text-ink-2">{done ? "새로운 연결로 기록했습니다" : "기록했습니다"}</p>;
   }
 
   return (
     <section className="rounded-2xl bg-strip/50 p-4 text-left">
-      <p className="text-sm font-bold text-navy">오늘 처음 대화한 분인가요?</p>
+      <p className="text-sm font-bold text-navy">오늘 처음 대화한 분입니까?</p>
       <input
         className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-navy"
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        placeholder="메모 남기기(선택, 나만 봐요)"
+        placeholder="메모 남기기(선택, 나만 볼 수 있음)"
         maxLength={200}
       />
       <div className="mt-3 grid grid-cols-3 gap-2">

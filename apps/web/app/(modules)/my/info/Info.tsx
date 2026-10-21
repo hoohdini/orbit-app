@@ -11,7 +11,7 @@ type Me = { consents?: { collect: C; share: C } };
 
 const STATE = { agreed: "동의함", refused: "동의하지 않음", pending: "선택 전" } as const;
 function day(c: C): string {
-  if (!c.at) return "아직 고르지 않았어요";
+  if (!c.at) return "아직 고르지 않았습니다";
   const d = new Date(c.at);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} ${c.state === "agreed" ? "동의" : "거부"}`;
 }

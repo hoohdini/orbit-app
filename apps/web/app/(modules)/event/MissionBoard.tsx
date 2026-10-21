@@ -52,7 +52,7 @@ export default function MissionBoard() {
   return (
     <main className="space-y-8 px-5 pt-4 pb-6">
       {closed && <p className="rounded-2xl bg-strip px-4 py-3 text-center text-sm font-medium text-navy">미션 {m.done_count}/{m.total} · 마감되었습니다</p>}
-      {refused && <p className="rounded-2xl bg-field px-4 py-3 text-sm text-ink-2">이용 동의를 하지 않아 미션 기록이 남지 않아요. 마이페이지에서 다시 동의할 수 있어요</p>}
+      {refused && <p className="rounded-2xl bg-field px-4 py-3 text-sm text-ink-2">이용 동의를 하지 않아 미션 기록이 남지 않습니다. 마이페이지에서 다시 동의할 수 있습니다</p>}
 
       <section className="space-y-2.5">
         <Head title="포스터 미션" done={posterSet.filter((x) => x.done).length} total={2} />

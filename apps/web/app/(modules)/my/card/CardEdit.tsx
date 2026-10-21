@@ -35,7 +35,7 @@ export default function CardEdit() {
     setState("saving");
     const r = await api("/api/card/settings", { json: { visibility: vis } });
     setState(r.ok ? "saved" : "error");
-    toast(r.ok ? "공개 범위를 저장했어요" : "저장하지 못했어요. 다시 눌러 주세요", r.ok ? "success" : "error");
+    toast(r.ok ? "공개 범위를 저장했습니다" : "저장하지 못했습니다. 다시 눌러 주세요", r.ok ? "success" : "error");
   }
 
   const linkCount = Object.values(p.links).filter(Boolean).length;
@@ -59,13 +59,13 @@ export default function CardEdit() {
             </button>
           ))}
         </div>
-        <p className="text-xs text-ink-3">연락처 링크를 {vis === "all" ? "명함을 가진 모든 분" : "내가 QR을 찍은 분"}에게 보여 줘요</p>
+        <p className="text-xs text-ink-3">연락처 링크를 {vis === "all" ? "명함을 가진 모든 분" : "내가 QR을 찍은 분"}에게 보여 줍니다</p>
       </Section>
       <Section title="Offer · Seek">
         <RowGroup>
-          <Row href="/my/card/offer" title="Offer" sub={p.offer_text || "비어 있어요"} trail="수정" />
-          <Row href="/my/card/seek" title="Seek" sub={p.seek_text || "비어 있어요"} trail="수정" />
-          <Row href="/my/card/links" title="연락처" sub={linkCount ? `${linkCount}개 등록됨` : "등록된 링크가 없어요"} trail="수정" />
+          <Row href="/my/card/offer" title="Offer" sub={p.offer_text || "비어 있습니다"} trail="수정" />
+          <Row href="/my/card/seek" title="Seek" sub={p.seek_text || "비어 있습니다"} trail="수정" />
+          <Row href="/my/card/links" title="연락처" sub={linkCount ? `${linkCount}개 등록됨` : "등록된 링크가 없습니다"} trail="수정" />
         </RowGroup>
       </Section>
       <Notice>
@@ -74,7 +74,7 @@ export default function CardEdit() {
         오늘의 추천에는 반영되지 않습니다.
       </Notice>
       <button type="button" onClick={save} disabled={state === "saving"} className={bigBtn}>
-        {state === "saving" ? "저장 중" : state === "saved" ? "저장했어요" : state === "error" ? "저장하지 못했어요. 다시 누르기" : "저장하기"}
+        {state === "saving" ? "저장 중" : state === "saved" ? "저장했습니다" : state === "error" ? "저장하지 못했습니다. 다시 누르기" : "저장하기"}
       </button>
     </main>
   );

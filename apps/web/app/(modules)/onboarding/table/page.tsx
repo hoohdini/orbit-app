@@ -58,7 +58,7 @@ function Seat() {
             ) : (
               <p className="pt-6 text-2xl leading-9">
                 자리 배정은
-                <br />곧 공개돼요
+                <br />곧 공개됩니다
               </p>
             )}
           </div>
