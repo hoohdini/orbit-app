@@ -144,7 +144,7 @@ export default function NetworkingClient() {
               <div className="text-right">
                 <p className="text-lg font-bold text-navy">{isTT ? `${view.assignment.no}번 테이블` : `커피챗 ${view.assignment.no}그룹`}</p>
                 <p className="mt-1 text-[13px] text-ink-2">
-                  {view.assignment.members.length}명 · {isTT ? "좌석 순서대로" : "이동 없이 이 그룹에서 대화"}
+                  {view.assignment.members.length}명{isTT ? " · 좌석 순서대로" : ""}
                 </p>
               </div>
             </div>
