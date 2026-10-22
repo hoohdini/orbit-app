@@ -8,7 +8,7 @@ export const EMPTY = {
   searchNone: { title: "입장한 사람 중에 없습니다", body: "이름을 다시 확인하거나 운영진에게 문의해 주세요" },
   recsNone: { title: "아직 추천할 분이 없습니다", body: "추천은 배정이 공개되면 채워집니다" },
   tableNotYet: { title: "아직 테이블이 공개되지 않았습니다", body: "사회자 안내 뒤에 자리가 보입니다" },
-  groupNotYet: { title: "아직 커피챗 그룹이 공개되지 않았습니다", body: "테이블토크가 끝나면 새 그룹이 공개됩니다" },
+  groupNotYet: { title: "아직 커피챗 테이블이 공개되지 않았습니다", body: "테이블토크가 끝나면 새 테이블이 공개됩니다" },
   missionNone: { title: "진행 중인 미션이 없습니다", body: "행사가 시작되면 미션이 열립니다" },
   stampNone: { title: "아직 모은 스탬프가 없습니다", body: "포스터 QR 을 찍고 퀴즈를 풀면 스탬프가 찍힙니다" },
   offerEmpty: { title: "Offer 가 비어 있습니다", body: "내가 도울 수 있는 것을 한 줄로 적어 주세요" },

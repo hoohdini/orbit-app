@@ -33,7 +33,7 @@ export async function GET(req: Request) {
     const who = new Map((people ?? []).map((p) => [p.id as string, p]));
     const seatOf = new Map(members.map((m) => [m.participant_id, m.seat_no]));
 
-    const unit = v.round === "tabletalk" ? "테이블" : "그룹";
+    const unit = "테이블"; // 커피챗도 10테이블(10/22 민찬 결정)이라 두 라운드 모두 테이블. 예전 커피챗은 그룹
     const blocks = [...byTable(members).entries()]
       .sort((a, b) => a[0] - b[0])
       .map(([t, list]) => {

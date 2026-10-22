@@ -156,9 +156,11 @@ def test_anchors_stay_and_pull_members():
     free = [i for i in range(N) if i not in anchors]
     own = np.mean([A[i, [j for j in anchors if r.table[j] == r.table[i]]].mean() for i in free])
     assert own > np.mean(A[np.ix_(free, list(anchors))])            # 내 테이블 선배와의 점수 > 선배 전체 평균
-    r0 = seating.assign(A, is_host, cohort, iters=3000, seed=1, sizes=sizes)
-    r1 = seating.assign(A, is_host, cohort, iters=3000, seed=1, sizes=sizes, anchors={})
-    assert np.array_equal(r0.table, r1.table)                      # anchors 가 없으면 예전과 같은 배정
+    # anchors 가 없으면 예전(ab2f799, anchors 추가 전) assign 과 같은 배정. 그 코드로 같은 입력 · 시드를 돌린 결과를 박아 둔다
+    before = "5270631479098396356135321464402451387684682068879982717450912520315709"
+    for kw in ({}, {"anchors": {}}, {"anchors": None}):
+        r0 = seating.assign(A, is_host, cohort, iters=2000, seed=1, sizes=sizes, cohort_penalty=0.5, cohort_cap=3, **kw)
+        assert "".join(str(x) for x in r0.table) == before, kw
 
 
 def test_pick_leads_seniority_and_field():

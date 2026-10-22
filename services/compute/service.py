@@ -322,21 +322,24 @@ def precompute(repo, enc, event_id: str = "dev", codebook_version: str | None = 
 
 
 def _keep_groups(repo, ids: list[str], idx: dict[str, int], event_id: str, forbid: np.ndarray,
-                 cohort: np.ndarray) -> tuple[seating.Seating, list[int], np.ndarray, dict]:
+                 cohort: np.ndarray) -> tuple[seating.Seating, list[int], np.ndarray, dict, set[int]]:
     """행사 직후 추천(final)용. 원본 커피챗 그룹을 그대로 둔다. 테이블 번호 · 무작위 자리 표시도 그대로.
     원본 = 한 번이라도 공개된 커피챗 버전 중 final 이 아닌 최신 것(repo.coffeechat_source). final 을 공개하면 원본이 retired 가 되므로,
     final 을 철회하고 다시 돌려도 같은 그룹을 찾는다. 공개된 적 없는 초안으로는 돌지 않는다.
     커피챗 배정 뒤에 들어온 사람은 계산 안에서만 혼자 한 그룹으로 두고(동석자로 빠지는 사람이 없게) 자리는 쓰지 않는다.
-    돌려주는 것: (배정, 그룹 크기, 자리를 쓸 사람, 원본 버전)"""
+    돌려주는 것: (배정, 그룹 크기, 자리를 쓸 사람, 원본 버전, 원본의 주도 선배(reason.lead, 10/22))"""
     src, rows = repo.coffeechat_source(ids, event_id)
     if src is None:
         raise ValueError("공개된 커피챗 배정이 없다. 행사 직후 추천은 커피챗 계산 · 공개 뒤에 한다")
     table = np.full(len(ids), -1)
     random_seat = np.zeros(len(ids), bool)
+    lead: set[int] = set()
     for m in rows:
         i = idx[m["participant_id"]]
         table[i] = int(m["table_no"]) - 1
         random_seat[i] = bool((m.get("reason") or {}).get("random"))
+        if (m.get("reason") or {}).get("lead"):
+            lead.add(i)
     seated = table >= 0
     nxt = int(table.max()) + 1
     for i in np.where(~seated)[0]:
@@ -347,7 +350,7 @@ def _keep_groups(repo, ids: list[str], idx: dict[str, int], event_id: str, forbi
                         forbid_hits=int((forbid & same).sum() // 2),
                         cohort_over=seating.cohort_overflow(table, cohort, cap=COFFEECHAT_COHORT_CAP), iters=0)
     sizes = [int(c) for c in np.bincount(table[seated]) if c > 0]
-    return r, sizes, seated, src
+    return r, sizes, seated, src, lead
 
 
 def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5, table_mode: str = "min",
@@ -483,7 +486,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     A_np = scoring.table_matrix(seat_np, is_host, table_mode)
     seated, src, lp = np.ones(n, bool), None, None
     if final:
-        r, sizes, seated, src = _keep_groups(repo, ids, idx, event_id, forbid, cohort)
+        r, sizes, seated, src, lead = _keep_groups(repo, ids, idx, event_id, forbid, cohort)   # 주도 선배 표시도 원본 그대로
     else:
         # 10테이블 고르게(적은 인원 리허설은 테이블당 4명이 되도록 테이블 수를 줄인다, even_sizes)
         sizes = seating.even_sizes(n, COFFEECHAT_TABLES)
@@ -495,7 +498,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
         r = seating.assign(A, is_host, cohort, forbid=forbid, random_ratio=random_ratio, iters=iters, seed=seed,
                            sizes=sizes, cohort_penalty=COFFEECHAT_COHORT_PENALTY, cohort_cap=COFFEECHAT_COHORT_CAP,
                            anchors=anchors)
-    lead = {i for pair in lp.pairs for i in pair} if lp else None
+        lead = {i for pair in lp.pairs for i in pair}
     params = {"kind": "final" if final else "coffeechat", "table_mode": table_mode, **_rec_params(P, intents, rec_mode), "beta": beta,
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2), "cards": card_stat,
               "sat_weights": sw, "sat_counts": dict(Counter(sat.values())), "sat_fast": sat_fast,
@@ -505,7 +508,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
               "poster_answers": len(rows), "poster_people": len(set(poster_n) | set(poster_not)), "search": query_stat,
               "forbid_hits": r.forbid_hits, "cohort_over": r.cohort_over, "n": n, "groups": len(sizes),
               "group_sizes": dict(Counter(sizes)),
-              **({"source_version": src["version"], "late": int((~seated).sum())} if final else {}),
+              **({"source_version": src["version"], "late": int((~seated).sum()), "leads": len(lead)} if final else {}),
               # 주도 선배: 인원 · 후보 수 · 2k 줄 밖에서 뽑은 수 · 뽑힌 사람보다 기수가 높은데 빠진 후보 수 · 테이블토크에서 만난 둘을 묶은 테이블 수
               **({"leads": len(lead), "lead_pool": len(lp.pool), "lead_beyond": lp.beyond, "lead_skipped": lp.skipped,
                   "lead_met": lp.met} if lp else {})}
@@ -543,7 +546,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     _heartbeat(repo, "final" if final else "coffeechat")
     return {"version": v, "final": final, "late": int((~seated).sum()), "n": n, "tables": len(sizes), "groups": len(sizes), "fallback": fallback,
             "response_rate": round(rate, 3), "forbid_hits": r.forbid_hits, "group_reasons": n_reasons,
-            "leads": len(lead) if lead is not None else None, "cohort_over": r.cohort_over,
+            "leads": len(lead), "cohort_over": r.cohort_over,
             "exposure_min": int(exposure.min()), "exposure_max": int(exposure.max())}
 
 

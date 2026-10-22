@@ -1,9 +1,9 @@
 // 테이블토크 · 커피챗이 끝날 때 묻는 선택지. 키는 DB satisfaction.choice 에 그대로 저장된다(0005 마이그레이션의 check 와 같아야 한다).
 // 화면은 이 목록을 순서대로 보여 준다. 문구를 바꿀 때는 label 만 고친다.
-// 질문: 이번 테이블 배정은 어땠나요? / 이번 커피챗 그룹 배정은 어땠나요?  따봉 3단계(10/9 민찬, 넷플릭스 엄지 평가 참고).
+// 질문: 이번 테이블 배정은 어땠나요? / 이번 커피챗 테이블 배정은 어땠나요?(커피챗도 10테이블이라 그룹 → 테이블, 10/22 민찬 승인)  따봉 3단계(10/9 민찬, 넷플릭스 엄지 평가 참고).
 // '새로 얻은 게 있었나'로 물으면 대화가 잘 맞았어도 얻은 정보가 없으면 낮게 답하게 돼서 배정 자체를 묻는다.
 // 키는 예전 것을 그대로 쓰고 문구만 바꿨다(계산 서비스 무게 1 · 0.33 · −0.2 그대로). '잘 모르겠다'(unsure)는 더 받지 않는다(10/5 팀 피드백)
-export const SATISFACTION_QUESTION = { tabletalk: "이번 테이블 배정은 어땠습니까?", coffeechat: "이번 커피챗 그룹 배정은 어땠습니까?" } as const;
+export const SATISFACTION_QUESTION = { tabletalk: "이번 테이블 배정은 어땠습니까?", coffeechat: "이번 커피챗 테이블 배정은 어땠습니까?" } as const;
 export const SATISFACTION_CHOICES = [
   { key: "gained", icon: "👍👍", label: "최고였다" },
   { key: "different", icon: "👍", label: "좋았다" },

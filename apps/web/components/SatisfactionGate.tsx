@@ -14,7 +14,7 @@ type Round = "tabletalk" | "coffeechat";
 type Mate = { id: string; display_name: string };
 
 const ROUND_OF: Record<string, Round> = { tabletalk_end: "tabletalk", wrapup: "coffeechat" };
-const TITLE = { tabletalk: "이번 테이블 배정은 어땠습니까?", coffeechat: "이번 커피챗 그룹 배정은 어땠습니까?" };
+const TITLE = { tabletalk: "이번 테이블 배정은 어땠습니까?", coffeechat: "이번 커피챗 테이블 배정은 어땠습니까?" };
 const ICON: Record<string, string> = { gained: "👍👍", different: "👍", mismatch: "👎" };
 const PICK_Q = "'이런 분을 더 만나 보고 싶다' 싶었던 분이 있습니까?";
 const PICK_NOTE = "고른 분과 비슷한 분을 커피챗 · 추천에 더 넣어 드립니다. 고른 분에게는 알리지 않습니다. 안 골라도 됩니다";

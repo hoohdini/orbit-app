@@ -5,7 +5,7 @@
 import { useOrbitState, type OrbitState } from "./useOrbitState";
 
 function where(s: OrbitState): string {
-  if (s.phase?.startsWith("coffeechat") && s.coffeechat) return `${s.coffeechat.group_no}번 그룹`;
+  if (s.phase?.startsWith("coffeechat") && s.coffeechat) return `${s.coffeechat.group_no}번 테이블`;
   if (s.tabletalk) return `${s.tabletalk.table_no}번 테이블${s.tabletalk.seat_no ? ` ${s.tabletalk.seat_no}번 자리` : ""}`;
   return "";
 }

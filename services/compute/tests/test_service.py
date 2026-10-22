@@ -358,6 +358,8 @@ def test_final_recs_keep_groups():
     assert v["round"] == "coffeechat" and v["params"]["kind"] == "final" and v["status"] != "published"   # 운영자가 공개
     g2 = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == f["version"]}
     assert g2 == g                                                      # 그룹 · 테이블 번호 그대로
+    lead = lambda ver: {m["participant_id"] for m in repo.t["table_members"] if m["version"] == ver and m["reason"].get("lead")}
+    assert lead(f["version"]) == lead(r["version"]) and len(lead(r["version"])) == 2 * r["tables"] == f["leads"]   # 주도 선배 표시도 그대로
     recs = [x for x in repo.t["recs"] if x["version"] == f["version"]]
     assert recs and not any(x["participant_id"] == a and x["target_id"] == b for x in recs)        # 교환한 사람 빠짐
     assert not any(g[x["participant_id"]] == g[x["target_id"]] for x in recs)                       # 커피챗 동석자 빠짐
