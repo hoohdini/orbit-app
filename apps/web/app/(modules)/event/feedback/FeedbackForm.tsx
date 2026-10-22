@@ -1,10 +1,9 @@
 "use client";
-// 피드백 입력(피그마 R-1 · R-2). 별점을 고르면 제출 버튼이 켜진다. 좋았던 점과 한마디는 선택이다(스탬프 조건은 별점만).
-// 제출하면 완료 화면(R-3)으로 간다. 서버 API 가 나오기 전에는 mock.ts 가 이 기기에 저장한다.
-// 서버가 나오면 submit 안의 saveFeedback 을 api(..., { json: { rating, tags, comment } }) 호출로 바꾼다.
+// 행사 후기 입력(피그마 R-1 · R-2). 만족도 3단계(최고였다 · 좋았다 · 별로였다)를 고르면 제출 버튼이 켜진다. 좋았던 점과 한마디는 선택이다(스탬프 조건은 만족도만).
+// 제출하면 완료 화면(R-3)으로 간다. 저장은 store.ts 가 서버(/api/event/feedback)로 보낸다.
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { loadFeedback, saveFeedback } from "../mock";
+import { loadFeedback, saveFeedback } from "./store";
 import { COMMENT_MAX, FEEDBACK_TAGS, RATINGS } from "./choices";
 
 export default function FeedbackForm() {
@@ -12,12 +11,13 @@ export default function FeedbackForm() {
   const [rating, setRating] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
   const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   // 이미 낸 적이 있으면 그 내용을 채운다(다시 내면 덮어씀)
   useEffect(() => {
     let alive = true;
-    Promise.resolve().then(() => {
-      const prev = loadFeedback();
+    loadFeedback().then((prev) => {
       if (!alive || !prev) return;
       setRating(prev.rating);
       setTags(prev.tags);
@@ -29,26 +29,32 @@ export default function FeedbackForm() {
   }, []);
 
   const toggle = (key: string) => setTags((t) => (t.includes(key) ? t.filter((k) => k !== key) : [...t, key]));
-  const submit = () => {
-    if (!rating) return;
-    saveFeedback({ rating, tags, comment: comment.trim() });
+  const submit = async () => {
+    if (!rating || busy) return;
+    setBusy(true);
+    setErr(null);
+    const e = await saveFeedback({ rating, tags, comment: comment.trim() });
+    if (e) {
+      setErr(e);
+      setBusy(false);
+      return;
+    }
     router.push("/event/feedback/done");
   };
 
   return (
     <main className="space-y-3 px-5 pt-5 pb-6">
       <section className="rounded-3xl border border-navy bg-white px-5 py-4">
-        <h2 className="text-[17px] font-medium text-navy">ORBIT.app은 어땠습니까?</h2>
-        <div className="mt-3 flex gap-2" role="radiogroup" aria-label="별점">
-          {RATINGS.map((n) => (
-            <button key={n} type="button" role="radio" aria-checked={rating === n} onClick={() => setRating(n)} className={`h-9 flex-1 rounded-full border text-sm font-medium ${rating === n ? "border-navy bg-navy text-white" : "border-line bg-white text-ink"}`}>
-              {n}
+        <h2 className="text-[17px] font-medium text-navy">행사는 어땠습니까?</h2>
+        <div className="mt-3 grid grid-cols-3 gap-2" role="radiogroup" aria-label="만족도">
+          {RATINGS.map((r) => (
+            <button key={r.value} type="button" role="radio" aria-checked={rating === r.value} onClick={() => setRating(r.value)} className={`flex flex-col items-center gap-1 rounded-2xl border py-3 text-sm font-medium ${rating === r.value ? "border-navy bg-navy text-white" : "border-line bg-white text-ink"}`}>
+              <span className="text-xl" aria-hidden>
+                {r.icon}
+              </span>
+              {r.label}
             </button>
           ))}
-        </div>
-        <div className="mt-2 flex justify-between text-xs text-ink-3">
-          <span>아쉽다</span>
-          <span>최고다</span>
         </div>
       </section>
 
@@ -80,10 +86,10 @@ export default function FeedbackForm() {
         </div>
       </section>
 
-      <button type="button" onClick={submit} disabled={!rating} className="flex h-14 w-full items-center justify-center rounded-2xl bg-navy text-lg font-bold text-white disabled:bg-[#d9d9d9] disabled:text-white">
-        피드백 제출하기
+      {err && <p className="text-center text-sm text-ink-2">{err}</p>}
+      <button type="button" onClick={submit} disabled={!rating || busy} className="flex h-14 w-full items-center justify-center rounded-2xl bg-navy text-lg font-bold text-white disabled:bg-[#d9d9d9] disabled:text-white">
+        후기 제출하기
       </button>
-      <p className="text-center text-xs text-ink-3">제출하면 스탬프 획득</p>
     </main>
   );
 }

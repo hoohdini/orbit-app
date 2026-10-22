@@ -7,10 +7,10 @@ export type Missions = { window: "not_started" | "open" | "closed"; closed_at: s
 
 export const NO: Record<MissionKey, string> = { poster: "①", quiz: "②", exchange: "③", feedback: "④" };
 export const TODO: Record<MissionKey, (m: Mission) => string> = {
-  poster: (m) => `QR로 2곳 선택하기 · ${m.count}/${m.goal}`,
+  poster: (m) => `2곳 이상 관심도 남기기 · ${m.count}/${m.goal}`,
   quiz: (m) => `3개 맞히기 · ${m.count}/${m.goal}`,
   exchange: (m) => `${(m.milestones ?? [m.goal]).join("명·")}명 교환 시 스탬프 · ${m.count}/${m.goal}`,
-  feedback: () => "ORBIT.app에 대한 후기 남기기",
+  feedback: () => "행사 후기 남기기",
 };
 // 타일을 누르면 가는 곳(피그마 A01 ~ A05). 명함 교환은 중간 화면 없이 명함 탭으로 바로 간다(10/21)
 export const HREF: Record<MissionKey, string> = {
@@ -25,7 +25,3 @@ export function stampsOf(m: Mission): boolean[] {
   return (m.milestones ?? [m.goal]).map((t) => m.count >= t);
 }
 
-// 옛 구성(추천 인물 · 새로운 연결 · 세대 연결). mission/[key] 상세 화면이 아직 남아 있어서 타입 검사용으로만 둔다. 새 화면에서는 쓰지 않는다
-export type LegacyKey = "recommended" | "first_meet" | "generation";
-export const LEGACY_NO: Record<LegacyKey, string> = { recommended: "③", first_meet: "④", generation: "⑤" };
-export type LegacyMissions = { missions: { key: string; label: string; goal: number; count: number; done: boolean }[] };

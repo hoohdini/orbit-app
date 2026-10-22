@@ -1,9 +1,8 @@
-// 이벤트 탭 가짜 데이터(10/21 미션 개편). 서버(be/)가 새 미션 구성과 피드백 API 를 내기 전까지 화면이 이것을 쓴다.
-// 서버가 나오면 USE_MOCK 을 끄고 api("/api/poster/missions") · 피드백 API 호출로 바꾼다. 응답 모양은 missions.ts 의 Missions 와 같다.
-// 화면 확인용: /event?mock=base | progress | done | closed (기본 progress)
+// 이벤트 탭 가짜 데이터(10/21 미션 개편). USE_MOCK 을 켰을 때만 화면이 이것을 쓴다(서버 없이 화면 확인용). 응답 모양은 missions.ts 의 Missions 와 같다.
+// 화면 확인용: /event?mock=base | progress | done | closed (기본 base: 아직 아무 미션도 시도하지 않은 기본 화면)
 import { stampsOf, type Mission, type Missions } from "./missions";
 
-export const USE_MOCK = true;
+export const USE_MOCK = false; // 서버(be/)가 새 미션 구성과 후기 API 를 내므로 끈다. 켜면 아래 가짜 데이터로 화면만 확인할 수 있다
 
 export type Scenario = "base" | "progress" | "done" | "closed";
 const SCENARIOS: Scenario[] = ["base", "progress", "done", "closed"];
@@ -23,15 +22,15 @@ const COUNTS: Record<Scenario, [number, number, number, number]> = {
 
 // 스탬프는 포스터 1 · 퀴즈 1 · 명함 교환 2 · 피드백 1 = 5칸
 export function build(counts: [number, number, number, number], closed = false): Missions {
-  const missions = [mission("poster", "포스터 관심도", 2, counts[0]), mission("quiz", "퀴즈", 3, counts[1]), mission("exchange", "명함 교환", 5, counts[2], [3, 5]), mission("feedback", "ORBIT.app 피드백", 1, counts[3])];
+  const missions = [mission("poster", "포스터 관심도", 2, counts[0]), mission("quiz", "퀴즈", 3, counts[1]), mission("exchange", "명함 교환", 5, counts[2], [3, 5]), mission("feedback", "행사 후기", 1, counts[3])];
   const stamps = missions.reduce((n, m) => n + stampsOf(m).filter(Boolean).length, 0);
   return { window: closed ? "closed" : "open", closed_at: closed ? "2026-10-24T07:45:00Z" : null, missions, done_count: stamps, total: 5, progress: stamps / 5, completed_all_at: stamps === 5 ? "2026-10-24T07:30:00Z" : null };
 }
 
 export function scenarioFromUrl(): Scenario {
-  if (typeof window === "undefined") return "progress";
+  if (typeof window === "undefined") return "base";
   const v = new URLSearchParams(window.location.search).get("mock");
-  return SCENARIOS.find((s) => s === v) ?? "progress";
+  return SCENARIOS.find((s) => s === v) ?? "base";
 }
 
 // 후기 제출 기록. 서버 대신 이 기기에 저장한다(마감 뒤에는 보지 않는다)
