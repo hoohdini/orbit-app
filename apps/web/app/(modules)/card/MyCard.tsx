@@ -6,6 +6,8 @@
 // 10/11 모바일 비율: 남색 영역은 남는 높이를 채우고(작은 폰에서 줄고 큰 폰에서 늘어남), 일식은 제목 아래 남는 칸에 맞춰 비율로 줄고 늘어난다.
 // 일식 모양은 components/figma/HomeEclipse(포스터 모양 기본, 예전 모양으로 되돌리기 가능)
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/client";
 import { useOrbitState } from "@/components/useOrbitState";
 import { useFit } from "@/components/figma/useFit";
 import { IconScan } from "@/components/figma/Icons";
@@ -18,6 +20,11 @@ export default function MyCard() {
   // 이용 동의(collect)나 명함 공개(share)를 거부하면 교환 · 추천을 쓰지 않는다(0014)
   const refused = state?.consent === "refused" || state?.share === "refused";
   const [area, , size] = useFit<HTMLDivElement>(376);
+  // 홈 일식 안에 내 명함 QR 을 띄우려고 받아 둔다(10/22). 못 받으면 예전처럼 QR 아이콘만 보인다
+  const [payload, setPayload] = useState<string | null>(null);
+  useEffect(() => {
+    api<{ qr_payload: string }>("/api/card/me").then((r) => r.ok && setPayload(r.data.qr_payload));
+  }, []);
 
   return (
     <main className="flex flex-1 flex-col px-[9px]">
@@ -29,7 +36,7 @@ export default function MyCard() {
           <span className="block text-[clamp(24px,7.4vw,31px)]">: The ORBIT</span>
         </h1>
         <div ref={area} className="relative flex-1">
-          <HomeEclipse w={size.w} h={size.h} />
+          <HomeEclipse w={size.w} h={size.h} payload={payload} />
         </div>
       </section>
 
