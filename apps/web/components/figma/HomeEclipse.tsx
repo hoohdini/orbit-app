@@ -5,24 +5,37 @@
 // 되돌리기: 환경변수 NEXT_PUBLIC_HOME_ECLIPSE=classic 을 넣고 다시 배포하면 예전 모양으로 바뀐다(코드 수정 없이). 기본은 poster
 // 크기는 들어갈 칸(폭 w · 높이 h)에 맞춘다. poster 는 393×420 무대를 칸에 맞춰 비율로, classic 은 지름 232 무리를 비율로
 import Link from "next/link";
+import { QRCodeSVG } from "qrcode.react";
 import Eclipse from "./Eclipse";
 import { IconQr } from "./Icons";
 
 export const HOME_ECLIPSE: "poster" | "classic" = process.env.NEXT_PUBLIC_HOME_ECLIPSE === "classic" ? "classic" : "poster";
 
-export default function HomeEclipse({ w, h }: { w: number; h: number }) {
-  return HOME_ECLIPSE === "classic" ? <Classic w={w} h={h} /> : <Poster w={w} h={h} />;
+// payload 가 있으면 원 안에 내 명함 QR 을 반전(흰 모듈)으로 띄운다(10/22). 상대가 홈 화면에서 바로 찍을 수 있다.
+// 아직 못 받았으면 예전처럼 QR 아이콘만 둔다. 눌러서 /card/qr 로 가면 같은 QR 을 크게 본다
+export default function HomeEclipse({ w, h, payload }: { w: number; h: number; payload?: string | null }) {
+  return HOME_ECLIPSE === "classic" ? <Classic w={w} h={h} /> : <Poster w={w} h={h} payload={payload} />;
 }
 
-function Poster({ w, h }: { w: number; h: number }) {
+// 지름 280 원에 내접하는 정사각형의 한 변은 198(280÷√2). 그 안에 넣으면 귀퉁이가 잘리지 않는다
+function CircleQr({ payload }: { payload?: string | null }) {
+  if (!payload) {
+    return (
+      <span className="flex size-14 items-center justify-center text-white/90">
+        <IconQr className="size-8" />
+      </span>
+    );
+  }
+  return <QRCodeSVG value={payload} size={196} level="M" marginSize={3} fgColor="#FFFFFF" bgColor="transparent" />;
+}
+
+function Poster({ w, h, payload }: { w: number; h: number; payload?: string | null }) {
   // 무대 폭: 칸 폭과 높이(420 비율) 중 작은 쪽, 너무 커지지 않게 460
   const stageW = Math.max(220, Math.min(w, (h * 393) / 420, 460));
   return (
     <Link href="/card/qr" aria-label="내 명함 QR 크게 보기" className="absolute bottom-0 left-1/2 block -translate-x-1/2" style={{ width: stageW }}>
       <Eclipse guide={false} max={2} poster>
-        <span className="flex size-14 items-center justify-center text-white/90">
-          <IconQr className="size-8" />
-        </span>
+        <CircleQr payload={payload} />
       </Eclipse>
     </Link>
   );
