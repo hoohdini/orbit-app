@@ -1,6 +1,6 @@
 "use client";
 // 이벤트 · 미션 · 시상 현황(개발 지시서 v0.2 A-07)과 특별 시상 제외 명단(E-06).
-// 시상은 미션 진행도 순, 동점은 유효 포스터 응답 수 → 첫 대화로 확인한 교환 수 → 전체 미션 완료 시각(결정 12, 10/11 부터 미션 5개). 응모권 추첨은 명찰 번호로 앱 밖에서 한다.
+// 미션 4종 · 스탬프 5칸. 시상은 스탬프 수 → 첫 대화로 확인한 교환 수 → 유효 포스터 응답 수 → 5번째 스탬프 시각 순(10/22 민찬 결정, 표 칸도 이 순서). 응모권 추첨은 명찰 번호로 앱 밖에서 한다.
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 
@@ -8,6 +8,8 @@ type Data = {
   window: string;
   closed_at: string | null;
   checked_in: number;
+  stamp_total: number;
+  avg_stamps: number | null;
   avg_progress: number | null;
   completed_all: number;
   by_mission: { key: string; label: string; done: number }[];
@@ -37,13 +39,13 @@ export default function MissionsPanel() {
   }
 
   if (!d) return <p className="text-sm text-gray-500">{msg ?? "불러오는 중"}</p>;
-  const all = `${d.by_mission.length}/${d.by_mission.length}`; // 미션 수(lib/missions.ts MISSIONS)를 따라간다
+  const all = `${d.stamp_total}/${d.stamp_total}`; // 스탬프 칸 수(lib/missions.ts STAMP_TOTAL)를 따라간다
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
-        <Box label="평균 진행도" value={d.avg_progress == null ? "-" : `${Math.round(d.avg_progress * 100)}%`} />
-        <Box label={`${all} 완료`} value={`${d.completed_all} / ${d.checked_in}명`} />
+        <Box label="평균 스탬프" value={d.avg_stamps == null ? "-" : `${d.avg_stamps} / ${d.stamp_total}`} />
+        <Box label={`스탬프 ${all}`} value={`${d.completed_all} / ${d.checked_in}명`} />
         <Box label="QR 처리" value={`명함 ${d.qr.card_scans} · 포스터 ${d.qr.poster_scans}`} />
         <Box label="탭 불일치" value={String(d.qr.tab_mismatch)} />
       </div>
@@ -53,14 +55,15 @@ export default function MissionsPanel() {
 
       <div className="rounded-xl border border-gray-200 bg-white p-3">
         <p className="text-sm font-semibold">특별 시상 후보 <span className="font-normal text-gray-500">(제외 {d.excluded}명)</span></p>
+        <p className="mt-0.5 text-xs text-gray-500">순위: 스탬프 많은 순 → 첫 대화 확인 교환 많은 순 → 포스터 유효 응답(5초 이상) 많은 순 → {all} 시각 이른 순</p>
         <table className="mt-2 w-full text-xs">
           <thead className="text-left text-gray-500">
             <tr>
               <th className="py-1">순위</th>
               <th>이름</th>
-              <th>진행도</th>
-              <th>포스터</th>
+              <th>스탬프</th>
               <th>첫 대화</th>
+              <th>포스터</th>
               <th>{all} 시각</th>
             </tr>
           </thead>
@@ -71,9 +74,11 @@ export default function MissionsPanel() {
                 <td>
                   {c.display_name} <span className="text-gray-400">{c.affiliation ?? ""}</span>
                 </td>
-                <td>{Math.round(c.progress * 100)}%</td>
-                <td>{c.valid_poster_responses}</td>
+                <td>
+                  {c.done_count}/{d.stamp_total}
+                </td>
                 <td>{c.first_meet_exchanges}</td>
+                <td>{c.valid_poster_responses}</td>
                 <td>{c.completed_all_at ? new Date(c.completed_all_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
               </tr>
             ))}

@@ -40,6 +40,13 @@ export function missionWindow(p: Phase | null): MissionWindow {
   return "not_started";
 }
 
+// 행사 후기(미션 ④)를 받는 단계. 커피챗이 끝난 뒤(wrapup)부터 시상(award)까지(10/22 민찬 결정).
+// 미션 마감(wrapup)과 같은 때 열리므로 후기만 마감 뒤에도 쓸 수 있다
+export const FEEDBACK_OPEN: readonly Phase[] = ["wrapup", "award"];
+export function feedbackOpen(p: Phase | string | null): boolean {
+  return !!p && (FEEDBACK_OPEN as readonly string[]).includes(p);
+}
+
 // 공지 버튼 3종(A-06). 자유 입력도 받는다
 export const NOTICE_PRESETS = [
   { key: "start", text: "곧 다음 순서가 시작됩니다. 자리로 모여 주세요" },

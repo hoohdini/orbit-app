@@ -28,7 +28,7 @@
 | 모듈 | 경로 | 방법 | 입력 | 응답 data | 상태 |
 |---|---|---|---|---|---|
 | 공용 | /api/health | GET | 없음 | { version, db: ok/fail } | 있음 |
-| 공용 | /api/state | GET | 없음 | { phase, phase_label, phase_at, notice: {text, expires_at} 또는 null, consent(agreed · refused · pending), share(명함 공개 및 추천 활용, 0014), tabletalk: {version, table_no, seat_no} 또는 null, coffeechat: {version, group_no} 또는 null, published: {tabletalk, coffeechat}(공개 버전 번호 또는 null), recs_open, mission: {window(not_started · open · closed), done_count, total, progress}, now } 참가자 화면이 15초마다 부르는 상태 하나(v0.2 B-09). 상태 띠(H-01) · 추천 접힘(H-04) · 만족도 노출(N-03) · 새 배정 안내(N-06, published 와 기기에 저장한 확인 버전을 비교) · 미션(E-01) | 있음 |
+| 공용 | /api/state | GET | 없음 | { phase, phase_label, phase_at, notice: {text, expires_at} 또는 null, consent(agreed · refused · pending), share(명함 공개 및 추천 활용, 0014), tabletalk: {version, table_no, seat_no} 또는 null, coffeechat: {version, group_no} 또는 null, published: {tabletalk, coffeechat}(공개 버전 번호 또는 null), recs_open, mission: {window(not_started · open · closed), done_count, total, progress(= done_count / total, 10/22)}, now } 참가자 화면이 15초마다 부르는 상태 하나(v0.2 B-09). 상태 띠(H-01) · 추천 접힘(H-04) · 만족도 노출(N-03) · 새 배정 안내(N-06, published 와 기기에 저장한 확인 버전을 비교) · 미션(E-01) | 있음 |
 | onboarding | /api/onboarding/login | POST | display_name, pin(숫자 4자리), participant_id? | { participant: {id, display_name, role, is_admin}, consented } 또는 동명이인이면 { choose: [{id, display_name, affiliation, role, cohort}] }. 실패 401, 5회 실패 후 10분 423 | 있음 |
 | onboarding | /api/onboarding/logout | POST | 없음 | { ok } | 있음 |
 | onboarding | /api/onboarding/consent | POST | agreed: true 또는 false, item?(collect · share) | { consent, consent_at, consent_refused_at, share, share_consent_at, share_refused_at } 거부도 저장한다(v0.2 H-00). 다시 동의하면 거부 기록을 지운다. 10/11(0014) 동의 두 항목: collect = 개인정보 수집 및 이용, share = 명함 공개 및 추천 활용. item 을 빼면 두 항목을 같이 정한다(온보딩), 마이페이지 내 정보는 항목별로 보낸다 | 있음 |
@@ -60,9 +60,9 @@
 | poster | /api/poster/detail | GET | id | /api/poster/scan 과 같은 모양. 목록에서 다시 열 때(피그마 A31). 한 번도 스캔하지 않았으면 403 SCAN_REQUIRED, 스캔 기록은 남기지 않는다 | 있음 |
 | poster | /api/poster/interest | POST | poster_id, choice(아래 선택지) | { saved: true } 예전 화면용. v0.2 부터는 /api/poster/response | 있음 |
 | poster | /api/poster/stamps | GET | 없음 | { stamps: [...], total, tickets: [...] } | 있음 |
-| poster | /api/poster/missions | GET | 없음 | { window(not_started · open · closed), closed_at, missions: [{key(poster · quiz · exchange · feedback), label, goal, count, done, completed_at, milestones, stamps}], done_count, total, progress, completed_all_at } 이벤트 탭 미션 현황판(v0.2 E-01 ~ E-06). 10/22 피그마 이벤트·미션: 미션 4개 · 스탬프 5칸. ① 포스터 관심도 2(스탬프 1) ② 퀴즈 3(스탬프 1) ③ 명함 교환 5명(3명 · 5명에서 스탬프 1칸씩, milestones [3, 5]) ④ 행사 후기 1(스탬프 1). done_count 는 찍힌 스탬프 수, total 은 5, completed_all_at 은 5칸이 다 찍힌 시각. 판정은 서버(lib/missions.ts). 교환은 성립한 것만 같은 상대 한 번씩, 마감(closed_at) 뒤 기록은 세지 않는다. 후기는 처음 낸 시각이 마감 안일 때만 센다. 진행도 = 네 미션 min(달성/목표, 1) 평균. 예전 추천 인물 · 새로운 연결 · 세대 연결 미션은 없앴다(시상 동점 처리용 tiebreak 값은 그대로 계산) | 있음 |
+| poster | /api/poster/missions | GET | 없음 | { window(not_started · open · closed), closed_at, feedback_open, missions: [{key(poster · quiz · exchange · feedback), label, goal, count, done, completed_at, milestones, stamps}], done_count, total, progress, completed_all_at } 이벤트 탭 미션 현황판(v0.2 E-01 ~ E-06). 10/22 피그마 이벤트·미션: 미션 4개 · 스탬프 5칸. ① 포스터 관심도 2(스탬프 1) ② 퀴즈 3(스탬프 1) ③ 명함 교환 5명(3명 · 5명에서 스탬프 1칸씩, milestones [3, 5]) ④ 행사 후기 1(스탬프 1). done_count 는 찍힌 스탬프 수, total 은 5, completed_all_at 은 5칸이 다 찍힌 시각. 판정은 서버(lib/missions.ts). 교환은 성립한 것만 같은 상대 한 번씩, 마감(closed_at) 뒤 기록은 세지 않는다. 후기는 커피챗이 끝난 뒤(wrapup · award)에만 받으므로 마감으로 자르지 않는다(feedback_open 이 true 일 때 후기 타일만 열림, 10/22 민찬 결정). 진행도 = 찍힌 스탬프 수 / 5(10/22 민찬 결정, 예전 네 미션 달성률 평균은 버림). 예전 추천 인물 · 새로운 연결 · 세대 연결 미션은 없앴다(시상 동점 처리용 tiebreak 값은 그대로 계산) | 있음 |
 | event | /api/event/feedback | GET | 없음 | { feedback: {rating, tags, comment} 또는 null } 내가 남긴 행사 후기(10/22) | 있음 |
-| event | /api/event/feedback | POST | rating(1 별로였다 · 2 좋았다 · 3 최고였다), tags?(card_exchange · recommended · mission_stamp · qr_scan · layout · speed · notification), comment?(100자) | { saved: true } 행사 후기 제출(미션 ④). 한 사람당 한 건, 다시 내면 덮어쓰고 처음 낸 시각은 그대로. 동의 거부자는 403. 마감 뒤에 처음 낸 후기는 저장하되 스탬프로 세지 않는다. **배포 순서: DB 에 0018 적용과 be/ 머지를 같이 → fe/ 머지** | 있음 |
+| event | /api/event/feedback | POST | rating(1 별로였다 · 2 좋았다 · 3 최고였다), tags?(card_exchange · recommended · mission_stamp · qr_scan · layout · speed · notification), comment?(100자) | { saved: true, anonymous, stamp } 행사 후기 제출(미션 ④). 커피챗이 끝난 뒤(wrapup · award)에만 받고 그 전은 409 FEEDBACK_NOT_OPEN(10/22 민찬 결정). 동의한 사람은 한 사람당 한 건(participant_id 로 upsert), 다시 내면 덮어쓰고 처음 낸 시각은 그대로, 스탬프 1칸(stamp true). 동의 거부자는 사람과 잇지 않고 event_feedback_anon(0019)에 저장하고 스탬프 없음(anonymous true · stamp false, event_log 도 남기지 않음, GET 으로 다시 읽을 수 없음). 동의를 아직 고르지 않았으면 403 CONSENT_REQUIRED. **배포 순서: DB 에 0018 · 0019 적용과 be/ 머지를 같이 → fe/ 머지** | 있음 |
 | ops | /api/ops/reset-pin | POST | participant_id | { pin } 새 무작위 4자리를 한 번만 돌려준다 | 있음 |
 | ops | /api/ops/add-participant | POST | display_name, affiliation?, role, cohort?, is_host?, pin?, offer_text?, seek_text?, topic_tags?, assign_seat?(기본 true) | { participant, pin, seat: {version, table_no, seat_no} 또는 null } 워크인 추가. 공개된 테이블토크가 있으면 고정 테이블을 뺀 가장 적은 테이블의 끝 좌석에 바로 넣는다(v0.2 A-05) | 있음 |
 | ops | /api/ops/compute | GET | 없음 | { reachable, model_loaded?, version? } 계산 서비스 상태. 운영자만 | 있음 |
@@ -81,7 +81,7 @@
 | ops | /api/ops/phase | POST | phase(아래 단계 값), reopen_missions? | { phase, phase_label, at, mission_closed_at } 단계 전환(v0.2 A-02). 처음 wrapup · award 로 넘어갈 때 미션 마감 시각을 고정한다(reopen_missions true 면 마감을 지운다). 운영자만 | 있음 |
 | ops | /api/ops/notice | POST | preset?(start · move · last5) 또는 text?(80자), minutes?(기본 5), clear? | { notice: {text, preset, expires_at} 또는 null } 공지 송출(v0.2 A-06). 만료까지 /api/state 의 notice 로 나간다. clear true 면 내린다. 운영자만 | 있음 |
 | ops | /api/ops/audit | GET | limit?(기본 50) | { entries: [{id, kind, actor: {id, display_name}, payload, at}] } 감사 로그(v0.2 A-09). 단계 전환 · 공지 · 공개 · 철회 · 수동 교체 · 계산 · 체크인 · 이름표 · 추첨 · 시상 제외 · 워크인 · 숫자 재발급. 운영자만 | 있음 |
-| ops | /api/ops/missions | GET | 없음 | { window, closed_at, checked_in, avg_progress, completed_all, by_mission: [{key, label, done}], excluded, candidates: [{place, id, display_name, affiliation, progress, done_count, valid_poster_responses, first_meet_exchanges, completed_all_at}], qr: {card_scans, poster_scans, tab_mismatch} } 이벤트 · 미션 · 시상 현황(v0.2 A-07, 결정 12). 후보는 제외 명단을 뺀 상위 20명, 진행도 → 유효 포스터 응답 수(5초 이상) → 첫 대화 확인 교환 수 → 전체 미션(5개) 완료 시각 순. 탭 불일치 = 명함 QR 을 이벤트 탭에서 · 포스터 QR 을 명함 탭에서 읽은 수. 운영자만 | 있음 |
+| ops | /api/ops/missions | GET | 없음 | { window, closed_at, checked_in, stamp_total(5), avg_stamps, avg_progress, completed_all(스탬프 5칸 모두), by_mission: [{key, label, done}], excluded, candidates: [{place, id, display_name, affiliation, progress, done_count(스탬프 수), valid_poster_responses, first_meet_exchanges, completed_all_at(5번째 스탬프 시각)}], qr: {card_scans, poster_scans, tab_mismatch} } 이벤트 · 미션 · 시상 현황(v0.2 A-07, 결정 12). 미션 4종 · 스탬프 5칸. 후보는 제외 명단을 뺀 스탬프 1칸 이상 상위 20명, 스탬프 수 → 첫 대화 확인 교환 수 → 유효 포스터 응답 수(5초 이상) → 5번째 스탬프 시각 이른 순(10/22 민찬 결정, 운영진용 설명은 docs/RUNBOOK_EVENT_DAY.md '시상 순위'). 탭 불일치 = 명함 QR 을 이벤트 탭에서 · 포스터 QR 을 명함 탭에서 읽은 수. 운영자만 | 있음 |
 | ops | /api/ops/award-exclude | GET | 없음 | { people: [{id, display_name, affiliation}], at } 특별 시상 제외 명단(v0.2 E-06). 운영자만 | 있음 |
 | ops | /api/ops/award-exclude | POST | csv?(한 줄에 이름,소속), ids? | { people, unmatched: [줄], at } 명단을 통째로 바꾼다. 이름이 없거나 동명이인을 못 가리면 unmatched. 운영자만 | 있음 |
 | ops | /api/ops/print | GET | round?(tabletalk 기본 · coffeechat), version? | 인쇄용 HTML(JSON 아님). 테이블별 좌석 순 명단(v0.2 A-10). 브라우저 인쇄로 PDF 저장. version 없으면 그 라운드 공개 버전. 운영자만 | 있음 |
@@ -93,7 +93,7 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 
 10/11(0014) 동의는 두 항목이다. 개인정보 수집 및 이용(collect)을 거부하면 아래의 행사 중 수집을 막고, 명함 공개 및 추천 활용(share)을 거부하면 남의 추천 · 이름 검색 · 궤도에서 빠지고 명함 교환을 주고받지 않는다(SHARE_REFUSED · TARGET_UNAVAILABLE). 온보딩의 동의 · 거부는 두 항목을 같이 정한다.
 
-동의를 거부한 사람도 사전 등록 정보로 배정(테이블토크 · 커피챗)에는 들어간다. 행사 중 수집 쓰기(/api/card/scan · confirm · first-meet · recs, /api/poster/scan · response · answer · interest, /api/tabletalk/satisfaction POST, 검색 시제품)는 403 CONSENT_REFUSED(아직 고르지 않았으면 CONSENT_REQUIRED)를 돌려준다. 남의 추천 · 이름 검색 · 궤도에서도 빠진다. 판정은 `lib/consent.ts`.
+동의를 거부한 사람도 사전 등록 정보로 배정(테이블토크 · 커피챗)에는 들어간다. 행사 중 수집 쓰기(/api/card/scan · confirm · first-meet · recs, /api/poster/scan · response · answer · interest, /api/tabletalk/satisfaction POST, 검색 시제품)는 403 CONSENT_REFUSED(아직 고르지 않았으면 CONSENT_REQUIRED)를 돌려준다. 행사 후기(/api/event/feedback POST)만 예외로 거부자 것도 받되 사람과 잇지 않고 저장한다(event_feedback_anon, 스탬프 없음, 10/22 민찬 결정). 남의 추천 · 이름 검색 · 궤도에서도 빠진다. 판정은 `lib/consent.ts`.
 
 ## 행사 단계 (v0.2 A-02, `lib/phase.ts`)
 
@@ -105,8 +105,8 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 | tabletalk_end | 테이블토크 마무리(만족도) | 접힘 | 진행 |
 | poster | 포스터 세션 | 열림 | 진행 |
 | coffeechat_seated | 커피챗(이동 없음, 10/21 민찬 결정으로 자유 이동 단계 coffeechat_free 를 뺌) | 접힘 | 진행 |
-| wrapup | 마무리(커피챗 만족도) | 열림 | 마감, 읽기 전용 |
-| award | 시상 · 추첨 | 열림 | 마감, 읽기 전용 |
+| wrapup | 마무리(커피챗 만족도) | 열림 | 마감, 읽기 전용(행사 후기만 열림) |
+| award | 시상 · 추첨 | 열림 | 마감, 읽기 전용(행사 후기만 열림) |
 
 ## 선택지 (만족도, 관심도)
 
