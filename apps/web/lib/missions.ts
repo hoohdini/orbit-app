@@ -33,7 +33,7 @@ export type MissionStatus = {
   progress: number; // 찍힌 스탬프 수 / 5(0~1, 소수 셋째 자리)
   completed_all_at: string | null; // 스탬프 5칸이 다 찍힌 시각
   // 시상 동점 처리용(A-07). 참가자 화면에는 내보내지 않는다
-  tiebreak: { valid_poster_responses: number; first_meet_exchanges: number };
+  tiebreak: { valid_poster_responses: number; first_meet_exchanges: number; last_stamp_at: string | null }; // last_stamp_at 가장 최근 스탬프 시각
 };
 
 const CHUNK = 200;
@@ -128,6 +128,7 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
       tiebreak: {
         valid_poster_responses: myResp.filter((r) => (r.latency_ms ?? 0) >= MIN_LATENCY_MS).length,
         first_meet_exchanges: firstMeetTimes.length,
+        last_stamp_at: stampTimes.length ? [...stampTimes].sort().at(-1)! : null,
       },
     });
   }

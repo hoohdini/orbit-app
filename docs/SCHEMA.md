@@ -39,7 +39,7 @@
 | poster_responses | 포스터 응답(미션 ①). reason = 흥미 3단계(want, maybe, not_mine), 보여 준 순서, 소요 시간, 응답 순번, 퀴즈 시도 | poster 모듈 API | 0009. 0011 에서 관심 이유 4지선다(topic, method, experience, new_field)를 흥미 3단계로 바꿨다(칸 이름 reason 은 그대로). 계산 서비스가 B-05 전처리 뒤 커피챗에 반영(docs/DATA_SPEC.md). **배포 순서: DB 에 0011 · 0012 적용과 be/ 머지를 같이 → compute/ 머지** |
 | raffle_tickets | 응모권 | poster 모듈 API | v0.2 결정 6 으로 앱에서 발급하지 않는다(명찰 번호로 앱 밖). 표와 운영 콘솔 추첨은 남아 있다 |
 | event_feedback | 행사 후기(미션 ④). 한 사람당 한 행: rating(1 별로였다 · 2 좋았다 · 3 최고였다), tags(text[]), comment(100자) | event 모듈 API(/api/event/feedback) | 0018. 커피챗이 끝난 뒤(wrapup · award)에만 받는다. 행이 있으면 스탬프 1칸이고 미션 마감 시각으로 자르지 않는다(10/22 민찬 결정). created_at 은 처음 낸 시각, 다시 내면 updated_at 만 바뀐다(participant_id 로 upsert). 운영 콘솔에서는 아직 읽지 않는다 |
-| event_feedback_anon | 이용 동의 거부자의 행사 후기. participant_id 없음: id, source(consent_refused), rating, tags, comment, created_at | event 모듈 API(/api/event/feedback) | 0019(10/22 민찬 결정). 수집을 거부했으므로 사람과 잇지 않고 스탬프도 없다(미션 판정이 읽지 않음). 다시 내면 행이 하나 더 생긴다. RLS 켬, 정책 없음 |
+| event_feedback_anon | 이용 동의 거부자의 행사 후기. participant_id 없음: id, event_id, source(consent_refused), rating, tags, comment, created_at | event 모듈 API(/api/event/feedback) | 0019(10/22 민찬 결정). 수집을 거부했으므로 사람과 잇지 않고 스탬프도 없다(미션 판정이 읽지 않음). 다시 내면 행이 하나 더 생긴다. RLS 켬, 정책 없음 |
 | ops_state | 운영 상태(키 · 값). phase(9개 값, lib/phase.ts), phase_meta(바꾼 시각 · 사람), notice(공지와 만료 시각), mission_closed_at(미션 마감, 처음 wrapup 으로 넘어간 시각), award_excluded(특별 시상 제외 명단), published_*, compute_heartbeat, raffle_result | 운영 콘솔, 계산 서비스 | 단계 값은 표가 아니라 API(zod)가 막는다 |
 | chat_logs | 챗봇 질문 기록(횟수 제한) | P2 | |
 

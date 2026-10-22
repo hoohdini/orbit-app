@@ -14,6 +14,7 @@ import Stamp from "@/components/figma/Stamp";
 import { useOrbitState } from "@/components/useOrbitState";
 import { HREF, NO, TODO, stampsOf, type Mission, type Missions } from "./missions";
 import { USE_MOCK, mockMissions } from "./mock";
+import { lastSubmitted } from "./feedback/store";
 
 const doneKey = "orbit:mission-complete-shown";
 const POLL_MS = 15_000;
@@ -69,12 +70,14 @@ export default function MissionBoard() {
   const posterSet = [by("poster"), by("quiz")];
   const exchange = by("exchange");
   const feedback = by("feedback");
+  // 동의 거부자는 후기를 내도 스탬프가 없어 서버 판정은 미완료다. 이 탭에 낸 기록이 있으면 완료처럼 보이고 스탬프 없음을 적는다(10/22)
+  const anonDone = !feedback.done && !!lastSubmitted(m.pid)?.anonymous;
 
   return (
     <main className="space-y-8 px-5 pt-4 pb-6">
       {closed && (
         <p className="rounded-2xl bg-strip px-4 py-3 text-center text-sm font-medium text-navy">
-          미션 {m.done_count}/{m.total} · 마감되었습니다{m.feedback_open && !feedback.done ? " · 후기는 지금 남길 수 있습니다" : ""}
+          미션 {m.done_count}/{m.total} · 마감되었습니다{m.feedback_open && !feedback.done && !anonDone ? " · 후기는 지금 남길 수 있습니다" : ""}
         </p>
       )}
       {refused && <p className="rounded-2xl bg-field px-4 py-3 text-sm text-ink-2">이용 동의를 하지 않아 미션 기록이 남지 않습니다. 후기는 누가 냈는지 남기지 않고 받습니다. 마이페이지에서 다시 동의할 수 있습니다</p>}
@@ -96,7 +99,7 @@ export default function MissionBoard() {
       <section className="space-y-2.5">
         <Head title="후기 미션" done={feedback.done ? 1 : 0} total={1} />
         {/* 후기는 미션 마감과 상관없이 feedback_open 일 때만 열린다 */}
-        <Tile m={feedback} closed={!m.feedback_open} lockedHint={m.feedback_open ? undefined : "커피챗이 끝나면 열립니다"} />
+        <Tile m={feedback} closed={!m.feedback_open} lockedHint={m.feedback_open ? undefined : "커피챗이 끝나면 열립니다"} noStamp={anonDone} />
       </section>
 
       <section className="rounded-3xl border border-navy bg-strip px-5 pt-3 pb-5">
@@ -148,15 +151,17 @@ function Head({ title, done, total }: { title: string; done: number; total: numb
 }
 
 // 미션 타일(포스터 미션은 2칸 타일, 네트워킹 미션은 한 줄). 완료는 연한 남색 바탕 · 진한 테두리 · 스탬프
-// lockedHint 가 있으면 할 일 문구 대신 그 안내를 보인다(후기 타일, 커피챗 전)
-function Tile({ m, closed, tile = false, lockedHint }: { m: Mission; closed: boolean; tile?: boolean; lockedHint?: string }) {
+// lockedHint 가 있으면 할 일 문구 대신 그 안내를 보인다(후기 타일, 커피챗 전). noStamp 는 냈지만 스탬프가 없는 경우(동의 거부자 후기): 완료 모양 · 빈 스탬프 · 동작 없음
+function Tile({ m, closed, tile = false, lockedHint, noStamp = false }: { m: Mission; closed: boolean; tile?: boolean; lockedHint?: string; noStamp?: boolean }) {
+  const done = m.done || noStamp;
+  const doneText = noStamp ? "완료 · 스탬프 없음" : "완료";
   // 스탬프가 여러 개인 미션(명함 교환 3명 · 5명)은 칸마다 따로 찍힌다
   const flags = m.milestones ? stampsOf(m) : [m.done];
   const body = tile ? (
     <>
       <p className="text-xs font-medium text-ink-2">미션 {NO[m.key]}</p>
       <p className="mt-1 text-[17px] font-bold text-ink">{m.label}</p>
-      <p className={`mt-1 text-[13px] ${m.done ? "font-medium text-navy" : "text-ink-2"}`}>{m.done ? "완료" : TODO[m.key](m)}</p>
+      <p className={`mt-1 text-[13px] ${done ? "font-medium text-navy" : "text-ink-2"}`}>{done ? doneText : TODO[m.key](m)}</p>
     </>
   ) : (
     <>
@@ -164,10 +169,10 @@ function Tile({ m, closed, tile = false, lockedHint }: { m: Mission; closed: boo
         <span className="text-xs font-medium text-ink-2">미션 {NO[m.key]}</span>
         <span className="text-base font-bold text-ink">{m.label}</span>
       </p>
-      <p className={`text-[13px] ${m.done ? "font-medium text-navy" : "text-ink-2"}`}>{m.done ? "완료" : (lockedHint ?? TODO[m.key](m))}</p>
+      <p className={`text-[13px] ${done ? "font-medium text-navy" : "text-ink-2"}`}>{done ? doneText : (lockedHint ?? TODO[m.key](m))}</p>
     </>
   );
-  const cls = `relative block rounded-[20px] border-[1.5px] ${tile ? "px-4 py-[14px]" : `px-4 py-[11px] ${flags.length > 1 ? "pr-[104px]" : "pr-16"}`} ${m.done ? "border-navy bg-strip" : "border-[#a6abb3] bg-white"}`;
+  const cls = `relative block rounded-[20px] border-[1.5px] ${tile ? "px-4 py-[14px]" : `px-4 py-[11px] ${flags.length > 1 ? "pr-[104px]" : "pr-16"}`} ${done ? "border-navy bg-strip" : "border-[#a6abb3] bg-white"}`;
   const stamp = (
     <span className={`absolute flex gap-1.5 ${tile ? "right-3 top-2.5" : "right-4 top-1/2 -translate-y-1/2"}`}>
       {flags.map((on, i) => (
@@ -177,7 +182,7 @@ function Tile({ m, closed, tile = false, lockedHint }: { m: Mission; closed: boo
   );
   // 완료한 타일도 포스터 목록은 다시 열 수 있다. 명함 · 후기는 완료하면 동작 없음. 마감 뒤에는 후기 말고 모두 동작 없음(후기는 closed 대신 feedback_open 을 받는다)
   const reopen = m.key === "poster" || m.key === "quiz";
-  if (closed || (m.done && !reopen))
+  if (closed || (done && !reopen))
     return (
       <div className={cls}>
         {body}

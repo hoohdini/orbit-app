@@ -3,8 +3,8 @@
 export type MissionKey = "poster" | "quiz" | "exchange" | "feedback";
 // milestones 는 스탬프가 찍히는 개수(명함 교환 [3, 5]). 없으면 목표(goal)를 채울 때 스탬프 1개
 export type Mission = { key: MissionKey; label: string; goal: number; count: number; done: boolean; completed_at: string | null; milestones?: number[] };
-// feedback_open: 행사 후기를 받는 단계인가(wrapup · award, 10/22 민찬 결정). 미션 마감 뒤에도 후기 타일만 열린다
-export type Missions = { window: "not_started" | "open" | "closed"; closed_at: string | null; feedback_open: boolean; missions: Mission[]; done_count: number; total: number; progress: number; completed_all_at: string | null };
+// feedback_open: 행사 후기를 받는 단계인가(wrapup · award, 10/22 민찬 결정). 미션 마감 뒤에도 후기 타일만 열린다. pid 는 내 id(이 탭의 후기 기록이 내 것인지 가림)
+export type Missions = { window: "not_started" | "open" | "closed"; closed_at: string | null; feedback_open: boolean; pid?: string; missions: Mission[]; done_count: number; total: number; progress: number; completed_all_at: string | null };
 
 export const NO: Record<MissionKey, string> = { poster: "①", quiz: "②", exchange: "③", feedback: "④" };
 export const TODO: Record<MissionKey, (m: Mission) => string> = {

@@ -5,10 +5,10 @@
 // 동의한 사람: 한 사람당 한 건(event_feedback). 다시 내면 덮어쓰고 처음 낸 시각(created_at)은 그대로 둔다. 스탬프 1칸.
 // 동의 거부자: 사람과 잇지 않고 event_feedback_anon(0019)에 저장한다. 스탬프 없음, event_log 에도 남기지 않는다(10/22 민찬 결정).
 // 동의를 아직 고르지 않은 사람: 403 CONSENT_REQUIRED(먼저 고르게 한다).
-// 응답 { saved: true, anonymous, stamp } 의 anonymous · stamp 로 완료 화면이 스탬프 문구를 고른다.
+// 응답 { saved: true, anonymous, stamp, pid } 의 anonymous · stamp 로 완료 화면이 스탬프 문구를 고른다. pid(내 id)는 이 탭에 남기는 기록이 내 것인지 가리는 데 쓴다.
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { ok, fail, handle } from "@/lib/api";
+import { ok, fail, handle, eventId } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 import { logEvent } from "@/lib/log";
 import { getConsent } from "@/lib/consent";
@@ -48,9 +48,9 @@ export async function POST(req: Request) {
 
     if (consent === "refused") {
       // 수집을 거부했으므로 누가 냈는지 남기지 않는다(participant_id 없음, event_log 없음)
-      const { error } = await db().from("event_feedback_anon").insert({ source: "consent_refused", ...row });
+      const { error } = await db().from("event_feedback_anon").insert({ event_id: eventId(), source: "consent_refused", ...row });
       if (error) throw error;
-      return ok({ saved: true, anonymous: true, stamp: false });
+      return ok({ saved: true, anonymous: true, stamp: false, pid: s.pid });
     }
 
     // 한 번에 넣거나 덮어쓴다(먼저 읽고 넣으면 두 번 눌렀을 때 PK 충돌이 났다). created_at 은 보내지 않아 처음 낸 시각이 남는다
@@ -60,6 +60,6 @@ export async function POST(req: Request) {
     if (error) throw error;
 
     await logEvent("event_feedback", s.pid, { rating: b.rating, tags: row.tags.length });
-    return ok({ saved: true, anonymous: false, stamp: true });
+    return ok({ saved: true, anonymous: false, stamp: true, pid: s.pid });
   });
 }

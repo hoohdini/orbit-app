@@ -16,16 +16,17 @@ import type { Missions } from "../../missions";
 // stamp: true 받음 · false 못 받음 · null 판정을 불러오지 못함
 type View = { kind: "loading" } | { kind: "error" } | { kind: "none" } | { kind: "shown"; f: Feedback; anonymous: boolean; stamp: boolean | null };
 
-async function stampOf(): Promise<boolean | null> {
-  if (USE_MOCK) return mockMissions().missions.find((x) => x.key === "feedback")?.done ?? null;
+// 후기 스탬프 판정과 내 id(이 탭의 기록이 내 것인지 가림)
+async function stampOf(): Promise<{ stamp: boolean | null; pid?: string }> {
+  if (USE_MOCK) return { stamp: mockMissions().missions.find((x) => x.key === "feedback")?.done ?? null };
   const r = await api<Missions>("/api/poster/missions");
-  return r.ok ? (r.data.missions.find((x) => x.key === "feedback")?.done ?? null) : null;
+  return r.ok ? { stamp: r.data.missions.find((x) => x.key === "feedback")?.done ?? null, pid: r.data.pid } : { stamp: null };
 }
 
 // 서버 후기가 있으면 그것, 없으면 이 탭에서 방금 낸 익명 후기, 둘 다 없으면 없음 · 불러오기 실패
 async function resolve(): Promise<View> {
-  const [r, stamp] = await Promise.all([loadFeedback(), stampOf()]);
-  const last = lastSubmitted();
+  const [r, { stamp, pid }] = await Promise.all([loadFeedback(), stampOf()]);
+  const last = lastSubmitted(pid);
   if (r.ok && r.feedback) return { kind: "shown", f: r.feedback, anonymous: false, stamp };
   if (last?.anonymous) return { kind: "shown", f: last.feedback, anonymous: true, stamp: false };
   if (!r.ok) return last ? { kind: "shown", f: last.feedback, anonymous: false, stamp } : { kind: "error" };

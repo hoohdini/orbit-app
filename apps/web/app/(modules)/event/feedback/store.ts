@@ -14,14 +14,16 @@ export async function loadFeedback(): Promise<Loaded> {
   return r.ok ? { ok: true, feedback: r.data.feedback } : { ok: false };
 }
 
-// 방금 낸 후기. anonymous 는 동의 거부자라 사람과 잇지 않고 저장된 경우(스탬프 없음)
-export type Submitted = { feedback: Feedback; anonymous: boolean };
+// 방금 낸 후기. anonymous 는 동의 거부자라 사람과 잇지 않고 저장된 경우(스탬프 없음). pid 는 낸 사람(같은 폰으로 다른 사람이 로그인하면 무시)
+export type Submitted = { feedback: Feedback; anonymous: boolean; pid: string };
 const LAST_KEY = "orbit:last-feedback";
 
-export function lastSubmitted(): Submitted | null {
+// pid 는 서버가 알려 준 지금 로그인한 사람(/api/poster/missions 의 pid). 다른 사람이 남긴 기록이면 null
+export function lastSubmitted(pid: string | undefined): Submitted | null {
   try {
     const raw = sessionStorage.getItem(LAST_KEY);
-    return raw ? (JSON.parse(raw) as Submitted) : null;
+    const v = raw ? (JSON.parse(raw) as Submitted) : null;
+    return v && pid && v.pid === pid ? v : null;
   } catch {
     return null;
   }
@@ -39,9 +41,9 @@ export async function saveFeedback(f: Feedback): Promise<{ anonymous: boolean } 
     saveMock(f);
     return { anonymous: false };
   }
-  const r = await api<{ saved: true; anonymous: boolean; stamp: boolean }>("/api/event/feedback", { json: { rating: f.rating, tags: f.tags, comment: f.comment || undefined } });
+  const r = await api<{ saved: true; anonymous: boolean; stamp: boolean; pid: string }>("/api/event/feedback", { json: { rating: f.rating, tags: f.tags, comment: f.comment || undefined } });
   if (r.ok) {
-    remember({ feedback: f, anonymous: r.data.anonymous });
+    remember({ feedback: f, anonymous: r.data.anonymous, pid: r.data.pid });
     return { anonymous: r.data.anonymous };
   }
   if (r.code === "FEEDBACK_NOT_OPEN") return { error: "커피챗이 끝난 뒤 남길 수 있습니다" };
