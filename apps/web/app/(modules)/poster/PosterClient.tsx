@@ -1,7 +1,7 @@
 "use client";
-// 포스터 화면(피그마 P-1 요약 → P-2 퀴즈 → P-3 결과, 관심 포스터로 선택하기 → 흥미 3단계, 10/11).
+// 포스터 화면(피그마 P-1 요약 → P-2 퀴즈 → P-3 결과, 포스터 관심도 선택하기 → 흥미 3단계, 10/11).
 // 퀴즈: 이지선다, 정답이면 그 포스터 퀴즈 스탬프(미션 ②), 오답이면 정답을 알려 주지 않고 무제한 다시 풀기. 이미 맞힌 포스터는 퀴즈 풀기 대신 정답 보기.
-// 관심 포스터: 피그마의 관심 이유 4칩 대신 팀 결정(0011)의 흥미 3단계로 묻는다. 어떤 답이든 미션 ①에 들어간다(선택지 아래 안내 문구는 10/17 뺌: 목록 스탬프가 퀴즈 정답 표시라 헷갈림). 이미 답한 포스터는 버튼을 막는다.
+// 관심도: 피그마의 관심 이유 4칩 대신 팀 결정(0011)의 흥미 3단계로 묻는다. 어떤 답이든 미션 ①에 들어간다(선택지 아래 안내 문구는 10/17 뺌: 목록 스탬프가 퀴즈 정답 표시라 헷갈림). 이미 답한 포스터는 버튼을 막는다.
 // 응답은 최근 15분 안에 그 포스터를 찍어야 낼 수 있다(서버 규칙). 목록에서 오래 뒤에 열었으면 QR 을 다시 찍게 안내한다.
 // 정답은 서버만 안다. 이 화면은 고른 보기 번호만 보낸다.
 import { useEffect, useState } from "react";
@@ -109,10 +109,10 @@ export default function PosterClient({ code, id, via }: { code: string | null; i
           </div>
         )}
         {v.my_reason ? (
-          <span className={`${btn} bg-field text-ink-3`}>이미 고른 관심 포스터입니다</span>
+          <span className={`${btn} bg-field text-ink-3`}>관심도 선택 완료</span>
         ) : (
           <button type="button" onClick={() => setStep("interest")} className={`${btn} bg-navy text-white`}>
-            관심 포스터로 선택하기
+            포스터 관심도 선택하기
           </button>
         )}
       </main>,
@@ -120,7 +120,7 @@ export default function PosterClient({ code, id, via }: { code: string | null; i
 
   if (step === "interest")
     return shell(
-      "관심 포스터",
+      "관심도 남기기",
       <main className="space-y-4 px-5 py-5">
         <button type="button" onClick={() => setStep("summary")} className="text-xs text-ink-3 underline">
           요약으로 돌아가기

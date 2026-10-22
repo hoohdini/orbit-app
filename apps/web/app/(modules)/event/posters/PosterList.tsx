@@ -30,7 +30,7 @@ export default function PosterList() {
         </span>
       </div>
       <p className="text-xs text-ink-3">
-        관심 포스터 {Math.min(d.progress.responses, d.progress.poster_goal)}/{d.progress.poster_goal} · 퀴즈 스탬프 {Math.min(d.progress.quiz_stamps, d.progress.quiz_goal)}/{d.progress.quiz_goal}
+        포스터 관심도 {Math.min(d.progress.responses, d.progress.poster_goal)}/{d.progress.poster_goal} · 퀴즈 스탬프 {Math.min(d.progress.quiz_stamps, d.progress.quiz_goal)}/{d.progress.quiz_goal}
       </p>
       {d.posters.length === 0 ? (
         <p className="rounded-3xl border border-dashed border-line p-6 text-center text-sm text-ink-2">포스터 목록이 곧 준비됩니다</p>

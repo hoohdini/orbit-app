@@ -1,8 +1,8 @@
 "use client";
-// 이벤트·미션 탭 현황판(피그마 E-01 기본 · 진행 · 전체 완료 · 마감, 10/21 개편). 포스터 미션 2개 타일, 네트워킹 미션(명함 교환 한 줄, 스탬프 2개), 피드백 미션 한 줄, 미션 스탬프 5칸, 아래 QR 스캔하기.
-// 진행 중 타일을 누르면 ① ② 는 포스터 세션 목록, ③ 은 명함 탭(/card), ④ 는 후기 화면으로 간다. 완료 타일은 동작 없음(A01 ~ A05).
+// 이벤트·미션 탭 현황판(피그마 E-01 기본 · 진행 · 전체 완료 · 마감, 10/21 개편). 포스터 미션 2개 타일, 네트워킹 미션(명함 교환 한 줄, 스탬프 2개), 후기 미션 한 줄, 미션 스탬프 5칸, 아래 QR 스캔하기.
+// 타일을 누르면 ① ② 는 포스터 세션 목록, ③ 은 명함 탭(/card), ④ 는 후기 화면으로 간다. 포스터 목록은 완료한 뒤에도 들어갈 수 있다. 마감 뒤에는 모든 타일이 동작 없음(A01 ~ A05).
 // 스탬프 5칸을 모두 모으면 미션 완료! 모달을 한 번 띄운다(S02). 마감(wrapup 뒤)이면 읽기 전용이고 QR 버튼을 막는다(S01).
-// 서버가 새 구성을 내기 전에는 mock.ts 의 가짜 데이터를 쓴다(USE_MOCK).
+// 서버 응답은 /api/poster/missions. USE_MOCK 을 켜면 mock.ts 의 가짜 데이터를 쓴다.
 // 탭은 처음부터 열려 있지만 미션 기록은 테이블토크부터 센다(10/11 성하 결정: 서버 미션 구간 그대로).
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -74,7 +74,7 @@ export default function MissionBoard() {
       </section>
 
       <section className="space-y-2.5">
-        <Head title="피드백 미션" done={feedback.done ? 1 : 0} total={1} />
+        <Head title="후기 미션" done={feedback.done ? 1 : 0} total={1} />
         <Tile m={feedback} closed={closed} />
       </section>
 
@@ -153,7 +153,9 @@ function Tile({ m, closed, tile = false }: { m: Mission; closed: boolean; tile?:
       ))}
     </span>
   );
-  if (m.done || closed)
+  // 완료한 타일도 포스터 목록은 다시 열 수 있다. 명함 · 후기는 완료하면 동작 없음. 마감 뒤에는 모두 동작 없음
+  const reopen = m.key === "poster" || m.key === "quiz";
+  if (closed || (m.done && !reopen))
     return (
       <div className={cls}>
         {body}
