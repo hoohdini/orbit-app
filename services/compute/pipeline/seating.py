@@ -1,8 +1,10 @@
 """테이블 배정. 성하 06_event_loop.py 의 assign_tables 를 옮기고 담금질을 증분 계산으로 바꿨다.
 
 순서
-  1. 테이블 수 · 크기. 커피챗은 5~6명(table_sizes). 테이블토크는 부르는 쪽이 sizes 로 준다(9테이블 균등, even_sizes. 10/21 민찬 결정으로 v0.2 B-02 의 8테이블에서 바꿈)
-  2. 호스트를 테이블마다 돌아가며 한 명씩
+  1. 테이블 수 · 크기. 부르는 쪽이 sizes 로 준다. 테이블토크 9테이블 균등(even_sizes. 10/21 민찬 결정으로 v0.2 B-02 의 8테이블에서 바꿈),
+     커피챗 10테이블 균등(10/22 민찬 결정, 예전 3~4명 그룹 group_sizes 에서 바꿈). 안 주면 5~6명(table_sizes)
+  1-1. anchors(사람 → 테이블)를 주면 그 사람을 먼저 그 테이블에 앉히고 끝까지 옮기지 않는다(커피챗 주도 선배, pick_leads)
+  2. 호스트를 호스트가 가장 적은 테이블부터 한 명씩(anchors 가 없으면 예전처럼 돌아가며)
   3. 나머지를 무작위 순서로 한 명씩, 이미 앉은 사람과의 평균 점수가 가장 높은 테이블로 (한 자리마다 즉시 갱신)
      확률 random_ratio 로는 무작위 빈 테이블 — 점수가 약할 때만 이득 (연구 저장소 docs/31 G13)
   4. 같은 역할끼리 자리 바꾸기(담금질)로 목적 함수를 올린다. 무작위 자리는 바꾸지 않는다
@@ -115,10 +117,12 @@ class _State:
 def assign(A: np.ndarray, is_host: np.ndarray, cohort: np.ndarray | None = None,
            forbid: np.ndarray | None = None, random_ratio: float = 0.0, iters: int = 20000,
            seed: int = 0, lo: int = 5, hi: int = 6, sizes: list[int] | None = None,
-           cohort_penalty: float = COHORT_PENALTY, cohort_cap: int | None = None) -> Seating:
+           cohort_penalty: float = COHORT_PENALTY, cohort_cap: int | None = None,
+           anchors: dict[int, int] | None = None) -> Seating:
     """A: 대칭 쌍 점수 (n, n). is_host: 호스트 여부. cohort: 기수(-1 은 모름). forbid: 같은 테이블 금지 쌍.
-    sizes 를 주면 그 크기대로(테이블토크 9테이블, 커피챗 3~4명 그룹), 안 주면 lo~hi 명.
-    cohort_cap 을 주면 같은 기수 상한을 모든 테이블에 그 값으로, 안 주면 테이블 인원의 40%."""
+    sizes 를 주면 그 크기대로(테이블토크 9테이블, 커피챗 10테이블), 안 주면 lo~hi 명.
+    cohort_cap 을 주면 같은 기수 상한을 모든 테이블에 그 값으로, 안 주면 테이블 인원의 40%.
+    anchors = {사람: 테이블(0부터)}. 먼저 앉히고 담금질에서도 옮기지 않는다. 나머지는 앉은 anchors 와의 점수로 테이블을 고른다."""
     rng = random.Random(seed)
     n = len(A)
     sizes = list(sizes) if sizes is not None else table_sizes(n, lo, hi)
@@ -131,15 +135,22 @@ def assign(A: np.ndarray, is_host: np.ndarray, cohort: np.ndarray | None = None,
     table = np.full(n, -1)
     cap = list(sizes)
     rand_seat = np.zeros(n, bool)
-    hosts = [i for i in range(n) if host[i]]
+    anchors = dict(anchors or {})
+    hcount = [0] * k
+    for i, t in anchors.items():                                # 주도 선배처럼 미리 정한 자리
+        assert 0 <= t < k and cap[t] > 0, (i, t, sizes)
+        table[i] = t
+        cap[t] -= 1
+        hcount[t] += int(host[i])
+    hosts = [i for i in range(n) if host[i] and i not in anchors]
     rng.shuffle(hosts)
-    for r, h in enumerate(hosts):                               # 호스트를 테이블마다 돌아가며
-        t = r % k
-        if cap[t] <= 0:
-            t = max(range(k), key=lambda x: cap[x])
+    for h in hosts:                                             # 호스트가 가장 적은 테이블부터(anchors 가 없으면 돌아가며 한 명씩과 같다)
+        open_t = [t for t in range(k) if cap[t] > 0]
+        t = min(open_t, key=lambda x: (hcount[x], x))
         table[h] = t
         cap[t] -= 1
-    others = [i for i in range(n) if not host[i]]
+        hcount[t] += 1
+    others = [i for i in range(n) if not host[i] and i not in anchors]
     rng.shuffle(others)
     for o in others:                                            # 한 명씩, 이미 앉은 사람과의 평균 점수로
         open_t = [t for t in range(k) if cap[t] > 0]
@@ -160,9 +171,9 @@ def assign(A: np.ndarray, is_host: np.ndarray, cohort: np.ndarray | None = None,
     n10 = max(1, n // 10)
     cur = st.objective(n10)
     best_t, best_v = st.t.copy(), cur
-    movable = [i for i in range(n) if not rand_seat[i]]
+    movable = [i for i in range(n) if not rand_seat[i] and i not in anchors]
     done = 0
-    for it in range(iters):
+    for it in range(iters if len(movable) > 1 else 0):
         temp = 0.3 * (0.01 / 0.3) ** (it / max(1, iters))
         i, j = rng.choice(movable), rng.choice(movable)
         if st.t[i] == st.t[j] or host[i] != host[j]:             # 같은 역할끼리만 바꿔 호스트 분포를 지킨다
@@ -178,6 +189,89 @@ def assign(A: np.ndarray, is_host: np.ndarray, cohort: np.ndarray | None = None,
             st.swap(i, j)                                       # 되돌리기
     st = _State(A, forbid, cohort, best_t, k, cohort_penalty, cohort_cap)
     return Seating(best_t, rand_seat, st.satisfaction(), float(best_v), st.forbid_hits, st.cohort_over, done)
+
+
+LEAD_PER_TABLE = 2               # 커피챗 테이블마다 주도 선배 2명(10/22 민찬 결정)
+LEAD_SLACK = 4                   # 후보 = 기수가 높은(숫자가 작은) 순 2k + 4명, 경계 기수는 동률 전원. 분야가 더 맞으면 조금 아래 사람도 쓴다
+LEAD_SKIP_COST = 0.25            # 위 2k 줄보다 한 자리 아래로 내려갈 때마다 빼는 값(분야 점수 표준편차 단위). 4자리 아래 = 1 표준편차
+LEAD_MET_COST = 2.0              # 두 주도 선배가 테이블토크에서 이미 같은 테이블이었으면 빼는 값. 가능하면 처음 보는 둘을 묶는다
+
+
+@dataclass
+class Leads:
+    pairs: list[tuple[int, int]]     # 테이블마다 주도 선배 두 명(사람 번호). pairs[t] = t 번째 테이블(0부터)
+    pool: list[int]                  # 후보(기수 높은 순)
+    beyond: int                      # 위 2k 줄 밖에서 뽑힌 사람 수(예: 2k = 20 이면 21번째 아래)
+    skipped: int                     # 뽑힌 사람 중 가장 아래보다 기수가 높은데 안 뽑힌 후보 수
+    met: int                         # 테이블토크에서 이미 만난 두 사람을 묶은 테이블 수
+
+
+def pick_leads(F: np.ndarray, cohort: np.ndarray, k: int, forbid: np.ndarray | None = None, slack: int = LEAD_SLACK,
+               skip_cost: float = LEAD_SKIP_COST, met_cost: float = LEAD_MET_COST) -> Leads:
+    """커피챗 주도 선배 고르기(10/22 민찬 결정: 테이블마다 2명, 높은 기수 = 숫자가 작은 기수, 분야가 맞는 둘끼리).
+    F = 분야 유사도(n, n, 하는 일 벡터의 cos). cohort = 기수(-1 = 모름, 교수 · 외부 연사는 후보가 아님). k = 테이블 수.
+    1. 후보 = 기수 순으로 2k + slack 명, 그 경계 기수와 같은 사람은 모두
+    2. 목적 = 테이블마다 두 사람의 분야 점수(후보끼리 표준화) − 이미 만난 사이 met_cost − 사람마다 2k 줄보다 내려간 자리 수 × skip_cost
+       (같은 기수는 같은 자리로 본다. 경계 기수 안에서는 분야로만 고른다)
+    3. 처음 = 위 2k 명을 분야 점수가 큰 쌍부터 묶음. 두 쌍의 짝 바꾸기 · 뽑힌 사람을 안 뽑힌 후보로 바꾸기를 나아지지 않을 때까지
+    후보가 2k 명보다 적으면 앞 테이블부터 두 명씩 채우고 나머지 테이블은 주도 선배 없이 둔다."""
+    n = len(F)
+    cohort = np.asarray(cohort)
+    forbid = np.zeros((n, n), bool) if forbid is None else forbid.astype(bool)
+    cand = sorted((i for i in range(n) if cohort[i] >= 0), key=lambda i: (int(cohort[i]), i))
+    m = min(k, len(cand) // LEAD_PER_TABLE)
+    need = LEAD_PER_TABLE * m
+    if m == 0:
+        return Leads([], [], 0, 0, 0)
+    edge = int(cohort[cand[min(len(cand), need + slack) - 1]])
+    pool = [i for i in cand if cohort[i] <= edge]
+    pos = {i: sum(1 for j in pool if cohort[j] < cohort[i]) for i in pool}       # 더 높은 기수 수. 동률은 같은 자리
+    skip = {i: max(0, pos[i] - (need - 1)) for i in pool}
+    sub = F[np.ix_(pool, pool)]
+    off = sub[~np.eye(len(pool), dtype=bool)]
+    sd = float(off.std()) if len(off) else 0.0
+    Z = (F - float(off.mean())) / sd if sd > 1e-12 else np.zeros_like(F)
+    w = lambda a, b: float(Z[a, b]) - met_cost * float(forbid[a, b])
+    cost = lambda i: skip_cost * skip[i]
+
+    chosen = pool[:need]
+    left, pairs = list(chosen), []
+    while left:                                                # 처음: 분야 점수가 큰 쌍부터
+        a, b = max(((a, b) for x, a in enumerate(left) for b in left[x + 1:]), key=lambda e: w(*e))
+        pairs.append([a, b])
+        left = [x for x in left if x not in (a, b)]
+    improved = True
+    while improved:
+        improved = False
+        for x in range(len(pairs)):                            # 두 쌍의 짝 바꾸기
+            for y in range(x + 1, len(pairs)):
+                (a, b), (c, d) = pairs[x], pairs[y]
+                now = w(a, b) + w(c, d)
+                for p, q in (([a, c], [b, d]), ([a, d], [b, c])):
+                    if w(*p) + w(*q) > now + 1e-9:
+                        pairs[x], pairs[y], now, improved = p, q, w(*p) + w(*q), True
+                        (a, b), (c, d) = pairs[x], pairs[y]
+        used = {i for pr in pairs for i in pr}
+        for x in range(len(pairs)):                            # 뽑힌 사람 → 안 뽑힌 후보
+            for s_ in (0, 1):
+                a, b = pairs[x][s_], pairs[x][1 - s_]
+                best, gain = None, 1e-9
+                for u in pool:
+                    if u in used:
+                        continue
+                    g = (w(u, b) - cost(u)) - (w(a, b) - cost(a))
+                    if g > gain:
+                        best, gain = u, g
+                if best is not None:
+                    pairs[x][s_] = best
+                    used = (used - {a}) | {best}
+                    improved = True
+    used = {i for pr in pairs for i in pr}
+    last = max(pos[i] for i in used)
+    return Leads(pairs=[(int(a), int(b)) for a, b in pairs], pool=[int(i) for i in pool],
+                 beyond=sum(1 for i in used if pos[i] >= need),
+                 skipped=sum(1 for i in pool if i not in used and pos[i] < last),
+                 met=sum(1 for a, b in pairs if forbid[a, b]))
 
 
 def same_table_pairs(table: np.ndarray) -> np.ndarray:

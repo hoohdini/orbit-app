@@ -7,12 +7,13 @@ import { requireAdmin } from "@/lib/session";
 import { db } from "@/lib/db";
 import { pairScores, groupMean } from "@/lib/pairs";
 
-// 같은 기수 상한. 계산 서비스(services/compute/service.py TABLETALK_COHORT_CAP · COFFEECHAT_COHORT_CAP, 10/5)와 같은 값이다
-const COHORT_CAP: Record<string, number> = { tabletalk: 3, coffeechat: 2 };
+// 같은 기수 상한. 계산 서비스(services/compute/service.py TABLETALK_COHORT_CAP · COFFEECHAT_COHORT_CAP)와 같은 값이다.
+// 커피챗은 10테이블이 되면서 테이블토크와 같은 3명(10/22 민찬 결정, 예전 3~4명 그룹은 2명)
+const COHORT_CAP: Record<string, number> = { tabletalk: 3, coffeechat: 3 };
 
 export const dynamic = "force-dynamic";
 
-type Reason = { text?: string; random?: boolean } | null;
+type Reason = { text?: string; random?: boolean; lead?: boolean } | null;   // lead = 커피챗 주도 선배(10/22)
 
 export async function GET(_req: Request, { params }: { params: Promise<{ version: string }> }) {
   return handle(async () => {
@@ -42,7 +43,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
     if (pErr) throw pErr;
     const who = new Map((people ?? []).map((p) => [p.id as string, p]));
 
-    type Row = { id: string; display_name: string; affiliation: string | null; role: string; cohort: number | null; seat_no: number | null; random: boolean; reason: string };
+    type Row = { id: string; display_name: string; affiliation: string | null; role: string; cohort: number | null; seat_no: number | null; random: boolean; lead: boolean; reason: string };
     const tables = new Map<number, { table_no: number; mean_score: number | null; check: boolean; members: Row[] }>();
     for (const r of rows ?? []) {
       const t = r.table_no as number;
@@ -57,6 +58,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
         cohort: (p?.cohort as number | null) ?? null,
         seat_no: (r.seat_no as number | null) ?? null,
         random: !!reason?.random,
+        lead: !!reason?.lead,
         reason: reason?.text ?? "",
       });
     }

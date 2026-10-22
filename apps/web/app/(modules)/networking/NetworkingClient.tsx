@@ -132,17 +132,17 @@ export default function NetworkingClient() {
             ) : (
               <p className="rounded-3xl border border-line p-6 text-center text-xs text-ink-3">궤도를 불러오지 못했습니다</p>
             )}
-            <p className="text-xs text-ink-2">가까울수록 나와 잘 맞는 {isTT ? "구성원" : "그룹원"}입니다.</p>
+            <p className="text-xs text-ink-2">가까울수록 나와 잘 맞는 구성원입니다.</p>
           </section>
 
           <section className="space-y-3">
             <div className="flex items-center justify-between rounded-3xl border border-navy bg-strip px-6 py-[18px]">
               <div>
-                <p className="text-xs font-medium text-accent">{isTT ? "MY TABLE" : "MY GROUP"}</p>
+                <p className="text-xs font-medium text-accent">MY TABLE</p>
                 <p className="text-[72px] font-bold leading-[80px] text-navy">{view.assignment.no}</p>
               </div>
               <div className="text-right">
-                <p className="text-lg font-bold text-navy">{isTT ? `${view.assignment.no}번 테이블` : `커피챗 ${view.assignment.no}그룹`}</p>
+                <p className="text-lg font-bold text-navy">{isTT ? `${view.assignment.no}번 테이블` : `커피챗 ${view.assignment.no}번 테이블`}</p>
                 <p className="mt-1 text-[13px] text-ink-2">
                   {view.assignment.members.length}명{isTT ? " · 좌석 순서대로" : ""}
                 </p>

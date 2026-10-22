@@ -4,7 +4,8 @@ precompute  행사 전날 · 체크인 마감
             새 코드북: 전원 임베딩 → 코드북 학습 · 저장 → 주소 · 라벨 → 테이블토크 배정 초안(좌석 순서 포함)
             reuse_codebook=True: 저장된 코드북을 그대로 쓰고 주소가 없는 사람(현장 등록자)에게 주소만 붙인다.
               테이블토크는 전날 확정이라 다시 배정하지 않는다(개발 지시서 v0.2 결정 3). 현장 등록자 자리는 운영 콘솔 워크인 추가(A-05)가 정한다
-coffeechat  테이블토크 뒤(포스터세션 중, v0.2 B-04). 3~4명 그룹 배치 한 번. 커피챗 중에는 이동하지 않는다(10/21 민찬 결정, 이동 불가). 저장된 벡터 + 명함 교환 간선 + 만족도 답 + 포스터 관심도 → 만남 반영 → 커피챗 배정 초안 → 개인 추천
+coffeechat  테이블토크 뒤(포스터세션 중, v0.2 B-04). 행사장 10테이블 전부에 체크인한 전원(운영진 · 교수 포함, 1번 고정 없음)을 고르게 한 번(10/22 민찬 결정).
+            테이블마다 주도 선배 2명(높은 기수 중 분야가 맞는 둘)을 먼저 앉히고 나머지를 점수로 채운다. 커피챗 중에는 이동하지 않는다(10/21 민찬 결정, 이동 불가). 저장된 벡터 + 명함 교환 간선 + 만족도 답 + 포스터 관심도 → 만남 반영 → 커피챗 배정 초안 → 개인 추천
             포스터 관심도는 부르는 시점까지 들어온 답만 쓴다. 포스터세션 끝 무렵에 부를수록 많이 반영된다
 
 배정마다 사람별 이유(table_members.reason)를 남긴다. 운영진 대시보드가 이걸로 배정을 확인한다(9/27 회의)
@@ -58,8 +59,9 @@ FIXED_TABLE_MAX = 10             # 넘으면 결과에 fixed_over 로 알린다(
 TABLETALK_COHORT_CAP = 3         # 같은 기수 4명째부터 감점(10/5 민찬 결정). 운영진 행사 진행 문서 '같은 기수 2~3명을 함께 배치'에 맞춤.
                                  # 지시서 v0.2 는 '40% 넘으면 큰 감점(5)'. 예전 코드(9/26)는 3명째부터 0.5
 TABLETALK_COHORT_PENALTY = 0.5   # 작게: 한 기수가 많으면 지킬 수 없는 규칙이라 만족도보다 앞서지 않게. 명단의 기수별 인원을 보고 다시 정한다
-COFFEECHAT_GROUP_MAX = 4         # v0.2 결정 10: 커피챗 첫 배치 그룹 3~4명
-COFFEECHAT_COHORT_CAP = 2        # 커피챗은 3~4명 그룹이라 같은 기수 3명째부터 0.5점 감점(예전 규칙 그대로)
+COFFEECHAT_TABLES = 10           # 커피챗은 행사장 10테이블 전부, 1번 고정 없이 체크인한 전원(10/22 민찬 결정. 예전 v0.2 결정 10 의 3~4명 그룹에서 바꿈)
+COFFEECHAT_COHORT_CAP = TABLETALK_COHORT_CAP           # 테이블 크기가 테이블토크와 같아(8명 안팎) 같은 규칙: 4명째부터(10/22 민찬 결정, 예전 3~4명 그룹은 3명째부터)
+COFFEECHAT_COHORT_PENALTY = TABLETALK_COHORT_PENALTY   # 1명당 0.5
 
 
 def _people(repo, event_id: str, only_checked_in: bool) -> list[dict]:
@@ -102,11 +104,11 @@ SAT_PICK_SHARE = 0.5        # 고른 사람이 있으면 목표 방향 = 고른 
 def _reasons(P, table, A, random_seat, prev: dict[int, int] | None = None,
              sat: dict[int, str] | None = None, exchanges: np.ndarray | None = None,
              posters: dict[int, int] | None = None, posters_not: dict[int, int] | None = None,
-             seat: dict[int, int] | None = None, fixed: set[int] | None = None) -> list[dict]:
+             seat: dict[int, int] | None = None, fixed: set[int] | None = None, lead: set[int] | None = None) -> list[dict]:
     """사람마다 왜 이 테이블인지. 운영진 대시보드용(참가자 화면에는 안 보냄).
     best · avg 는 배정에 쓴 쌍 점수(A). prev = 이전 라운드 테이블 번호, sat = 만족도 답, exchanges = 명함을 교환한 상대 수,
     posters = 반영한 관심 포스터 수, posters_not = 관심 분야 아니라고 한 포스터 수.
-    table 은 테이블 번호(1부터). seat = 좌석 번호, fixed = 고정 테이블(교수 · 운영진석)에 앉힌 사람."""
+    table 은 테이블 번호(1부터). seat = 좌석 번호, fixed = 고정 테이블(교수 · 운영진석)에 앉힌 사람, lead = 커피챗 주도 선배."""
     out = []
     for i, t in enumerate(table):
         mates = [j for j in np.where(table == t)[0] if j != i]
@@ -121,6 +123,10 @@ def _reasons(P, table, A, random_seat, prev: dict[int, int] | None = None,
         if fixed is not None and i in fixed:
             r["fixed"] = True
             parts.append(f"{int(t)}번 고정 테이블(교수 · 운영진석)")
+        if lead is not None and i in lead:
+            r["lead"] = True
+            c = P[i].get("cohort")
+            parts.append(f"주도 선배({c}기)" if c is not None else "주도 선배")
         if prev is not None and i in prev:
             r["from_table"] = prev[i]
             parts.append(f"테이블토크 {prev[i]}번 → {int(t)}번")
@@ -475,13 +481,21 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     cohort = np.array([p["cohort"] if p.get("cohort") is not None else -1 for p in P])
     A = scoring.table_matrix(scoring.seat_directional(S2, O2), is_host, table_mode)
     A_np = scoring.table_matrix(seat_np, is_host, table_mode)
-    seated, src = np.ones(n, bool), None
+    seated, src, lp = np.ones(n, bool), None, None
     if final:
         r, sizes, seated, src = _keep_groups(repo, ids, idx, event_id, forbid, cohort)
     else:
-        sizes = seating.group_sizes(n, COFFEECHAT_GROUP_MAX)
+        # 10테이블 고르게(적은 인원 리허설은 테이블당 4명이 되도록 테이블 수를 줄인다, even_sizes)
+        sizes = seating.even_sizes(n, COFFEECHAT_TABLES)
+        # 주도 선배(10/22 민찬 결정): 테이블마다 2명. 기수가 높은 순 2k + 4명 후보 중 하는 일(Offer) 벡터가 가까운 둘을 묶고,
+        #   2k 줄보다 아래 사람을 쓰면 조금 감점해 기수가 앞서게 한다. 테이블토크에서 만난 둘은 되도록 묶지 않는다(seating.pick_leads)
+        lp = seating.pick_leads(O @ O.T, cohort, len(sizes), forbid=forbid)
+        anchors = {i: t for t, pair in enumerate(lp.pairs) for i in pair}
+        # 나머지는 예전과 같은 커피챗 점수(A: 만족도 · 명함 · 포스터 · 검색 반영)로 채운다. 주도 선배는 옮기지 않으므로 잘 맞는 선배 테이블로 모인다
         r = seating.assign(A, is_host, cohort, forbid=forbid, random_ratio=random_ratio, iters=iters, seed=seed,
-                           sizes=sizes, cohort_cap=COFFEECHAT_COHORT_CAP)
+                           sizes=sizes, cohort_penalty=COFFEECHAT_COHORT_PENALTY, cohort_cap=COFFEECHAT_COHORT_CAP,
+                           anchors=anchors)
+    lead = {i for pair in lp.pairs for i in pair} if lp else None
     params = {"kind": "final" if final else "coffeechat", "table_mode": table_mode, **_rec_params(P, intents, rec_mode), "beta": beta,
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2), "cards": card_stat,
               "sat_weights": sw, "sat_counts": dict(Counter(sat.values())), "sat_fast": sat_fast,
@@ -491,10 +505,13 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
               "poster_answers": len(rows), "poster_people": len(set(poster_n) | set(poster_not)), "search": query_stat,
               "forbid_hits": r.forbid_hits, "cohort_over": r.cohort_over, "n": n, "groups": len(sizes),
               "group_sizes": dict(Counter(sizes)),
-              **({"source_version": src["version"], "late": int((~seated).sum())} if final else {})}
+              **({"source_version": src["version"], "late": int((~seated).sum())} if final else {}),
+              # 주도 선배: 인원 · 후보 수 · 2k 줄 밖에서 뽑은 수 · 뽑힌 사람보다 기수가 높은데 빠진 후보 수 · 테이블토크에서 만난 둘을 묶은 테이블 수
+              **({"leads": len(lead), "lead_pool": len(lp.pool), "lead_beyond": lp.beyond, "lead_skipped": lp.skipped,
+                  "lead_met": lp.met} if lp else {})}
     reasons = _reasons(P, r.table + 1, A, r.random_seat, prev=prev, sat=None if fallback else sat,
                        exchanges=None if fallback else (W > 0).sum(1), posters=poster_n,
-                       posters_not=poster_not)
+                       posters_not=poster_not, lead=lead)
     first_prefix = [int(sid[pid]["offer_sid"][0]) for pid in ids]
     cbv = sid[ids[0]]["codebook_version"]
     labels = {k[0]: lab for k, lab in repo.labels(cbv).items() if len(k) == 1}     # 운영진이 고친 최신 이름표
@@ -526,6 +543,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     _heartbeat(repo, "final" if final else "coffeechat")
     return {"version": v, "final": final, "late": int((~seated).sum()), "n": n, "tables": len(sizes), "groups": len(sizes), "fallback": fallback,
             "response_rate": round(rate, 3), "forbid_hits": r.forbid_hits, "group_reasons": n_reasons,
+            "leads": len(lead) if lead is not None else None, "cohort_over": r.cohort_over,
             "exposure_min": int(exposure.min()), "exposure_max": int(exposure.max())}
 
 
