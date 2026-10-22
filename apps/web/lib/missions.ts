@@ -1,27 +1,36 @@
-// 미션 5종 판정(개발 지시서 v0.2 E-01 ~ E-06, 결정 11 · 12, 10/11 피그마 이벤트·미션). 참가자 화면(이벤트 탭, 상태 띠)과 운영 콘솔(시상 집계)이 같이 쓴다.
-// ① 관심 포스터 2건(포스터 응답, 흥미 3단계 어떤 답이든)  ② 퀴즈 3개 맞히기(서로 다른 포스터)  ③ 오늘 만나면 좋을 분에 떴던 사람 1명과 교환
-// ④ 첫 대화로 체크한 교환 2건  ⑤ 구분이 다른 사람 1명과 교환. 10/11 성하 결정: 미션은 피그마대로 5개, 퀴즈는 정답이면 스탬프 · 재시도 무제한
-// 교환은 성립한 것(status confirmed)만 센다. 마감(ops_state mission_closed_at) 뒤의 기록은 세지 않는다.
-// 진행도 = 다섯 미션의 min(달성 수 / 목표 수, 1) 평균. 포스터 1/2 이면 0.5.
+// 미션 4종 · 스탬프 5칸 판정(피그마 이벤트·미션, 개발 지시서 v0.2 E-01 ~ E-06). 참가자 화면(이벤트 탭, 상태 띠)과 운영 콘솔(시상 집계)이 같이 쓴다.
+// ① 포스터 관심도 2건(포스터 응답, 흥미 3단계 어떤 답이든)  ② 퀴즈 3개 맞히기(서로 다른 포스터)  ③ 명함 교환 5명(3명 · 5명에서 스탬프 한 칸씩)  ④ 행사 후기 남기기
+// 스탬프는 ① 1칸 + ② 1칸 + ③ 최대 2칸 + ④ 1칸 = 5칸이다. done_count 는 찍힌 스탬프 수, total 은 5다.
+// 교환은 성립한 것(status confirmed)만, 같은 상대는 한 번만 센다. 마감(ops_state mission_closed_at) 뒤의 기록은 세지 않는다. 후기는 처음 낸 시각이 마감 안이어야 센다.
+// 진행도 = 네 미션의 min(달성 수 / 목표 수, 1) 평균. 포스터 1/2 이면 0.5.
 import "server-only";
 import { db } from "./db";
 
 export const MISSIONS = [
-  { key: "poster", label: "관심 포스터", goal: 2 },
-  { key: "quiz", label: "퀴즈", goal: 3 },
-  { key: "recommended", label: "추천 인물", goal: 1 },
-  { key: "first_meet", label: "새로운 연결", goal: 2 },
-  { key: "generation", label: "세대 연결", goal: 1 },
+  { key: "poster", label: "포스터 관심도", goal: 2, milestones: [2] },
+  { key: "quiz", label: "퀴즈", goal: 3, milestones: [3] },
+  { key: "exchange", label: "명함 교환", goal: 5, milestones: [3, 5] },
+  { key: "feedback", label: "행사 후기", goal: 1, milestones: [1] },
 ] as const;
 export type MissionKey = (typeof MISSIONS)[number]["key"];
+export const STAMP_TOTAL = MISSIONS.reduce((n, m) => n + m.milestones.length, 0); // 5
 
-export type MissionItem = { key: MissionKey; label: string; goal: number; count: number; done: boolean; completed_at: string | null };
+export type MissionItem = {
+  key: MissionKey;
+  label: string;
+  goal: number;
+  count: number;
+  done: boolean;
+  completed_at: string | null;
+  milestones: number[]; // 스탬프가 찍히는 달성 수. 명함 교환은 [3, 5]
+  stamps: number; // 이 미션에서 찍힌 스탬프 수
+};
 export type MissionStatus = {
   missions: MissionItem[];
-  done_count: number;
-  total: number;
+  done_count: number; // 찍힌 스탬프 수(0~5)
+  total: number; // 스탬프 칸 수(5)
   progress: number; // 0~1, 소수 셋째 자리
-  completed_all_at: string | null;
+  completed_all_at: string | null; // 스탬프 5칸이 다 찍힌 시각
   // 시상 동점 처리용(A-07). 참가자 화면에는 내보내지 않는다
   tiebreak: { valid_poster_responses: number; first_meet_exchanges: number };
 };
@@ -41,15 +50,10 @@ async function rowsIn<T>(table: string, cols: string, column: string, ids: strin
   return out;
 }
 
-// 세대 연결의 구분. 재학생과 그 밖(졸업생 · 교수 · 외부)으로 나눈다. 운영진도 사전 등록 구분 그대로 센다
-export function generationOf(role: string | null | undefined): "student" | "other" {
-  return role === "student" ? "student" : "other";
-}
-
 type Resp = { participant_id: string; poster_id: number; created_at: string; latency_ms: number | null };
 type Att = { participant_id: string; poster_id: number; created_at: string };
 type Ex = { scanner_id: string; scanned_id: string; confirmed_at: string | null; first_meet: boolean | null; first_meet_at: string | null };
-type Imp = { participant_id: string; target_id: string; first_shown_at: string };
+type Fb = { participant_id: string; created_at: string };
 
 const later = (a: string, b: string | null) => (b && b > a ? b : a);
 
@@ -65,16 +69,12 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
   if (pids.length === 0) return out;
   const inTime = (t: string | null | undefined): t is string => !!t && (!closedAt || t <= closedAt);
 
-  const [resps, atts, exs, imps] = await Promise.all([
+  const [resps, atts, exs, fbs] = await Promise.all([
     rowsIn<Resp>("poster_responses", "participant_id, poster_id, created_at, latency_ms", "participant_id", pids),
     rowsIn<Att>("quiz_attempts", "participant_id, poster_id, created_at", "participant_id", pids, (q) => q.eq("is_correct", true)),
     rowsIn<Ex>("card_exchanges", "scanner_id, scanned_id, confirmed_at, first_meet, first_meet_at", "scanner_id", pids, (q) => q.eq("status", "confirmed")),
-    rowsIn<Imp>("rec_impressions", "participant_id, target_id, first_shown_at", "participant_id", pids),
+    rowsIn<Fb>("event_feedback", "participant_id, created_at", "participant_id", pids),
   ]);
-
-  const roleIds = Array.from(new Set([...pids, ...exs.map((e) => e.scanned_id)]));
-  const roles = await rowsIn<{ id: string; role: string }>("participants", "id, role", "id", roleIds);
-  const roleOf = new Map(roles.map((r) => [r.id, r.role]));
 
   const by = <T, K extends keyof T>(rows: T[], key: K) => {
     const m = new Map<string, T[]>();
@@ -88,43 +88,43 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
   const respOf = by(resps, "participant_id");
   const attOf = by(atts, "participant_id");
   const exOf = by(exs, "scanner_id");
-  const impOf = by(imps, "participant_id");
+  const fbOf = by(fbs, "participant_id");
 
   for (const pid of pids) {
     const myResp = (respOf.get(pid) ?? []).filter((r) => inTime(r.created_at));
     const myEx = (exOf.get(pid) ?? []).filter((e) => inTime(e.confirmed_at));
-    const shownAt = new Map((impOf.get(pid) ?? []).map((i) => [i.target_id, i.first_shown_at]));
 
     const posterTimes = myResp.map((r) => r.created_at);
     // 퀴즈: 포스터마다 처음 맞힌 시각
     const firstCorrect = new Map<number, string>();
     for (const a of attOf.get(pid) ?? []) if (inTime(a.created_at) && (!firstCorrect.has(a.poster_id) || a.created_at < firstCorrect.get(a.poster_id)!)) firstCorrect.set(a.poster_id, a.created_at);
     const quizTimes = [...firstCorrect.values()];
-    const recTimes = myEx.filter((e) => {
-      const s = shownAt.get(e.scanned_id);
-      return !!s && s <= e.confirmed_at!;
-    }).map((e) => e.confirmed_at!);
+    // 명함 교환: 상대마다 처음 성립한 시각
+    const firstExchange = new Map<string, string>();
+    for (const e of myEx) if (!firstExchange.has(e.scanned_id) || e.confirmed_at! < firstExchange.get(e.scanned_id)!) firstExchange.set(e.scanned_id, e.confirmed_at!);
+    const exchangeTimes = [...firstExchange.values()];
     const firstMeetTimes = myEx
       .filter((e) => e.first_meet === true)
       .map((e) => later(e.confirmed_at!, e.first_meet_at))
       .filter((t) => inTime(t));
-    const myGen = generationOf(roleOf.get(pid));
-    const genTimes = myEx.filter((e) => roleOf.has(e.scanned_id) && generationOf(roleOf.get(e.scanned_id)) !== myGen).map((e) => e.confirmed_at!);
+    const feedbackTimes = (fbOf.get(pid) ?? []).map((f) => f.created_at).filter(inTime);
 
-    const timesOf: Record<MissionKey, string[]> = { poster: posterTimes, quiz: quizTimes, recommended: recTimes, first_meet: firstMeetTimes, generation: genTimes };
+    const timesOf: Record<MissionKey, string[]> = { poster: posterTimes, quiz: quizTimes, exchange: exchangeTimes, feedback: feedbackTimes };
+    const stampTimes: string[] = [];
     const missions: MissionItem[] = MISSIONS.map((m) => {
       const t = timesOf[m.key];
       const at = kth(t, m.goal);
-      return { key: m.key, label: m.label, goal: m.goal, count: Math.min(t.length, m.goal), done: at !== null, completed_at: at };
+      const reached = m.milestones.map((k) => kth(t, k)).filter((x): x is string => x !== null);
+      stampTimes.push(...reached);
+      return { key: m.key, label: m.label, goal: m.goal, count: Math.min(t.length, m.goal), done: at !== null, completed_at: at, milestones: [...m.milestones], stamps: reached.length };
     });
-    const done = missions.filter((m) => m.done);
     const progress = missions.reduce((s, m) => s + Math.min(m.count / m.goal, 1), 0) / missions.length;
     out.set(pid, {
       missions,
-      done_count: done.length,
-      total: missions.length,
+      done_count: stampTimes.length,
+      total: STAMP_TOTAL,
       progress: Math.round(progress * 1000) / 1000,
-      completed_all_at: done.length === missions.length ? done.map((m) => m.completed_at!).sort().at(-1)! : null,
+      completed_all_at: stampTimes.length === STAMP_TOTAL ? [...stampTimes].sort().at(-1)! : null,
       tiebreak: {
         valid_poster_responses: myResp.filter((r) => (r.latency_ms ?? 0) >= MIN_LATENCY_MS).length,
         first_meet_exchanges: firstMeetTimes.length,
