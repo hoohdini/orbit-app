@@ -38,7 +38,8 @@
 | poster_interest | 포스터 관심도. 문장 선택지 choice(learn_more, interesting, not_mine) | poster 모듈 API | 0005 에서 1~5 숫자를 선택지로 바꿨다. v0.2 부터는 poster_responses 를 쓴다(운영 콘솔 포스터 칸이 아직 읽어 남겨 둠) |
 | poster_responses | 포스터 응답(미션 ①). reason = 흥미 3단계(want, maybe, not_mine), 보여 준 순서, 소요 시간, 응답 순번, 퀴즈 시도 | poster 모듈 API | 0009. 0011 에서 관심 이유 4지선다(topic, method, experience, new_field)를 흥미 3단계로 바꿨다(칸 이름 reason 은 그대로). 계산 서비스가 B-05 전처리 뒤 커피챗에 반영(docs/DATA_SPEC.md). **배포 순서: DB 에 0011 · 0012 적용과 be/ 머지를 같이 → compute/ 머지** |
 | raffle_tickets | 응모권 | poster 모듈 API | v0.2 결정 6 으로 앱에서 발급하지 않는다(명찰 번호로 앱 밖). 표와 운영 콘솔 추첨은 남아 있다 |
-| event_feedback | 행사 후기(미션 ④). 한 사람당 한 행: rating(1 별로였다 · 2 좋았다 · 3 최고였다), tags(text[]), comment(100자) | event 모듈 API(/api/event/feedback) | 0018. created_at 이 처음 낸 시각으로 미션 마감 판정에 쓰이고, 다시 내면 updated_at 만 바뀐다. 운영 콘솔에서는 아직 읽지 않는다 |
+| event_feedback | 행사 후기(미션 ④). 한 사람당 한 행: rating(1 별로였다 · 2 좋았다 · 3 최고였다), tags(text[]), comment(100자) | event 모듈 API(/api/event/feedback) | 0018. 커피챗이 끝난 뒤(wrapup · award)에만 받는다. 행이 있으면 스탬프 1칸이고 미션 마감 시각으로 자르지 않는다(10/22 민찬 결정). created_at 은 처음 낸 시각, 다시 내면 updated_at 만 바뀐다(participant_id 로 upsert). 운영 콘솔에서는 아직 읽지 않는다 |
+| event_feedback_anon | 이용 동의 거부자의 행사 후기. participant_id 없음: id, event_id, source(consent_refused), rating, tags, comment, created_at | event 모듈 API(/api/event/feedback) | 0019(10/22 민찬 결정). 수집을 거부했으므로 사람과 잇지 않고 스탬프도 없다(미션 판정이 읽지 않음). 다시 내면 행이 하나 더 생긴다. RLS 켬, 정책 없음 |
 | ops_state | 운영 상태(키 · 값). phase(9개 값, lib/phase.ts), phase_meta(바꾼 시각 · 사람), notice(공지와 만료 시각), mission_closed_at(미션 마감, 처음 wrapup 으로 넘어간 시각), award_excluded(특별 시상 제외 명단), published_*, compute_heartbeat, raffle_result | 운영 콘솔, 계산 서비스 | 단계 값은 표가 아니라 API(zod)가 막는다 |
 | chat_logs | 챗봇 질문 기록(횟수 제한) | P2 | |
 
@@ -60,7 +61,7 @@
 | coffeechat | current_tables(coffeechat), recs, tables_meta, group_reasons | event_log |
 | poster | posters, poster_quizzes(정답 제외), stamps, raffle_tickets, poster_responses | quiz_attempts, stamps, poster_responses, poster_interest(예전 화면), event_log |
 | ops(콘솔) | 전부 | checkins, assign_versions(공개 · 철회 · 수동 교체 복사본), table_members · tables_meta · pair_scores · recs · group_reasons(수동 교체 복사본, 워크인 좌석), ops_state |
-| event | event_feedback | event_feedback, event_log |
+| event | event_feedback | event_feedback, event_feedback_anon, event_log |
 | 공용 상태 API(/api/state) · 미션(lib/missions.ts) | ops_state, current_tables, assign_versions, poster_responses, quiz_attempts, card_exchanges, event_feedback | 없음 |
 | compute | participants, profiles, checkins, card_exchanges, satisfaction, posters, poster_responses, poster_interest(응답이 없을 때), labels | sids, labels, codebooks, assign_versions, tables_meta, table_members, pair_scores, recs, group_reasons, ops_state |
 

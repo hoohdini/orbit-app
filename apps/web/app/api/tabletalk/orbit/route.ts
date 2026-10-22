@@ -1,7 +1,7 @@
 // GET /api/tabletalk/orbit?round=tabletalk|coffeechat  궤도 시각화 데이터(개발 지시서 v0.2 N-01 · N-05). 기본 tabletalk.
 // inner: 같은 테이블(그룹) 구성원. 나와의 쌍 점수(그 버전 pair_scores)가 높은 사람부터 순서대로(가까운 궤도 먼저). 최대 9명.
 // outer: 다른 테이블 · 그룹. 대표 라벨(tables_meta.orbit_label, B-08)만 주고 개인 이름은 주지 않는다.
-//   테이블토크는 실제 3×3 배치 위치(grid row · col, 1번이 왼쪽 위)를 같이 준다. 커피챗은 그룹이 8개보다 많으면 나와 평균 점수가 높은 8개만.
+//   테이블토크는 실제 3×3 배치 위치(grid row · col, 1번이 왼쪽 위)를 같이 준다. 커피챗은 10테이블(10/22)이라 다른 테이블 9개 중 나와 평균 점수가 높은 8개만(grid 없음).
 // 점수 · 순위 숫자는 내보내지 않는다(순서로만). 동의 거부자는 궤도에서 뺀다(v0.2 H-00).
 import { z } from "zod";
 import { db } from "@/lib/db";

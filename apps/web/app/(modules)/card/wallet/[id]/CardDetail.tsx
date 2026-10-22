@@ -89,7 +89,7 @@ export default function CardDetail({ id }: { id: string }) {
           <p className="text-base font-bold text-navy">함께 있던 자리</p>
           <div className="mt-2 pl-[9px] text-sm leading-[26px] text-black">
             {card.together?.table_no ? <p>테이블 {card.together.table_no}번</p> : null}
-            {card.together?.group_no ? <p>커피챗 {card.together.group_no}그룹</p> : null}
+            {card.together?.group_no ? <p>커피챗 {card.together.group_no}번 테이블</p> : null}
             {!card.together?.table_no && !card.together?.group_no && <p className="text-ink-3">같은 자리 이력 없음</p>}
           </div>
         </section>

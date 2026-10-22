@@ -1,8 +1,9 @@
 // 미션 4종 · 스탬프 5칸 판정(피그마 이벤트·미션, 개발 지시서 v0.2 E-01 ~ E-06). 참가자 화면(이벤트 탭, 상태 띠)과 운영 콘솔(시상 집계)이 같이 쓴다.
 // ① 포스터 관심도 2건(포스터 응답, 흥미 3단계 어떤 답이든)  ② 퀴즈 3개 맞히기(서로 다른 포스터)  ③ 명함 교환 5명(3명 · 5명에서 스탬프 한 칸씩)  ④ 행사 후기 남기기
 // 스탬프는 ① 1칸 + ② 1칸 + ③ 최대 2칸 + ④ 1칸 = 5칸이다. done_count 는 찍힌 스탬프 수, total 은 5다.
-// 교환은 성립한 것(status confirmed)만, 같은 상대는 한 번만 센다. 마감(ops_state mission_closed_at) 뒤의 기록은 세지 않는다. 후기는 처음 낸 시각이 마감 안이어야 센다.
-// 진행도 = 네 미션의 min(달성 수 / 목표 수, 1) 평균. 포스터 1/2 이면 0.5.
+// 교환은 성립한 것(status confirmed)만, 같은 상대는 한 번만 센다. 마감(ops_state mission_closed_at) 뒤의 기록은 세지 않는다.
+// 후기는 커피챗이 끝난 뒤(wrapup · award)에만 받으므로 마감 시각으로 자르지 않는다. 낸 기록이 있으면 스탬프다(10/22 민찬 결정, 받는 단계는 /api/event/feedback 이 막는다).
+// 진행도 = 찍힌 스탬프 수 / 5(10/22 민찬 결정. 예전 네 미션 달성률 평균은 버렸다). 스탬프 3칸이면 0.6. 참가자 화면 · 운영 콘솔 · 시상이 같은 값을 본다.
 import "server-only";
 import { db } from "./db";
 
@@ -29,10 +30,10 @@ export type MissionStatus = {
   missions: MissionItem[];
   done_count: number; // 찍힌 스탬프 수(0~5)
   total: number; // 스탬프 칸 수(5)
-  progress: number; // 0~1, 소수 셋째 자리
+  progress: number; // 찍힌 스탬프 수 / 5(0~1, 소수 셋째 자리)
   completed_all_at: string | null; // 스탬프 5칸이 다 찍힌 시각
   // 시상 동점 처리용(A-07). 참가자 화면에는 내보내지 않는다
-  tiebreak: { valid_poster_responses: number; first_meet_exchanges: number };
+  tiebreak: { valid_poster_responses: number; first_meet_exchanges: number; last_stamp_at: string | null }; // last_stamp_at 가장 최근 스탬프 시각
 };
 
 const CHUNK = 200;
@@ -107,7 +108,7 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
       .filter((e) => e.first_meet === true)
       .map((e) => later(e.confirmed_at!, e.first_meet_at))
       .filter((t) => inTime(t));
-    const feedbackTimes = (fbOf.get(pid) ?? []).map((f) => f.created_at).filter(inTime);
+    const feedbackTimes = (fbOf.get(pid) ?? []).map((f) => f.created_at); // 마감으로 자르지 않는다(위 설명)
 
     const timesOf: Record<MissionKey, string[]> = { poster: posterTimes, quiz: quizTimes, exchange: exchangeTimes, feedback: feedbackTimes };
     const stampTimes: string[] = [];
@@ -118,16 +119,16 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
       stampTimes.push(...reached);
       return { key: m.key, label: m.label, goal: m.goal, count: Math.min(t.length, m.goal), done: at !== null, completed_at: at, milestones: [...m.milestones], stamps: reached.length };
     });
-    const progress = missions.reduce((s, m) => s + Math.min(m.count / m.goal, 1), 0) / missions.length;
     out.set(pid, {
       missions,
       done_count: stampTimes.length,
       total: STAMP_TOTAL,
-      progress: Math.round(progress * 1000) / 1000,
+      progress: Math.round((stampTimes.length / STAMP_TOTAL) * 1000) / 1000,
       completed_all_at: stampTimes.length === STAMP_TOTAL ? [...stampTimes].sort().at(-1)! : null,
       tiebreak: {
         valid_poster_responses: myResp.filter((r) => (r.latency_ms ?? 0) >= MIN_LATENCY_MS).length,
         first_meet_exchanges: firstMeetTimes.length,
+        last_stamp_at: stampTimes.length ? [...stampTimes].sort().at(-1)! : null,
       },
     });
   }

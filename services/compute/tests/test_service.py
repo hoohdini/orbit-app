@@ -171,6 +171,35 @@ def test_full_loop():
     print(f"  전날 {r1['tables']}테이블({size}) · 체크인 뒤 워크인 주소 {r2['issued']}명 · 커피챗 {r3['tables']}테이블 · 추천 {len(recs)}행")
 
 
+def test_coffeechat_ten_tables_and_leads():
+    """10/22 민찬 결정: 커피챗은 10테이블 전부(1번 고정 없음, 운영진 · 교수 포함 체크인 전원), 테이블마다 주도 선배 2명(높은 기수)."""
+    from collections import Counter
+    repo, enc = seed_repo(n=70, n_staff=4, n_fixed=3), FakeEncoder()
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    P = repo.t["participants"]
+    repo.t["checkins"] += [{"participant_id": p["id"]} for p in P]
+    r = service.coffeechat(repo, enc, iters=3000)
+    cm = [m for m in repo.t["table_members"] if m["version"] == r["version"]]
+    size = Counter(m["table_no"] for m in cm)
+    assert len(cm) == len(P) and sorted(size) == list(range(1, 11)) and max(size.values()) - min(size.values()) <= 1
+    t = {m["participant_id"]: m["table_no"] for m in cm}
+    assert len({t[p["id"]] for p in P if p.get("fixed_table") or p["role"] == "staff"}) > 1   # 교수 · 운영진도 여러 테이블로 흩어짐
+    leads = [m for m in cm if m["reason"].get("lead")]
+    assert Counter(m["table_no"] for m in leads) == Counter({k: 2 for k in range(1, 11)})
+    coh = {p["id"]: p["cohort"] for p in P}
+    ranked = sorted(c for c in coh.values() if c is not None)
+    assert all(coh[m["participant_id"]] is not None and coh[m["participant_id"]] <= ranked[20 + 4 - 1] for m in leads)
+    assert all(m["reason"]["text"].startswith(f"주도 선배({coh[m['participant_id']]}기)") for m in leads)
+    v = next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]
+    assert v["leads"] == r["leads"] == 20 and v["lead_pool"] >= 20 and v["groups"] == 10 and v["lead_met"] == 0
+    assert r["forbid_hits"] == 0                                         # 테이블토크 동석자와 다시 안 앉음(주도 선배 포함)
+    cap = service.COFFEECHAT_COHORT_CAP
+    cc = Counter((t[p["id"]], p["cohort"]) for p in P if p["cohort"] is not None)
+    assert r["cohort_over"] == v["cohort_over"] == sum(max(0, x - cap) for x in cc.values())
+    print(f"  커피챗 {dict(sorted(size.items()))} · 주도 선배 {len(leads)}명(후보 {v['lead_pool']}, 2k 줄 밖 {v['lead_beyond']})")
+
+
 def test_v02_signals_recs_reasons():
     """v0.2: 전날 추천 목록(B-06) · 포스터 응답 전처리(B-05) · 커피챗 그룹 근거 한 줄(B-07) · 궤도 라벨(B-08) · 포스터 없는 점수."""
     repo, enc = seed_repo(n=40, n_staff=0), FakeEncoder()
@@ -329,6 +358,8 @@ def test_final_recs_keep_groups():
     assert v["round"] == "coffeechat" and v["params"]["kind"] == "final" and v["status"] != "published"   # 운영자가 공개
     g2 = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == f["version"]}
     assert g2 == g                                                      # 그룹 · 테이블 번호 그대로
+    lead = lambda ver: {m["participant_id"] for m in repo.t["table_members"] if m["version"] == ver and m["reason"].get("lead")}
+    assert lead(f["version"]) == lead(r["version"]) and len(lead(r["version"])) == 2 * r["tables"] == f["leads"]   # 주도 선배 표시도 그대로
     recs = [x for x in repo.t["recs"] if x["version"] == f["version"]]
     assert recs and not any(x["participant_id"] == a and x["target_id"] == b for x in recs)        # 교환한 사람 빠짐
     assert not any(g[x["participant_id"]] == g[x["target_id"]] for x in recs)                       # 커피챗 동석자 빠짐

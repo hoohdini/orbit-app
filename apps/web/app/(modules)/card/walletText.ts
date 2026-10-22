@@ -16,7 +16,7 @@ export function metLabel(c: Card): string {
   const t = c.together;
   if (c.met === "table") return t?.table_no ? `테이블 · ${t.table_no}번` : "테이블토크";
   if (c.met === "poster") return "포스터 세션";
-  if (c.met === "coffeechat") return t?.group_no ? `커피챗 · 그룹 ${t.group_no}` : "커피챗";
+  if (c.met === "coffeechat") return t?.group_no ? `커피챗 · ${t.group_no}번 테이블` : "커피챗";
   return "행사장";
 }
 

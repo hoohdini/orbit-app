@@ -33,7 +33,7 @@ type Detail = {
     table_no: number;
     mean_score?: number | null;
     check?: boolean;
-    members: { id: string; display_name: string; affiliation: string | null; role: string; seat_no?: number | null; random: boolean; reason: string }[];
+    members: { id: string; display_name: string; affiliation: string | null; role: string; seat_no?: number | null; random: boolean; lead?: boolean; reason: string }[];
   }[];
 };
 
@@ -194,6 +194,7 @@ export default function VersionsPanel() {
                               {m.display_name}
                             </button>
                             {m.affiliation && <span className="ml-1 text-gray-500">{m.affiliation}</span>}
+                            {m.lead && <span className="ml-1 rounded bg-purple-100 px-1 text-[10px] text-purple-800">주도</span>}
                             {m.random && <span className="ml-1 rounded bg-blue-100 px-1 text-[10px] text-blue-800">무작위</span>}
                             {m.reason && <p className="text-gray-600">{m.reason}</p>}
                           </li>

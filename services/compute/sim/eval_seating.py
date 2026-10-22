@@ -35,8 +35,11 @@ from make_seat_eval_dataset import make  # noqa: E402
 from pipeline import scoring, seating  # noqa: E402
 from pipeline.embed import Encoder, offer_items, seek_items  # noqa: E402
 from pipeline.people import acquainted  # noqa: E402
-from service import (COFFEECHAT_COHORT_CAP, COFFEECHAT_GROUP_MAX, TABLETALK_COHORT_CAP,  # noqa: E402
-                     TABLETALK_COHORT_PENALTY)
+from service import TABLETALK_COHORT_CAP, TABLETALK_COHORT_PENALTY  # noqa: E402
+
+# 10/22 전 커피챗 규칙(3~4명 그룹, 같은 기수 3명째부터). 10/17 ~ 10/19 평가 숫자를 다시 내려고 그대로 둔다.
+# 지금 서비스(10테이블 · 주도 선배)는 sim/eval_coffeechat_leads.py
+COFFEECHAT_GROUP_MAX, COFFEECHAT_COHORT_CAP = 4, 2
 
 BASELINES = ["random", "op_cohort", "op_tag"]
 NAMES = {"random": "무작위", "op_cohort": "운영진(기수 규칙)", "op_tag": "운영진(태그 규칙)", "oracle": "정답 상한(근사)"}

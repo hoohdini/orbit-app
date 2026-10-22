@@ -136,7 +136,7 @@ export default function StatusPanel() {
             cmd={`curl -X POST http://localhost:8000/coffeechat -H "X-Compute-Secret: $COMPUTE_SECRET" -H "Content-Type: application/json" -d '{"event_id":"${status.event_id}"}'`}
           />
           <Cmd
-            title="4. 시상 · 폐회 뒤 행사 직후 추천 (커피챗 그룹은 그대로, 그날 신호로 추천 목록만 다시. 동석자 · 교환한 사람 제외)"
+            title="4. 시상 · 폐회 뒤 행사 직후 추천 (커피챗 테이블은 그대로, 그날 신호로 추천 목록만 다시. 동석자 · 교환한 사람 제외)"
             cmd={`curl -X POST http://localhost:8000/coffeechat -H "X-Compute-Secret: $COMPUTE_SECRET" -H "Content-Type: application/json" -d '{"event_id":"${status.event_id}","final":true}'`}
           />
         </div>
