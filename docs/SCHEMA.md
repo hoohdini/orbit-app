@@ -30,7 +30,7 @@
 | card_exchanges | 명함 교환 기록(방향 있음). `source` qr·manual 은 찍은 쪽, auto 는 받은 쪽. `seen_at` 은 받은 쪽 알림 확인 시각. 0010: `status`(pending 이름 검색 교환의 상대 확인 전 · confirmed), `confirmed_at`(성립 시각, 미션 판정 기준), `first_meet` · `first_meet_at`(오늘 처음 대화한 분인가요? 의 답, 내 행에만), `note`(메모, 0013 부터 200자, 계산에 안 씀), `via`(스캐너를 연 탭 card · event). 0013: `phase`(교환이 생긴 때의 행사 단계, 명함 목록의 어디서 만났나 칩. 두 행에 같은 값, 그 전 행은 null) | card 모듈 API | 한 번 찍으면 두 행(양방향, 9/26 확정). 교환 수는 행 수 그대로(교환 1건 = 각자 +1, 전체 +2). 성립 전(pending) 교환은 미션 · 추천 · 간선 어디에도 세지 않는다 |
 | satisfaction | 테이블토크 · 커피챗 끝 만족도. 문장 선택지 choice(gained, different, mismatch. 예전 unsure 는 더 받지 않음), 고른 사람 picks(uuid[], 같은 테이블 사람), 답하는 데 걸린 시간 elapsed_ms, 한 줄 의견 | tabletalk 모듈 API | 라운드당 1건. 0005 에서 1~5 숫자를 선택지로 바꿨다. 0012 에서 3지선다 + 사람 고르기(picks · elapsed_ms) |
 | event_log | 화면 이벤트(열람, 스캔 실패 등) | 모든 모듈 API | 패시브 수집. 운영 쓰기(ops_*)는 운영자 id 를 participant_id 로 남겨 감사 로그(A-09)가 된다 |
-| rec_impressions | 오늘 만나면 좋을 분(H-04)에 처음 보인 시각(사람 쌍마다 한 행, version) | card 모듈 API(/api/card/recs) | 0010. 미션 ② 판정과 행사 뒤 분석. 다시 보여도 시각을 바꾸지 않는다 |
+| rec_impressions | 오늘 만나면 좋을 분(H-04)에 처음 보인 시각(사람 쌍마다 한 행, version) | card 모듈 API(/api/card/recs) | 0010. 시상 순위의 추천 인물 교환 판정(10/23 민찬 결정, lib/missions.ts)과 행사 뒤 분석. 다시 보여도 시각을 바꾸지 않는다 |
 | posters | 포스터 목록과 QR 코드, 요약 한 줄(summary), 발표자 참가자 id(presenter_ids) | 사전 적재 | summary · presenter_ids 는 0009. 포스터 벡터 = 제목 + tags + summary, 발표자 본인 · 같은 소속 응답은 계산에서 뺀다 |
 | poster_quizzes | 포스터별 퀴즈와 정답 | 사전 적재 | 정답은 서버만 본다 |
 | quiz_attempts | 퀴즈 시도 기록 | poster 모듈 API | 오답도 남긴다. 10/11 부터 정답 기록이 포스터 퀴즈 스탬프(미션 ②)다(별도 표 없음) |

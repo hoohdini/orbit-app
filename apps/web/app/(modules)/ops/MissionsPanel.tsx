@@ -1,6 +1,6 @@
 "use client";
 // 이벤트 · 미션 · 시상 현황(개발 지시서 v0.2 A-07)과 특별 시상 제외 명단(E-06).
-// 미션 4종 · 스탬프 5칸. 시상은 스탬프 수 → 첫 대화로 확인한 교환 수 → 유효 포스터 응답 수 → 5번째 스탬프 시각 순(10/22 민찬 결정, 표 칸도 이 순서). 응모권 추첨은 명찰 번호로 앱 밖에서 한다.
+// 미션 4종 · 스탬프 5칸. 시상은 스탬프 수 → 추천 인물과의 교환 수(최대 5) → 유효 포스터 응답 수 순, 셋이 같으면 공동 순위(10/23 민찬 결정, 표 칸도 이 순서). 응모권 추첨은 명찰 번호로 앱 밖에서 한다.
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 
@@ -14,7 +14,7 @@ type Data = {
   completed_all: number;
   by_mission: { key: string; label: string; done: number }[];
   excluded: number;
-  candidates: { place: number; id: string; display_name: string; affiliation: string | null; progress: number; done_count: number; valid_poster_responses: number; first_meet_exchanges: number; completed_all_at: string | null }[];
+  candidates: { place: number; tied: boolean; id: string; display_name: string; affiliation: string | null; progress: number; done_count: number; recommended_exchanges: number; valid_poster_responses: number }[];
   qr: { card_scans: number; poster_scans: number; tab_mismatch: number };
 };
 
@@ -55,31 +55,29 @@ export default function MissionsPanel() {
 
       <div className="rounded-xl border border-gray-200 bg-white p-3">
         <p className="text-sm font-semibold">특별 시상 후보 <span className="font-normal text-gray-500">(제외 {d.excluded}명)</span></p>
-        <p className="mt-0.5 text-xs text-gray-500">순위: 스탬프 많은 순 → 첫 대화 확인 교환 많은 순 → 포스터 유효 응답(5초 이상) 많은 순 → {all} 시각 이른 순</p>
+        <p className="mt-0.5 text-xs text-gray-500">순위: 스탬프 많은 순 → 추천 인물 교환(최대 5명) 많은 순 → 포스터 유효 응답(5초 이상) 많은 순 → 셋이 같으면 공동 순위. 시각은 보지 않는다</p>
         <table className="mt-2 w-full text-xs">
           <thead className="text-left text-gray-500">
             <tr>
               <th className="py-1">순위</th>
               <th>이름</th>
               <th>스탬프</th>
-              <th>첫 대화</th>
+              <th>추천 인물 교환(최대 5)</th>
               <th>포스터</th>
-              <th>{all} 시각</th>
             </tr>
           </thead>
           <tbody>
             {d.candidates.map((c) => (
               <tr key={c.id} className="border-t border-gray-100">
-                <td className="py-1">{c.place}</td>
+                <td className="py-1">{c.tied ? `공동 ${c.place}위` : `${c.place}위`}</td>
                 <td>
                   {c.display_name} <span className="text-gray-400">{c.affiliation ?? ""}</span>
                 </td>
                 <td>
                   {c.done_count}/{d.stamp_total}
                 </td>
-                <td>{c.first_meet_exchanges}</td>
+                <td>{c.recommended_exchanges}</td>
                 <td>{c.valid_poster_responses}</td>
-                <td>{c.completed_all_at ? new Date(c.completed_all_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
               </tr>
             ))}
           </tbody>

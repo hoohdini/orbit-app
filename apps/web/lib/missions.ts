@@ -4,6 +4,10 @@
 // 교환은 성립한 것(status confirmed)만, 같은 상대는 한 번만 센다. 마감(ops_state mission_closed_at) 뒤의 기록은 세지 않는다.
 // 후기는 커피챗이 끝난 뒤(wrapup · award)에만 받으므로 마감 시각으로 자르지 않는다. 낸 기록이 있으면 스탬프다(10/22 민찬 결정, 받는 단계는 /api/event/feedback 이 막는다).
 // 진행도 = 찍힌 스탬프 수 / 5(10/22 민찬 결정. 예전 네 미션 달성률 평균은 버렸다). 스탬프 3칸이면 0.6. 참가자 화면 · 운영 콘솔 · 시상이 같은 값을 본다.
+// 시상 동점 처리 값(tiebreak, 10/23 민찬 결정, 순서는 lib/award.ts):
+//   recommended_exchanges  추천 인물과의 교환 수(최대 5). 추천 인물 = 교환이 성립하기 전에 내 오늘 만나면 좋을 분 목록(rec_impressions first_shown_at)에 떴던 상대.
+//                          성립한 교환만, 마감 전 것만, 같은 상대는 한 번. 예전 추천 인물 미션(c4fe6d2 전)과 같은 판정이다
+//   valid_poster_responses 5초 이상 걸린 포스터 응답 수
 import "server-only";
 import { db } from "./db";
 
@@ -33,11 +37,12 @@ export type MissionStatus = {
   progress: number; // 찍힌 스탬프 수 / 5(0~1, 소수 셋째 자리)
   completed_all_at: string | null; // 스탬프 5칸이 다 찍힌 시각
   // 시상 동점 처리용(A-07). 참가자 화면에는 내보내지 않는다
-  tiebreak: { valid_poster_responses: number; first_meet_exchanges: number; last_stamp_at: string | null }; // last_stamp_at 가장 최근 스탬프 시각
+  tiebreak: { recommended_exchanges: number; valid_poster_responses: number };
 };
 
 const CHUNK = 200;
 const MIN_LATENCY_MS = 5000; // 계산 서비스 B-05 와 같다. 5초 미만 응답은 유효 응답으로 세지 않는다(시상 동점 처리)
+export const REC_EXCHANGE_CAP = 5; // 추천 인물 교환은 5명까지만 센다(10/23 민찬 결정)
 
 async function rowsIn<T>(table: string, cols: string, column: string, ids: string[], extra?: (q: any) => any): Promise<T[]> { // eslint-disable-line @typescript-eslint/no-explicit-any
   const out: T[] = [];
@@ -53,10 +58,9 @@ async function rowsIn<T>(table: string, cols: string, column: string, ids: strin
 
 type Resp = { participant_id: string; poster_id: number; created_at: string; latency_ms: number | null };
 type Att = { participant_id: string; poster_id: number; created_at: string };
-type Ex = { scanner_id: string; scanned_id: string; confirmed_at: string | null; first_meet: boolean | null; first_meet_at: string | null };
+type Ex = { scanner_id: string; scanned_id: string; confirmed_at: string | null };
 type Fb = { participant_id: string; created_at: string };
-
-const later = (a: string, b: string | null) => (b && b > a ? b : a);
+type Imp = { participant_id: string; target_id: string; first_shown_at: string };
 
 // k 번째(1부터)로 이른 시각. 모자라면 null
 function kth(times: string[], k: number): string | null {
@@ -70,11 +74,12 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
   if (pids.length === 0) return out;
   const inTime = (t: string | null | undefined): t is string => !!t && (!closedAt || t <= closedAt);
 
-  const [resps, atts, exs, fbs] = await Promise.all([
+  const [resps, atts, exs, fbs, imps] = await Promise.all([
     rowsIn<Resp>("poster_responses", "participant_id, poster_id, created_at, latency_ms", "participant_id", pids),
     rowsIn<Att>("quiz_attempts", "participant_id, poster_id, created_at", "participant_id", pids, (q) => q.eq("is_correct", true)),
-    rowsIn<Ex>("card_exchanges", "scanner_id, scanned_id, confirmed_at, first_meet, first_meet_at", "scanner_id", pids, (q) => q.eq("status", "confirmed")),
+    rowsIn<Ex>("card_exchanges", "scanner_id, scanned_id, confirmed_at", "scanner_id", pids, (q) => q.eq("status", "confirmed")),
     rowsIn<Fb>("event_feedback", "participant_id, created_at", "participant_id", pids),
+    rowsIn<Imp>("rec_impressions", "participant_id, target_id, first_shown_at", "participant_id", pids),
   ]);
 
   const by = <T, K extends keyof T>(rows: T[], key: K) => {
@@ -90,6 +95,7 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
   const attOf = by(atts, "participant_id");
   const exOf = by(exs, "scanner_id");
   const fbOf = by(fbs, "participant_id");
+  const impOf = by(imps, "participant_id");
 
   for (const pid of pids) {
     const myResp = (respOf.get(pid) ?? []).filter((r) => inTime(r.created_at));
@@ -104,10 +110,9 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
     const firstExchange = new Map<string, string>();
     for (const e of myEx) if (!firstExchange.has(e.scanned_id) || e.confirmed_at! < firstExchange.get(e.scanned_id)!) firstExchange.set(e.scanned_id, e.confirmed_at!);
     const exchangeTimes = [...firstExchange.values()];
-    const firstMeetTimes = myEx
-      .filter((e) => e.first_meet === true)
-      .map((e) => later(e.confirmed_at!, e.first_meet_at))
-      .filter((t) => inTime(t));
+    // 추천 인물 교환: 성립 시각 전에 내 추천 목록에 떴던 상대(서로 다른 사람)
+    const shownAt = new Map((impOf.get(pid) ?? []).map((i) => [i.target_id, i.first_shown_at]));
+    const recPartners = new Set(myEx.filter((e) => shownAt.has(e.scanned_id) && shownAt.get(e.scanned_id)! <= e.confirmed_at!).map((e) => e.scanned_id));
     const feedbackTimes = (fbOf.get(pid) ?? []).map((f) => f.created_at); // 마감으로 자르지 않는다(위 설명)
 
     const timesOf: Record<MissionKey, string[]> = { poster: posterTimes, quiz: quizTimes, exchange: exchangeTimes, feedback: feedbackTimes };
@@ -126,9 +131,8 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
       progress: Math.round((stampTimes.length / STAMP_TOTAL) * 1000) / 1000,
       completed_all_at: stampTimes.length === STAMP_TOTAL ? [...stampTimes].sort().at(-1)! : null,
       tiebreak: {
+        recommended_exchanges: Math.min(recPartners.size, REC_EXCHANGE_CAP),
         valid_poster_responses: myResp.filter((r) => (r.latency_ms ?? 0) >= MIN_LATENCY_MS).length,
-        first_meet_exchanges: firstMeetTimes.length,
-        last_stamp_at: stampTimes.length ? [...stampTimes].sort().at(-1)! : null,
       },
     });
   }
