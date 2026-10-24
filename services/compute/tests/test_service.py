@@ -197,7 +197,20 @@ def test_coffeechat_ten_tables_and_leads():
     cap = service.COFFEECHAT_COHORT_CAP
     cc = Counter((t[p["id"]], p["cohort"]) for p in P if p["cohort"] is not None)
     assert r["cohort_over"] == v["cohort_over"] == sum(max(0, x - cap) for x in cc.values())
+    # 좌석(10/23): 테이블마다 1 ~ 인원 번호, 주도 선배 둘은 마주 보게(좌석 1 · 인원 // 2 + 1, 10/23 운영진 확정)
+    assert all(m.get("seat_no") is not None and m["reason"]["seat_no"] == m["seat_no"] for m in cm)
+    for no, k in size.items():
+        assert sorted(m["seat_no"] for m in cm if m["table_no"] == no) == list(range(1, k + 1))
+        assert sorted(m["seat_no"] for m in leads if m["table_no"] == no) == [1, k // 2 + 1]
+    assert v["lead_seating"] == "facing" and len(v["seat_neighbor_sum"]) == 10 and v["late_checkins"] == 0
     print(f"  커피챗 {dict(sorted(size.items()))} · 주도 선배 {len(leads)}명(후보 {v['lead_pool']}, 2k 줄 밖 {v['lead_beyond']})")
+    # 지연 체크인(is_late)한 사람은 배정에는 들어가고 주도 선배는 아니다(구현하며 정함)
+    late = min((m["participant_id"] for m in leads), key=lambda q: coh[q])
+    next(c for c in repo.t["checkins"] if c["participant_id"] == late)["is_late"] = True
+    r2 = service.coffeechat(repo, enc, iters=500)
+    cm2 = {m["participant_id"]: m for m in repo.t["table_members"] if m["version"] == r2["version"]}
+    assert late in cm2 and not cm2[late]["reason"].get("lead") and r2["leads"] == 20
+    assert next(x for x in repo.t["assign_versions"] if x["version"] == r2["version"])["params"]["late_checkins"] == 1
 
 
 def test_v02_signals_recs_reasons():
@@ -358,6 +371,8 @@ def test_final_recs_keep_groups():
     assert v["round"] == "coffeechat" and v["params"]["kind"] == "final" and v["status"] != "published"   # 운영자가 공개
     g2 = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == f["version"]}
     assert g2 == g                                                      # 그룹 · 테이블 번호 그대로
+    seat_of = lambda ver: {m["participant_id"]: m.get("seat_no") for m in repo.t["table_members"] if m["version"] == ver}
+    assert seat_of(f["version"]) == seat_of(r["version"]) and None not in seat_of(r["version"]).values()   # 좌석 번호도 그대로(10/23)
     lead = lambda ver: {m["participant_id"] for m in repo.t["table_members"] if m["version"] == ver and m["reason"].get("lead")}
     assert lead(f["version"]) == lead(r["version"]) and len(lead(r["version"])) == 2 * r["tables"] == f["leads"]   # 주도 선배 표시도 그대로
     recs = [x for x in repo.t["recs"] if x["version"] == f["version"]]

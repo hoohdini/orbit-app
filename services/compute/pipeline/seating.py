@@ -8,6 +8,7 @@
   3. 나머지를 무작위 순서로 한 명씩, 이미 앉은 사람과의 평균 점수가 가장 높은 테이블로 (한 자리마다 즉시 갱신)
      확률 random_ratio 로는 무작위 빈 테이블 — 점수가 약할 때만 이득 (연구 저장소 docs/31 G13)
   4. 같은 역할끼리 자리 바꾸기(담금질)로 목적 함수를 올린다. 무작위 자리는 바꾸지 않는다
+  5. 테이블마다 원형 좌석 순서(seat_order). 커피챗은 주도 선배 두 자리를 먼저 정하고 나머지를 맞춘다(lead_fixed, 10/23 운영진 확정: 마주 보게)
 
 목적 = 개인 만족 평균 + 2 × 하위 10% 평균 − 금지 쌍 5점 − 같은 기수 초과 1명당 cohort_penalty
        같은 기수 상한 = 테이블 인원의 40% 내림(5~6명 2명 · 8~9명 3명 · 10명 4명). 기본 감점 0.5, 테이블토크는 5점(v0.2 B-02 '큰 감점')
@@ -207,18 +208,20 @@ class Leads:
 
 
 def pick_leads(F: np.ndarray, cohort: np.ndarray, k: int, forbid: np.ndarray | None = None, slack: int = LEAD_SLACK,
-               skip_cost: float = LEAD_SKIP_COST, met_cost: float = LEAD_MET_COST) -> Leads:
+               skip_cost: float = LEAD_SKIP_COST, met_cost: float = LEAD_MET_COST, exclude: np.ndarray | None = None) -> Leads:
     """커피챗 주도 선배 고르기(10/22 민찬 결정: 테이블마다 2명, 높은 기수 = 숫자가 작은 기수, 분야가 맞는 둘끼리).
     F = 분야 유사도(n, n, 하는 일 벡터의 cos). cohort = 기수(-1 = 모름, 교수 · 외부 연사는 후보가 아님). k = 테이블 수.
     1. 후보 = 기수 순으로 2k + slack 명, 그 경계 기수와 같은 사람은 모두
     2. 목적 = 테이블마다 두 사람의 분야 점수(후보끼리 표준화) − 이미 만난 사이 met_cost − 사람마다 2k 줄보다 내려간 자리 수 × skip_cost
        (같은 기수는 같은 자리로 본다. 경계 기수 안에서는 분야로만 고른다)
     3. 처음 = 위 2k 명을 분야 점수가 큰 쌍부터 묶음. 두 쌍의 짝 바꾸기 · 뽑힌 사람을 안 뽑힌 후보로 바꾸기를 나아지지 않을 때까지
-    후보가 2k 명보다 적으면 앞 테이블부터 두 명씩 채우고 나머지 테이블은 주도 선배 없이 둔다."""
+    후보가 2k 명보다 적으면 앞 테이블부터 두 명씩 채우고 나머지 테이블은 주도 선배 없이 둔다.
+    exclude(bool, n) = 후보에서 뺄 사람. 지연 체크인(checkins.is_late)한 사람을 뺀다(구현하며 정함: 늦게 오는 주도 선배는 테이블을 이끌 사람 없이 둔다)."""
     n = len(F)
     cohort = np.asarray(cohort)
     forbid = np.zeros((n, n), bool) if forbid is None else forbid.astype(bool)
-    cand = sorted((i for i in range(n) if cohort[i] >= 0), key=lambda i: (int(cohort[i]), i))
+    out = np.zeros(n, bool) if exclude is None else np.asarray(exclude, bool)
+    cand = sorted((i for i in range(n) if cohort[i] >= 0 and not out[i]), key=lambda i: (int(cohort[i]), i))
     m = min(k, len(cand) // LEAD_PER_TABLE)
     need = LEAD_PER_TABLE * m
     if m == 0:
@@ -281,11 +284,16 @@ def same_table_pairs(table: np.ndarray) -> np.ndarray:
     return M
 
 
-def seat_order(A: np.ndarray, members: list[int]) -> tuple[list[int], float]:
+def seat_order(A: np.ndarray, members: list[int], fixed: dict[int, int] | None = None) -> tuple[list[int], float]:
     """원형 테이블 좌석 순서(v0.2 B-03). 이웃한 두 사람의 쌍 점수 합이 가장 큰 순서를 정확히 찾는다.
     순서를 하나씩 다 보면 10명에 (10−1)!/2 = 181,440 가지지만, 같은 답을 Held-Karp(외판원 문제 동적 계획)로
-    10명 기준 약 4만 번 비교로 낸다. 첫 자리(좌석 1)는 members[0]. 돌려주는 값 = (좌석 순서, 이웃 점수 합)."""
+    10명 기준 약 4만 번 비교로 낸다. 첫 자리(좌석 1)는 members[0]. 돌려주는 값 = (좌석 순서, 이웃 점수 합).
+    fixed = {사람: 자리 순번(0부터)}. 그 사람을 그 자리에 두고 나머지만 맞춘다(커피챗 주도 선배). 자리 0 은 members[0] 이다."""
     m = list(members)
+    if fixed:
+        z = [p for p, pos in fixed.items() if pos == 0]
+        m = z + [x for x in m if x not in z]                       # 자리 0 에 고정한 사람을 맨 앞으로
+        return _seat_order_fixed(A[np.ix_(m, m)], m, fixed)
     k = len(m)
     W = A[np.ix_(m, m)]
     if k <= 1:
@@ -325,6 +333,79 @@ def seat_order(A: np.ndarray, members: list[int]) -> tuple[list[int], float]:
 
 
 EXACT_SEAT_MAX = 16              # 이보다 큰 테이블은 정확 계산 대신 근사(16명 0.3초, 18명 1.8초, 이후 급격히 늘어남)
+
+
+def _seat_order_fixed(W: np.ndarray, m: list[int], fixed: dict[int, int]) -> tuple[list[int], float]:
+    """seat_order 의 자리 고정판. 위와 같은 Held-Karp 에서 고정 자리에는 그 사람만, 나머지 자리에는 고정 안 된 사람만 놓는다.
+    k 명 중 j 번째로 놓는 사람의 자리 = 이미 놓은 사람 수. 16명 넘으면 고정 안 된 자리끼리 맞바꾸기로 근사한다."""
+    k = len(m)
+    loc = {m.index(p): s for p, s in fixed.items()}               # 사람 순번 → 자리
+    assert loc.get(0, 0) == 0 and all(0 < s < k for x, s in loc.items() if x != 0) and len(set(loc.values())) == len(loc), (fixed, k)
+    at = {s: x for x, s in loc.items()}                            # 자리 → 사람 순번
+    ring = lambda o: float(sum(W[o[i], o[(i + 1) % k]] for i in range(k))) if k > 1 else 0.0
+    if k <= 2:
+        return m, ring(list(range(k)))
+    ok = lambda pos, x: at[pos] == x if pos in at else x not in loc
+    if k > EXACT_SEAT_MAX:
+        free = [x for x in range(k) if x not in loc]
+        order = [at[pos] if pos in at else free.pop(0) for pos in range(k)]
+        slots = [pos for pos in range(k) if pos not in at]
+        best, improved = ring(order), True
+        while improved:
+            improved = False
+            for a in range(len(slots)):
+                for b in range(a + 1, len(slots)):
+                    o = list(order)
+                    o[slots[a]], o[slots[b]] = o[slots[b]], o[slots[a]]
+                    v = ring(o)
+                    if v > best + 1e-12:
+                        order, best, improved = o, v, True
+        return [m[i] for i in order], best
+    full = 1 << (k - 1)
+    dp = np.full((full, k), -np.inf)
+    back = np.full((full, k), -1, dtype=int)
+    for j in range(1, k):
+        if ok(1, j):
+            dp[1 << (j - 1), j] = W[0, j]
+    for S in range(1, full):
+        pos = S.bit_count() + 1                                     # 다음에 놓을 자리
+        if pos >= k:
+            continue
+        for j in range(1, k):
+            cur = dp[S, j]
+            if cur == -np.inf:
+                continue
+            for nx in range(1, k):
+                bit = 1 << (nx - 1)
+                if S & bit or not ok(pos, nx):
+                    continue
+                v = cur + W[j, nx]
+                if v > dp[S | bit, nx]:
+                    dp[S | bit, nx], back[S | bit, nx] = v, j
+    S = full - 1
+    last = max(range(1, k), key=lambda j: dp[S, j] + W[j, 0])
+    best = float(dp[S, last] + W[last, 0])
+    path = []
+    while last > 0:
+        path.append(last)
+        S, last = S & ~(1 << (last - 1)), back[S, last]
+    order = [0] + path[::-1]
+    return [m[i] for i in order], best
+
+
+LEAD_SEATING_MODES = ("facing", "adjacent", "free")
+
+
+def lead_fixed(pair: tuple[int, int], size: int, mode: str = "facing") -> dict[int, int]:
+    """커피챗 주도 선배 두 명의 자리(seat_order 의 fixed). 첫 선배는 늘 자리 0(좌석 1번).
+    facing   = 마주 보게. 둘째 선배는 size // 2(8명이면 좌석 1 · 5번, 7명이면 1 · 4번). 10/23 운영진 확정
+    adjacent = 바로 옆(좌석 1 · 2번)
+    free     = 첫 선배만 좌석 1번, 둘째는 다른 사람처럼 점수로 정한다"""
+    assert mode in LEAD_SEATING_MODES, mode
+    a, b = pair
+    if mode == "free" or size < 2:
+        return {a: 0}
+    return {a: 0, b: size // 2 if mode == "facing" else 1}
 
 
 def _seat_order_greedy(W: np.ndarray, m: list[int]) -> tuple[list[int], float]:

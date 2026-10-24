@@ -42,6 +42,11 @@ class MemoryRepo:
         s = set(ids)
         return {r["participant_id"] for r in self.t["checkins"] if r["participant_id"] in s}
 
+    def late_checkins(self, ids: list[str]) -> set[str]:
+        """지연 체크인(checkins.is_late, 콘솔 수동 체크인의 지연 체크인으로 표시)한 사람. 커피챗 주도 선배에서 뺀다."""
+        s = set(ids)
+        return {r["participant_id"] for r in self.t["checkins"] if r["participant_id"] in s and r.get("is_late")}
+
     def edges(self) -> list[dict]:
         """edges 뷰와 같은 모양 — 명함 교환을 무방향 간선 0.3 으로."""
         seen = {}
@@ -197,6 +202,9 @@ class SupabaseRepo:
     def checkins(self, ids):
         return {r["participant_id"] for r in self._in("checkins", "participant_id", "participant_id", ids)}
 
+    def late_checkins(self, ids):
+        return {r["participant_id"] for r in self._in("checkins", "participant_id, is_late", "participant_id", ids) if r.get("is_late")}
+
     def edges(self):
         return self._all(lambda: self.db.table("edges").select("a, b, kind, weight"))
 
@@ -263,7 +271,7 @@ class SupabaseRepo:
             return None, []
         v = max(vs, key=lambda v: v["version"])
         s = set(ids)
-        rows = self._all(lambda: self.db.table("table_members").select("version, table_no, participant_id, reason")
+        rows = self._all(lambda: self.db.table("table_members").select("version, table_no, participant_id, seat_no, reason")
                          .eq("version", v["version"]))
         return v, [m for m in rows if m["participant_id"] in s]
 

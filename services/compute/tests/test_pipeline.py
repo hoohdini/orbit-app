@@ -195,6 +195,48 @@ def test_pick_leads_seniority_and_field():
     assert len(lp4.pairs) == 2 and seating.pick_leads(F, np.full(n, -1), k).pairs == []
 
 
+def test_pick_leads_excludes_late():
+    """지연 체크인한 사람(늦게 오는 사람)은 기수가 가장 높아도 주도 선배로 뽑지 않는다(구현하며 정함)."""
+    rng = np.random.default_rng(3)
+    k, n = 3, 20
+    F = unit(rng.normal(size=(n, 8))); F = F @ F.T
+    cohort = np.arange(n) + 1
+    late = np.zeros(n, bool); late[[0, 2]] = True                 # 1기 · 3기가 늦게 온다
+    lp = seating.pick_leads(F, cohort, k, exclude=late)
+    used = {i for p in lp.pairs for i in p}
+    assert len(lp.pairs) == k and not used & {0, 2} and 0 not in lp.pool and 2 not in lp.pool
+    assert 0 in {i for p in seating.pick_leads(F, cohort, k).pairs for i in p}   # 빼지 않으면 1기는 뽑힌다
+
+
+def test_seat_order_fixed_leads():
+    """커피챗 좌석: 주도 선배 두 자리를 정하고 나머지는 모든 순서를 다 본 것과 같은 답. facing 은 i · i + size // 2(8명이면 좌석 1 · 5번)."""
+    import itertools
+    rng = np.random.default_rng(7)
+    for k in (4, 7, 8, 10):
+        M = rng.normal(size=(12, 12)); A = (M + M.T) / 2
+        mem = [int(x) for x in rng.choice(12, k, replace=False)]
+        a, b = mem[2], mem[-1]                                    # 주도 선배(맨 앞이 아니어도 된다)
+        fx = seating.lead_fixed((a, b), k, "facing")
+        order, total = seating.seat_order(A, mem, fixed=fx)
+        assert sorted(order) == sorted(mem) and order[0] == a and order[k // 2] == b
+        if k == 8:
+            assert (order.index(a) + 1, order.index(b) + 1) == (1, 5)
+        rest = [x for x in mem if x not in (a, b)]
+        ring = lambda p: sum(A[p[i], p[(i + 1) % k]] for i in range(k))
+        best = -np.inf
+        for q in itertools.permutations(rest):
+            it = iter(q)
+            best = max(best, ring([a if s == 0 else b if s == k // 2 else next(it) for s in range(k)]))
+        assert abs(total - best) < 1e-9 and abs(ring(order) - total) < 1e-9, (k, total, best)
+        adj, _ = seating.seat_order(A, mem, fixed=seating.lead_fixed((a, b), k, "adjacent"))
+        assert adj[0] == a and adj[1] == b
+        free, t_free = seating.seat_order(A, mem, fixed=seating.lead_fixed((a, b), k, "free"))
+        assert free[0] == a and abs(t_free - seating.seat_order(A, [a] + [x for x in mem if x != a])[1]) < 1e-9
+    M = rng.normal(size=(20, 20)); A = (M + M.T) / 2               # 16명 넘으면 근사지만 고정 자리는 지킨다
+    order, _ = seating.seat_order(A, list(range(20)), fixed=seating.lead_fixed((5, 9), 20, "facing"))
+    assert sorted(order) == list(range(20)) and order[0] == 5 and order[10] == 9
+
+
 def test_seat_order_large_table_falls_back():
     rng = np.random.default_rng(2)
     M = rng.normal(size=(20, 20)); A = (M + M.T) / 2

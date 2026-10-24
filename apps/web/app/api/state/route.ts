@@ -39,7 +39,7 @@ export async function GET() {
       consent: consentOf(me.data),
       share: shareOf(me.data), // 명함 공개 및 추천 활용(0014)
       tabletalk: tt ? { version: tt.version as number, table_no: tt.table_no as number, seat_no: (tt.seat_no as number | null) ?? null } : null,
-      coffeechat: cc ? { version: cc.version as number, group_no: cc.table_no as number } : null,
+      coffeechat: cc ? { version: cc.version as number, group_no: cc.table_no as number, seat_no: (cc.seat_no as number | null) ?? null } : null, // 커피챗 좌석은 10/23 부터(예전 버전은 null)
       published: { tabletalk: pub("tabletalk"), coffeechat: pub("coffeechat") },
       recs_open: recsOpen(ops.phase),
       mission: { window, done_count: m.done_count, total: m.total, progress: m.progress },

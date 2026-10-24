@@ -49,7 +49,7 @@ export async function GET(req: Request) {
       })
       .join("");
 
-    const title = `${v.round === "tabletalk" ? "테이블토크 좌석표" : "커피챗 배정표"} (버전 ${v.version}${v.status === "published" ? "" : `, ${v.status}`})`;
+    const title = `${v.round === "tabletalk" ? "테이블토크 좌석표" : "커피챗 좌석표"} (버전 ${v.version}${v.status === "published" ? "" : `, ${v.status}`})`;
     const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
 body{font-family:system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;margin:16px;color:#000;background:#fff}
 h1{font-size:18px;margin:0 0 12px}main{columns:3;column-gap:16px}section{break-inside:avoid;margin:0 0 14px}
