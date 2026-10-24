@@ -1,6 +1,7 @@
 // POST /api/ops/swap { version, a, b }  수동 교체(개발 지시서 v0.2 A-04). 운영자만.
 // 원본 버전은 건드리지 않고 복사본 초안(draft)을 새로 만들어 두 사람의 테이블(과 좌석 번호)을 맞바꾼다. 공개는 /api/ops/publish 로 따로 한다.
 // 변화량은 저장된 쌍 점수(pair_scores)로 웹 서버가 계산한다(계산 서비스 불필요). 목적함수 = 테이블 안 쌍 점수 합.
+// 바꾼 두 사람의 reason 은 기존 키(커피챗 주도 선배 lead 등)를 남기고 text · table_no · seat_no 만 바꾼다(10/23 검토 반영, 예전에는 {text} 로 덮어써 주도 표시가 사라졌다).
 // 복사하는 것: table_members, tables_meta, pair_scores, recs, group_reasons. 바꾼 두 사람의 근거 한 줄(group_reasons)은 새 그룹과 맞지 않아 지운다.
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -69,11 +70,9 @@ export async function POST(req: Request) {
     const version = nv.version as number;
 
     const [tm, meta, ps, recs, reasons] = await Promise.all(["table_members", "tables_meta", "pair_scores", "recs", "group_reasons"].map((t) => readAll(t, b.version)));
-    const swapped = (r: Record<string, unknown>) => {
-      if (r.participant_id === pa) return { ...r, table_no: mb.table_no, seat_no: mb.seat_no, reason: { text: "운영자 수동 교체" } };
-      if (r.participant_id === pb) return { ...r, table_no: ma.table_no, seat_no: ma.seat_no, reason: { text: "운영자 수동 교체" } };
-      return r;
-    };
+    // 이유(reason)는 기존 키(주도 선배 lead 등)를 남기고 설명 text 와 테이블 · 좌석만 새 자리로 바꾼다. 주도 선배 표시는 사람을 따라간다
+    const moved = (r: Record<string, unknown>, to: { table_no: number; seat_no: number | null }) => ({ ...r, table_no: to.table_no, seat_no: to.seat_no, reason: { ...((r.reason ?? {}) as Record<string, unknown>), table_no: to.table_no, seat_no: to.seat_no, text: "운영자 수동 교체" } });
+    const swapped = (r: Record<string, unknown>) => (r.participant_id === pa ? moved(r, mb) : r.participant_id === pb ? moved(r, ma) : r);
     await insertAll("table_members", tm.map((r) => ({ ...swapped(r), version })));
     await insertAll("tables_meta", meta.map((r) => ({ ...r, version })));
     await insertAll("pair_scores", ps.map((r) => ({ ...r, version })));

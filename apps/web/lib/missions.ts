@@ -44,14 +44,21 @@ const CHUNK = 200;
 const MIN_LATENCY_MS = 5000; // 계산 서비스 B-05 와 같다. 5초 미만 응답은 유효 응답으로 세지 않는다(시상 동점 처리)
 export const REC_EXCHANGE_CAP = 5; // 추천 인물 교환은 5명까지만 센다(10/23 민찬 결정)
 
-async function rowsIn<T>(table: string, cols: string, column: string, ids: string[], extra?: (q: any) => any): Promise<T[]> { // eslint-disable-line @typescript-eslint/no-explicit-any
+const PAGE = 1000; // Supabase 기본 최대 행 수. 한 묶음(200명)의 행이 이보다 많으면(추천 노출 200명 × 10 = 2000행) range 로 끝까지 읽는다(lib/pairs.ts 와 같다)
+
+// ids 를 200명씩 나눠 읽고, 묶음마다 PAGE 행씩 끝까지 읽는다. order = 행을 하나로 정하는 칸(페이지가 겹치거나 빠지지 않게)
+async function rowsIn<T>(table: string, cols: string, column: string, ids: string[], order: string[], extra?: (q: any) => any): Promise<T[]> { // eslint-disable-line @typescript-eslint/no-explicit-any
   const out: T[] = [];
   for (let i = 0; i < ids.length; i += CHUNK) {
-    let q = db().from(table).select(cols).in(column, ids.slice(i, i + CHUNK));
-    if (extra) q = extra(q);
-    const { data, error } = await q;
-    if (error) throw error;
-    out.push(...((data ?? []) as T[]));
+    for (let from = 0; ; from += PAGE) {
+      let q = db().from(table).select(cols).in(column, ids.slice(i, i + CHUNK));
+      if (extra) q = extra(q);
+      for (const o of order) q = q.order(o);
+      const { data, error } = await q.range(from, from + PAGE - 1);
+      if (error) throw error;
+      out.push(...((data ?? []) as T[]));
+      if (!data || data.length < PAGE) break;
+    }
   }
   return out;
 }
@@ -75,11 +82,11 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
   const inTime = (t: string | null | undefined): t is string => !!t && (!closedAt || t <= closedAt);
 
   const [resps, atts, exs, fbs, imps] = await Promise.all([
-    rowsIn<Resp>("poster_responses", "participant_id, poster_id, created_at, latency_ms", "participant_id", pids),
-    rowsIn<Att>("quiz_attempts", "participant_id, poster_id, created_at", "participant_id", pids, (q) => q.eq("is_correct", true)),
-    rowsIn<Ex>("card_exchanges", "scanner_id, scanned_id, confirmed_at", "scanner_id", pids, (q) => q.eq("status", "confirmed")),
-    rowsIn<Fb>("event_feedback", "participant_id, created_at", "participant_id", pids),
-    rowsIn<Imp>("rec_impressions", "participant_id, target_id, first_shown_at", "participant_id", pids),
+    rowsIn<Resp>("poster_responses", "participant_id, poster_id, created_at, latency_ms", "participant_id", pids, ["participant_id", "poster_id"]),
+    rowsIn<Att>("quiz_attempts", "participant_id, poster_id, created_at", "participant_id", pids, ["id"], (q) => q.eq("is_correct", true)),
+    rowsIn<Ex>("card_exchanges", "scanner_id, scanned_id, confirmed_at", "scanner_id", pids, ["id"], (q) => q.eq("status", "confirmed")),
+    rowsIn<Fb>("event_feedback", "participant_id, created_at", "participant_id", pids, ["participant_id"]),
+    rowsIn<Imp>("rec_impressions", "participant_id, target_id, first_shown_at", "participant_id", pids, ["participant_id", "target_id"]),
   ]);
 
   const by = <T, K extends keyof T>(rows: T[], key: K) => {

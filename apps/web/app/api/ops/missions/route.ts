@@ -19,6 +19,7 @@ import { opsGet, eventParticipantIds } from "../_lib";
 export const dynamic = "force-dynamic";
 
 const TOP = 20;
+const SCAN_PAGE = 1000;
 
 export async function GET() {
   return handle(async () => {
@@ -54,9 +55,14 @@ export async function GET() {
 
     // QR 처리 수와 탭 불일치 수. 명함 QR 을 이벤트 탭에서, 포스터 QR 을 명함 탭에서 읽은 경우가 불일치다
     const all = await eventParticipantIds();
-    const scans = await db().from("event_log").select("kind, payload").in("kind", ["card_scan", "poster_scan"]).in("participant_id", all);
-    if (scans.error) throw scans.error;
-    const list = scans.data ?? [];
+    // 스캔 기록은 1000행(Supabase 기본 최대)을 넘을 수 있어 id 순으로 끝까지 읽는다
+    const list: { kind: string; payload: unknown }[] = [];
+    for (let from = 0; ; from += SCAN_PAGE) {
+      const { data, error } = await db().from("event_log").select("kind, payload").in("kind", ["card_scan", "poster_scan"]).in("participant_id", all).order("id").range(from, from + SCAN_PAGE - 1);
+      if (error) throw error;
+      list.push(...((data ?? []) as { kind: string; payload: unknown }[]));
+      if (!data || data.length < SCAN_PAGE) break;
+    }
     const mismatch = list.filter((r) => {
       const via = (r.payload as { via?: string } | null)?.via;
       return (r.kind === "card_scan" && via === "event") || (r.kind === "poster_scan" && via === "card");
