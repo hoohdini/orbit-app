@@ -1,36 +1,32 @@
 "use client";
 // 후기 완료(피그마 R-3). 서버(/api/event/feedback)에 저장된 내 후기를 보여 준다.
 // 스탬프 문구는 서버 미션 판정(/api/poster/missions 의 feedback.done)을 따른다. 판정이 스탬프 없음이면 획득이라고 쓰지 않는다(10/22).
-// 동의 거부자의 후기는 사람과 잇지 않고 저장돼 서버에서 찾을 수 없으므로, 방금 낸 내용(store.ts lastSubmitted)을 보여 주고 스탬프는 없다고 안내한다.
 // 낸 기록이 없으면(주소로 바로 들어온 경우) 입력 화면으로 안내한다. 불러오지 못했으면 없다고 하지 않고 다시 시도를 띄운다.
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Stamp from "@/components/figma/Stamp";
 import Loading from "@/components/Loading";
 import { api } from "@/lib/client";
-import { lastSubmitted, loadFeedback, type Feedback } from "../store";
+import { loadFeedback, type Feedback } from "../store";
 import { ratingLabel, tagLabel } from "../choices";
 import { USE_MOCK, mockMissions } from "../../mock";
 import type { Missions } from "../../missions";
 
 // stamp: true 받음 · false 못 받음 · null 판정을 불러오지 못함
-type View = { kind: "loading" } | { kind: "error" } | { kind: "none" } | { kind: "shown"; f: Feedback; anonymous: boolean; stamp: boolean | null };
+type View = { kind: "loading" } | { kind: "error" } | { kind: "none" } | { kind: "shown"; f: Feedback; stamp: boolean | null };
 
-// 후기 스탬프 판정과 내 id(이 탭의 기록이 내 것인지 가림)
-async function stampOf(): Promise<{ stamp: boolean | null; pid?: string }> {
-  if (USE_MOCK) return { stamp: mockMissions().missions.find((x) => x.key === "feedback")?.done ?? null };
+// 후기 스탬프 판정
+async function stampOf(): Promise<boolean | null> {
+  if (USE_MOCK) return mockMissions().missions.find((x) => x.key === "feedback")?.done ?? null;
   const r = await api<Missions>("/api/poster/missions");
-  return r.ok ? { stamp: r.data.missions.find((x) => x.key === "feedback")?.done ?? null, pid: r.data.pid } : { stamp: null };
+  return r.ok ? (r.data.missions.find((x) => x.key === "feedback")?.done ?? null) : null;
 }
 
-// 서버 후기가 있으면 그것, 없으면 이 탭에서 방금 낸 익명 후기, 둘 다 없으면 없음 · 불러오기 실패
+// 서버 후기가 있으면 그것, 없으면 없음, 못 불러왔으면 불러오기 실패
 async function resolve(): Promise<View> {
-  const [r, { stamp, pid }] = await Promise.all([loadFeedback(), stampOf()]);
-  const last = lastSubmitted(pid);
-  if (r.ok && r.feedback) return { kind: "shown", f: r.feedback, anonymous: false, stamp };
-  if (last?.anonymous) return { kind: "shown", f: last.feedback, anonymous: true, stamp: false };
-  if (!r.ok) return last ? { kind: "shown", f: last.feedback, anonymous: false, stamp } : { kind: "error" };
-  return { kind: "none" };
+  const [r, stamp] = await Promise.all([loadFeedback(), stampOf()]);
+  if (!r.ok) return { kind: "error" };
+  return r.feedback ? { kind: "shown", f: r.feedback, stamp } : { kind: "none" };
 }
 
 export default function FeedbackDone() {
@@ -69,8 +65,8 @@ export default function FeedbackDone() {
       </main>
     );
 
-  const { f, anonymous, stamp } = v;
-  const sub = anonymous ? "이용 동의를 하지 않아 스탬프는 찍히지 않습니다" : stamp === true ? "후기 스탬프 획득" : stamp === false ? "스탬프는 찍히지 않았습니다" : "스탬프 상태를 불러오지 못했습니다";
+  const { f, stamp } = v;
+  const sub = stamp === true ? "후기 스탬프 획득" : stamp === false ? "스탬프는 찍히지 않았습니다" : "스탬프 상태를 불러오지 못했습니다";
 
   return (
     <main className="space-y-3 px-5 pt-5 pb-6">

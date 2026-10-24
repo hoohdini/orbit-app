@@ -1,5 +1,5 @@
 // 행사 후기 읽기 · 쓰기. 서버(/api/event/feedback)를 쓰고, USE_MOCK 이 켜져 있으면 이 기기에 저장한다.
-// 동의 거부자의 후기는 사람과 잇지 않고 저장해서(0019) 서버에서 다시 읽을 수 없다. 그래서 방금 낸 내용을 이 탭(sessionStorage)에 두고 완료 화면이 읽는다(10/22).
+// 동의 거부자는 후기를 낼 수 없다(서버 403 CONSENT_REFUSED, 10/23 민찬 결정).
 import { api } from "@/lib/client";
 import { USE_MOCK, loadFeedback as loadMock, saveFeedback as saveMock, type Feedback } from "../mock";
 
@@ -14,39 +14,19 @@ export async function loadFeedback(): Promise<Loaded> {
   return r.ok ? { ok: true, feedback: r.data.feedback } : { ok: false };
 }
 
-// 방금 낸 후기. anonymous 는 동의 거부자라 사람과 잇지 않고 저장된 경우(스탬프 없음). pid 는 낸 사람(같은 폰으로 다른 사람이 로그인하면 무시)
-export type Submitted = { feedback: Feedback; anonymous: boolean; pid: string };
-const LAST_KEY = "orbit:last-feedback";
-
-// pid 는 서버가 알려 준 지금 로그인한 사람(/api/poster/missions 의 pid). 다른 사람이 남긴 기록이면 null
-export function lastSubmitted(pid: string | undefined): Submitted | null {
-  try {
-    const raw = sessionStorage.getItem(LAST_KEY);
-    const v = raw ? (JSON.parse(raw) as Submitted) : null;
-    return v && pid && v.pid === pid ? v : null;
-  } catch {
-    return null;
-  }
-}
-
-function remember(v: Submitted) {
-  try {
-    sessionStorage.setItem(LAST_KEY, JSON.stringify(v));
-  } catch {}
-}
-
-// 저장에 성공하면 { anonymous }, 실패하면 { error: 화면에 보여 줄 문구 }
-export async function saveFeedback(f: Feedback): Promise<{ anonymous: boolean } | { error: string }> {
+// 저장에 성공하면 null, 실패하면 화면에 보여 줄 문구
+export async function saveFeedback(f: Feedback): Promise<string | null> {
   if (USE_MOCK) {
     saveMock(f);
-    return { anonymous: false };
+    return null;
   }
-  const r = await api<{ saved: true; anonymous: boolean; stamp: boolean; pid: string }>("/api/event/feedback", { json: { rating: f.rating, tags: f.tags, comment: f.comment || undefined } });
-  if (r.ok) {
-    remember({ feedback: f, anonymous: r.data.anonymous, pid: r.data.pid });
-    return { anonymous: r.data.anonymous };
-  }
-  if (r.code === "FEEDBACK_NOT_OPEN") return { error: "커피챗이 끝난 뒤 남길 수 있습니다" };
-  if (r.status === 403) return { error: "이용 동의 여부를 먼저 골라 주세요. 마이페이지에서 고를 수 있습니다" };
-  return { error: "후기를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요" };
+  const r = await api<{ saved: true }>("/api/event/feedback", { json: { rating: f.rating, tags: f.tags, comment: f.comment || undefined } });
+  if (r.ok) return null;
+  if (r.code === "FEEDBACK_NOT_OPEN") return "커피챗이 끝난 뒤 남길 수 있습니다";
+  if (r.code === "CONSENT_REFUSED") return REFUSED_TEXT;
+  if (r.status === 403) return "이용 동의 여부를 먼저 골라 주세요. 마이페이지에서 고를 수 있습니다";
+  return "후기를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요";
 }
+
+// 동의 거부자에게 보이는 안내(입력 화면 · 저장 실패 문구가 같이 쓴다)
+export const REFUSED_TEXT = "이용 동의를 하지 않아 후기를 남길 수 없습니다. 마이페이지에서 다시 동의하면 남길 수 있습니다";
