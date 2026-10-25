@@ -54,7 +54,7 @@ export default function MissionsPanel() {
       </p>
 
       <div className="rounded-xl border border-gray-200 bg-white p-3">
-        <p className="text-sm font-semibold">특별 시상 후보 <span className="font-normal text-gray-500">(제외 {d.excluded}명)</span></p>
+        <p className="text-sm font-semibold">특별 시상 후보(5명) <span className="font-normal text-gray-500">(제외 {d.excluded}명)</span></p>
         <p className="mt-0.5 text-xs text-gray-500">순위: 스탬프 많은 순 → 추천 인물 교환(최대 5명) 많은 순 → 포스터 유효 응답(5초 이상) 많은 순 → 셋이 같으면 공동 순위. 시각은 보지 않는다</p>
         <table className="mt-2 w-full text-xs">
           <thead className="text-left text-gray-500">
