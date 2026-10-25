@@ -66,7 +66,8 @@ export default function FeedbackDone() {
     );
 
   const { f, stamp } = v;
-  const sub = stamp === true ? "후기 스탬프 획득" : stamp === false ? "스탬프는 찍히지 않았습니다" : "스탬프 상태를 불러오지 못했습니다";
+  // 조기 퇴장한 사람의 후기는 스탬프가 없다(10/25 민찬 결정). 그때는 스탬프 줄을 따로 쓰지 않는다
+  const sub = stamp === true ? "후기 스탬프 획득" : stamp === false ? "" : "스탬프 상태를 불러오지 못했습니다";
 
   return (
     <main className="space-y-3 px-5 pt-5 pb-6">
@@ -74,7 +75,7 @@ export default function FeedbackDone() {
         <Stamp on={stamp === true} size={52} />
         <div>
           <p className="text-base font-bold text-navy">후기 등록 완료</p>
-          <p className="text-[13px] text-ink-2">{sub}</p>
+          {sub && <p className="text-[13px] text-ink-2">{sub}</p>}
         </div>
       </section>
 

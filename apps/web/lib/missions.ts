@@ -2,7 +2,7 @@
 // ① 포스터 관심도 2건(포스터 응답, 흥미 3단계 어떤 답이든)  ② 퀴즈 3개 맞히기(서로 다른 포스터)  ③ 명함 교환 5명(3명 · 5명에서 스탬프 한 칸씩)  ④ 행사 후기 남기기
 // 스탬프는 ① 1칸 + ② 1칸 + ③ 최대 2칸 + ④ 1칸 = 5칸이다. done_count 는 찍힌 스탬프 수, total 은 5다.
 // 교환은 성립한 것(status confirmed)만, 같은 상대는 한 번만 센다. 마감(ops_state mission_closed_at) 뒤의 기록은 세지 않는다.
-// 후기는 커피챗이 끝난 뒤(wrapup · award)에만 받으므로 마감 시각으로 자르지 않는다. 낸 기록이 있으면 스탬프다(10/22 민찬 결정, 받는 단계는 /api/event/feedback 이 막는다).
+// 후기는 커피챗이 끝난 뒤(wrapup · award)에 받고, 마감 시각(= 마무리로 넘긴 시각) 뒤에 낸 후기만 스탬프다(10/22 · 10/25 민찬 결정). 조기 퇴장한 사람은 그 전에도 후기를 낼 수 있지만 스탬프는 없다.
 // 진행도 = 찍힌 스탬프 수 / 5(10/22 민찬 결정. 예전 네 미션 달성률 평균은 버렸다). 스탬프 3칸이면 0.6. 참가자 화면 · 운영 콘솔 · 시상이 같은 값을 본다.
 // 시상 동점 처리 값(tiebreak, 10/23 민찬 결정, 순서는 lib/award.ts):
 //   recommended_exchanges  추천 인물과의 교환 수(최대 5). 추천 인물 = 교환이 성립하기 전에 내 오늘 만나면 좋을 분 목록(rec_impressions first_shown_at)에 떴던 상대.
@@ -120,7 +120,8 @@ export async function missionStatuses(pids: string[], closedAt: string | null): 
     // 추천 인물 교환: 성립 시각 전에 내 추천 목록에 떴던 상대(서로 다른 사람)
     const shownAt = new Map((impOf.get(pid) ?? []).map((i) => [i.target_id, i.first_shown_at]));
     const recPartners = new Set(myEx.filter((e) => shownAt.has(e.scanned_id) && shownAt.get(e.scanned_id)! <= e.confirmed_at!).map((e) => e.scanned_id));
-    const feedbackTimes = (fbOf.get(pid) ?? []).map((f) => f.created_at); // 마감으로 자르지 않는다(위 설명)
+    // 후기 스탬프는 마무리(= 마감 시각) 뒤에 낸 후기만. 그 전에 낸 후기는 조기 퇴장한 사람 것이라 스탬프를 주지 않는다(10/25 민찬 결정: 시상 때 없으니 의미 없음)
+    const feedbackTimes = (fbOf.get(pid) ?? []).map((f) => f.created_at).filter((t) => !!closedAt && t >= closedAt);
 
     const timesOf: Record<MissionKey, string[]> = { poster: posterTimes, quiz: quizTimes, exchange: exchangeTimes, feedback: feedbackTimes };
     const stampTimes: string[] = [];
