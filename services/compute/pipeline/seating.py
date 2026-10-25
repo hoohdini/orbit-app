@@ -193,8 +193,10 @@ def assign(A: np.ndarray, is_host: np.ndarray, cohort: np.ndarray | None = None,
 
 
 LEAD_PER_TABLE = 2               # 커피챗 테이블마다 주도 선배 2명(10/22 민찬 결정)
-LEAD_SLACK = 4                   # 후보 = 기수가 높은(숫자가 작은) 순 2k + 4명, 경계 기수는 동률 전원. 분야가 더 맞으면 조금 아래 사람도 쓴다
-LEAD_SKIP_COST = 0.25            # 위 2k 줄보다 한 자리 아래로 내려갈 때마다 빼는 값(분야 점수 표준편차 단위). 4자리 아래 = 1 표준편차
+LEAD_SLACK = 4                   # 후보 = 기수가 높은(숫자가 작은) 순 2k + 4명, 경계 기수는 동률 전원. 분야가 뚜렷이 더 맞으면 아래 기수도 쓴다
+LEAD_COHORT_COST = 1.0           # 기수 우선(10/25 민찬 결정): 뽑은 사람마다 후보 중 가장 높은 기수보다 한 기수 아래일 때마다 빼는 값(분야 점수 표준편차 단위).
+                                 # 9기 대신 10기를 쓰려면 분야 점수가 1 표준편차 넘게 나아야 한다. 값은 구현하며 정함: 실제 명단 분포(5기 2 · 6기 2 · 7기 3 · 8기 3 · 9기 9 · 10기 6,
+                                 # 20명 뽑기)에 무작위 분야 벡터 3종 × 200번이면 5~8기는 늘 뽑히고 10기는 1명 59% · 2명 37% · 3~4명 4%(0.5 면 8기가 9% 빠지고 10기 2명이 보통)
 LEAD_MET_COST = 2.0              # 두 주도 선배가 테이블토크에서 이미 같은 테이블이었으면 빼는 값. 가능하면 처음 보는 둘을 묶는다
 
 
@@ -208,12 +210,14 @@ class Leads:
 
 
 def pick_leads(F: np.ndarray, cohort: np.ndarray, k: int, forbid: np.ndarray | None = None, slack: int = LEAD_SLACK,
-               skip_cost: float = LEAD_SKIP_COST, met_cost: float = LEAD_MET_COST, exclude: np.ndarray | None = None) -> Leads:
-    """커피챗 주도 선배 고르기(10/22 민찬 결정: 테이블마다 2명, 높은 기수 = 숫자가 작은 기수, 분야가 맞는 둘끼리).
+               cohort_cost: float = LEAD_COHORT_COST, met_cost: float = LEAD_MET_COST, exclude: np.ndarray | None = None) -> Leads:
+    """커피챗 주도 선배 고르기(10/22 민찬 결정: 테이블마다 2명, 높은 기수 = 숫자가 작은 기수, 분야가 맞는 둘끼리. 10/25 민찬 결정: 기수가 먼저).
     F = 분야 유사도(n, n, 하는 일 벡터의 cos). cohort = 기수(-1 = 모름, 교수 · 외부 연사는 후보가 아님). k = 테이블 수.
     1. 후보 = 기수 순으로 2k + slack 명, 그 경계 기수와 같은 사람은 모두
-    2. 목적 = 테이블마다 두 사람의 분야 점수(후보끼리 표준화) − 이미 만난 사이 met_cost − 사람마다 2k 줄보다 내려간 자리 수 × skip_cost
-       (같은 기수는 같은 자리로 본다. 경계 기수 안에서는 분야로만 고른다)
+    2. 목적 = 테이블마다 두 사람의 분야 점수(후보끼리 표준화) − 이미 만난 사이 met_cost
+       − 뽑은 사람마다 (그 사람 기수 − 후보 중 가장 높은 기수) × cohort_cost
+       뽑는 수가 정해져 있으므로 윗기수 한 명을 아랫기수로 바꾸면 기수 차 × cohort_cost 만큼 손해다. 분야는 비슷한 기수끼리 고를 때만 가른다
+       (예: cohort_cost 1 이면 9기 → 10기는 분야 점수가 1 표준편차 넘게 나을 때만, 8기 → 10기는 2 표준편차 넘게. 같은 기수 안에서는 분야로만 고른다)
     3. 처음 = 위 2k 명을 분야 점수가 큰 쌍부터 묶음. 두 쌍의 짝 바꾸기 · 뽑힌 사람을 안 뽑힌 후보로 바꾸기를 나아지지 않을 때까지
     후보가 2k 명보다 적으면 앞 테이블부터 두 명씩 채우고 나머지 테이블은 주도 선배 없이 둔다.
     exclude(bool, n) = 후보에서 뺄 사람. 지연 체크인(checkins.is_late)한 사람을 뺀다(구현하며 정함: 늦게 오는 주도 선배는 테이블을 이끌 사람 없이 둔다)."""
@@ -229,13 +233,13 @@ def pick_leads(F: np.ndarray, cohort: np.ndarray, k: int, forbid: np.ndarray | N
     edge = int(cohort[cand[min(len(cand), need + slack) - 1]])
     pool = [i for i in cand if cohort[i] <= edge]
     pos = {i: sum(1 for j in pool if cohort[j] < cohort[i]) for i in pool}       # 더 높은 기수 수. 동률은 같은 자리
-    skip = {i: max(0, pos[i] - (need - 1)) for i in pool}
+    top = min(int(cohort[i]) for i in pool)
     sub = F[np.ix_(pool, pool)]
     off = sub[~np.eye(len(pool), dtype=bool)]
     sd = float(off.std()) if len(off) else 0.0
     Z = (F - float(off.mean())) / sd if sd > 1e-12 else np.zeros_like(F)
     w = lambda a, b: float(Z[a, b]) - met_cost * float(forbid[a, b])
-    cost = lambda i: skip_cost * skip[i]
+    cost = lambda i: cohort_cost * (int(cohort[i]) - top)
 
     chosen = pool[:need]
     left, pairs = list(chosen), []

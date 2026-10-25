@@ -178,14 +178,18 @@ def test_pick_leads_seniority_and_field():
     assert all(field[a] == field[b] for a, b in lp.pairs)          # 분야가 같은 둘
     assert lp.beyond == 0 and sorted(used) == list(range(2 * k))   # 위 8명이 분야 넷에 둘씩이면 그 8명
     assert len(lp.pool) == 2 * k + seating.LEAD_SLACK and n - 1 not in lp.pool
-    # 분야 0 이 위 8명 중 한 명뿐이면(4번을 분야 1 로) 9 ~ 12번째 분야 0 후보를 쓴다
+    # 분야 0 이 위 8명 중 한 명뿐이어도(4번을 분야 1 로) 기수가 4 이상 아래인 분야 0 후보로 내려가지 않는다(10/25 민찬 결정: 기수가 먼저)
     field2 = field.copy(); field2[4] = 1
     F2 = unit(np.eye(DIMS)[field2] + 0.05 * rng.normal(size=(n, DIMS))); F2 = F2 @ F2.T
     lp2 = seating.pick_leads(F2, cohort, k)
-    assert all(field2[a] == field2[b] for a, b in lp2.pairs) and lp2.beyond == 1 and lp2.skipped >= 1
-    # 이미 만난 둘(0 · 4)은 피한다
+    assert lp2.beyond == 0 and sorted(i for p in lp2.pairs for i in p) == list(range(2 * k))
+    # 기수 차를 없애면(cohort_cost 0) 후보 안에서 분야로만 골라 분야 0 후보를 아래에서 데려온다
+    lp2b = seating.pick_leads(F2, cohort, k, cohort_cost=0)
+    assert all(field2[a] == field2[b] for a, b in lp2b.pairs) and lp2b.beyond >= 1 and lp2b.skipped >= 1
+    # 이미 만난 둘(0 · 4)은 피한다. 만난 값 2 는 두 기수 차와 같아서, 같은 분야 · 같은 기수 대신할 사람(8번을 5기로)이 있을 때
     forbid = np.zeros((n, n), bool); forbid[0, 4] = forbid[4, 0] = True
-    lp3 = seating.pick_leads(F, cohort, k, forbid=forbid)
+    cohort3 = cohort.copy(); cohort3[8] = cohort3[4]
+    lp3 = seating.pick_leads(F, cohort3, k, forbid=forbid)
     assert lp3.met == 0 and not any({a, b} == {0, 4} for a, b in lp3.pairs)
     # 경계 기수가 같은 사람은 모두 후보, 후보가 모자라면 앞 테이블만
     tie = np.where(np.arange(n) < 6, np.arange(n) + 1, 7); tie[-1] = -1
@@ -193,6 +197,45 @@ def test_pick_leads_seniority_and_field():
     few = np.full(n, -1); few[:5] = 3
     lp4 = seating.pick_leads(F, few, k)
     assert len(lp4.pairs) == 2 and seating.pick_leads(F, np.full(n, -1), k).pairs == []
+
+
+ROSTER_COHORTS = [5] * 2 + [6] * 2 + [7] * 3 + [8] * 3 + [9] * 9 + [10] * 6   # 실제 명단의 10기까지 참석자 25명
+
+
+def test_pick_leads_seniority_first_real_roster():
+    """기수 우선(10/25 민찬 결정): 실제 명단 분포(5~9기 19명 + 10기 6명, 10테이블 = 20명)면 분야 벡터가 무엇이든 5~8기는 모두 뽑히고 10기는 조금만."""
+    k, n = 10, 70
+    tens = []
+    for seed in range(30):
+        rng = np.random.default_rng(seed)
+        cohort = np.full(n, -1)
+        cohort[:25] = ROSTER_COHORTS
+        cohort[25:60] = rng.integers(11, 20, 35)
+        F = unit(rng.normal(size=(n, 16))); F = F @ F.T
+        lp = seating.pick_leads(F, cohort, k)
+        used = {i for p in lp.pairs for i in p}
+        assert len(lp.pairs) == k and len(used) == 2 * k and max(cohort[i] for i in used) == 10
+        assert all(i in used for i in range(25) if cohort[i] <= 8), seed       # 5~8기는 늘
+        tens.append(sum(1 for i in used if cohort[i] == 10))
+    assert min(tens) >= 1 and max(tens) <= 3 and np.mean(tens) < 2, tens      # 9기는 19명뿐이라 10기 1명은 꼭, 그 이상은 드물게
+
+
+def test_pick_leads_lower_cohort_only_for_clear_field_fit():
+    """10기가 9기를 대신하는 건 분야가 뚜렷이 더 맞을 때만: 9기 한 명(18번)만 혼자 다른 분야이고 10기 둘(19 · 20번)이 같은 분야면 18번 대신 10기 둘."""
+    k, DIMS = 10, 16
+    field = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 10, 9, 9, 11, 12, 13, 14]   # 0~9 = 5~8기, 10~18 = 9기, 19~24 = 10기
+    rng = np.random.default_rng(5)
+    F = unit(np.eye(DIMS)[field] + 0.05 * rng.normal(size=(25, DIMS))); F = F @ F.T
+    cohort = np.array(ROSTER_COHORTS)
+    lp = seating.pick_leads(F, cohort, k)
+    used = {i for p in lp.pairs for i in p}
+    assert used == (set(range(18)) | {19, 20}) and all(field[a] == field[b] for a, b in lp.pairs)
+    assert lp.skipped == 1                                                       # 빠진 윗기수 = 18번(9기)
+    # 같은 분야 10기가 한 명뿐이면(20번을 다른 분야로) 18번(9기)을 빼지 않는다
+    field2 = list(field); field2[20] = 15
+    F2 = unit(np.eye(DIMS)[field2] + 0.05 * rng.normal(size=(25, DIMS))); F2 = F2 @ F2.T
+    used2 = {i for p in seating.pick_leads(F2, cohort, k).pairs for i in p}
+    assert set(range(19)) <= used2 and sum(1 for i in used2 if cohort[i] == 10) == 1
 
 
 def test_pick_leads_excludes_late():

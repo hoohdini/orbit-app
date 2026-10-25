@@ -515,8 +515,9 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     else:
         # 10테이블 고르게(적은 인원 리허설은 테이블당 4명이 되도록 테이블 수를 줄인다, even_sizes)
         sizes = seating.even_sizes(n, COFFEECHAT_TABLES)
-        # 주도 선배(10/22 민찬 결정): 테이블마다 2명. 기수가 높은 순 2k + 4명 후보 중 하는 일(Offer) 벡터가 가까운 둘을 묶고,
-        #   2k 줄보다 아래 사람을 쓰면 조금 감점해 기수가 앞서게 한다. 테이블토크에서 만난 둘은 되도록 묶지 않는다(seating.pick_leads)
+        # 주도 선배(10/22 민찬 결정): 테이블마다 2명. 기수가 높은 순 2k + 4명 후보 중 하는 일(Offer) 벡터가 가까운 둘을 묶는다.
+        #   기수가 먼저(10/25 민찬 결정): 뽑은 사람마다 가장 높은 기수보다 한 기수 아래일 때마다 감점해, 분야는 비슷한 기수끼리만 가른다.
+        #   테이블토크에서 만난 둘은 되도록 묶지 않는다(seating.pick_leads)
         #   지연 체크인한 사람(늦게 오는 사람)은 주도 선배에서 뺀다(구현하며 정함: 선배가 늦으면 테이블을 이끌 사람이 없다)
         lp = seating.pick_leads(O @ O.T, cohort, len(sizes), forbid=forbid, exclude=is_late)
         anchors = {i: t for t, pair in enumerate(lp.pairs) for i in pair}
