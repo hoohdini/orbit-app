@@ -69,11 +69,11 @@ export async function getMyTable(id: string, round: "tabletalk" | "coffeechat") 
 }
 
 // 첫 로그인이 곧 체크인이다. 이미 있으면 그대로 둔다.
-// 커피챗 배정이 공개된 뒤인데 커피챗 자리가 없으면 바로 앉힌다(10/25 민찬 결정, lib/coffeechatLate.ts). 실패해도 로그인은 막지 않는다
+// 체크인이 이번에 새로 생겼고 커피챗 배정이 공개된 뒤면 커피챗 자리를 바로 준다(10/25 민찬 결정, lib/coffeechatLate.ts). 실패해도 로그인은 막지 않는다
 export async function ensureCheckin(id: string) {
-  const { error } = await db().from("checkins").upsert({ participant_id: id }, { onConflict: "participant_id", ignoreDuplicates: true });
+  const { data, error } = await db().from("checkins").upsert({ participant_id: id }, { onConflict: "participant_id", ignoreDuplicates: true }).select("participant_id");
   if (error) throw error;
-  await seatLateCoffeechat(id);
+  if (data?.length) await seatLateCoffeechat(id);
 }
 
 export function currentEventId() {

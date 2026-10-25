@@ -19,7 +19,7 @@
 
 ## 세션
 
-- 로그인: `POST /api/onboarding/login` (display_name, pin). 성공 시 httpOnly 쿠키 `orbit_session`(서명된 JWT, participant id, is_admin, 24시간). 첫 로그인은 checkins 에 자동 기록된다. 커피챗 배정이 공개된 뒤인데 커피챗 자리가 없으면 그때 자리를 준다(아래 늦게 온 사람의 커피챗 자리, 10/25).
+- 로그인: `POST /api/onboarding/login` (display_name, pin). 성공 시 httpOnly 쿠키 `orbit_session`(서명된 JWT, participant id, is_admin, 24시간). 첫 로그인은 checkins 에 자동 기록된다. 이 첫 체크인이 커피챗 배정 공개 뒤면 그때 커피챗 자리를 준다(아래 늦게 온 사람의 커피챗 자리, 10/25).
 - 로그아웃: `POST /api/onboarding/logout`.
 - 관리자 경로(`/api/ops/*`)는 `requireAdmin()`.
 
@@ -130,14 +130,14 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 
 | 때 | 어디서 |
 |---|---|
-| 첫 로그인 | /api/onboarding/login (ensureCheckin) |
+| 첫 로그인 | /api/onboarding/login (ensureCheckin, 체크인이 이번에 새로 생겼을 때만) |
 | 운영자 수동 체크인 | /api/ops/checkin (처음 체크인할 때만) |
 | 워크인 추가 | /api/ops/add-participant (assign_seat 기본 true) |
-| 커피챗 계산 뒤 · 공개 전에 들어와 자리가 없는 사람 | /api/state 다음 폴링(구현하며 정함) |
+| 커피챗 계산 뒤 · 공개 전에 들어와 자리가 없는 사람 | /api/state 다음 폴링(구현하며 정함, 민찬님 확정 전. 이미 앉은 사람은 추가 쿼리 없음) |
 
 - 자리 고르기: 계산 서비스 POST /coffeechat/late 에 묻는다(같은 COMPUTE_URL · X-Compute-Secret, 2.5초 제한). 행사 전 정보만으로 테이블 구성원과의 점수 평균이 가장 높은 테이블. 인원이 (가장 적은 테이블 + 1) 이하인 테이블만, 같은 기수 상한(3)을 넘지 않는 테이블 우선. 테이블토크 동석자 금지는 걸지 않는다(테이블토크에 없었다)
 - 계산 서비스가 답이 없거나 느리거나 409 · 오류면 인원이 가장 적은 테이블(같으면 번호가 작은 쪽). reason.text 는 늦게 와서 배정(계산 서비스 응답 없음 · 인원이 가장 적은 테이블), reason.fallback true
-- 좌석 = 그 테이블의 (가장 큰 좌석 번호, 인원) 중 큰 쪽 + 1. 앉아 있는 사람 번호는 그대로. 동시에 같은 번호를 받으면 id 가 큰 쪽을 다음 번호로 옮긴다
+- 좌석 = 그 테이블의 (가장 큰 좌석 번호, 인원) 중 큰 쪽 + 1. 계산 서비스 응답(또는 시간 초과) 뒤에 자리를 다시 읽어 센다. 앉아 있는 사람 번호는 그대로. 동시에 여럿이 같은 번호를 받으면 한 명(원래 배정된 사람 → id 가 가장 작은 사람)만 남기고 나머지를 차례로 다음 번호로 옮긴 뒤, 내 좌석 번호를 다시 읽어 돌려준다
 - table_members.reason: text(예: 늦게 와서 배정 · 잘 맞는 사람 OO), late_join true, table_no, seat_no, best_mate · best_score · avg_score(계산 서비스가 고른 경우). 주도 선배(lead)로 두지 않는다
 - (version, participant_id) 기본 키로 두 번 들어가지 않는다(upsert ignoreDuplicates). event_log 에 coffeechat_late_seat {version, table_no, seat_no, fallback, compute_status, ms, by}, 실패하면 coffeechat_late_seat_fail
 - 건너뜀: 공개된 커피챗이 없을 때, 행사 직후 추천(params.kind final)이 공개됐을 때, 단계가 마무리 · 시상(wrapup · award)일 때. 커피챗이 끝나 자리가 쓸모없고, final 은 원본 그룹을 그대로 쓰는 추천 전용 버전이기 때문이다(구현하며 정함)
