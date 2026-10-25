@@ -35,9 +35,16 @@ export default function MissionsPanel() {
   const [d, setD] = useState<Data | null>(null);
   const [csv, setCsv] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
-  const [armed, setArmed] = useState(false);
+  const [armed, setArmed] = useState<string | null>(null); // 누른 때의 추첨 대상(drawKey). 대상이 바뀌면 저절로 풀린다
   const [busy, setBusy] = useState(false);
   const load = useCallback(() => api<Data>("/api/ops/missions").then((r) => (r.ok ? setD(r.data) : setMsg(r.message))), []);
+
+  // 한 번 누른 뒤 10초 안에 다시 누르지 않으면 푼다
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(null), 10_000);
+    return () => clearTimeout(t);
+  }, [armed]);
 
   useEffect(() => {
     load();
@@ -54,8 +61,8 @@ export default function MissionsPanel() {
   }
 
   // 두 번 눌러야 뽑는다(포스터 추첨과 같음). 저장된 결과가 지금 대상과 다르면 redo 로 다시 뽑는다
-  async function drawAward(redo: boolean) {
-    if (!armed) return setArmed(true);
+  async function drawAward(redo: boolean, key: string) {
+    if (armed !== key) return setArmed(key);
     setBusy(true);
     try {
       const r = await api<{ reused: boolean }>("/api/ops/award-draw", { json: { redo } });
@@ -64,7 +71,7 @@ export default function MissionsPanel() {
       load();
     } finally {
       setBusy(false);
-      setArmed(false);
+      setArmed(null);
     }
   }
 
@@ -77,6 +84,9 @@ export default function MissionsPanel() {
   const pickedSet = new Set(live?.picked ?? []);
   const poolSet = new Set(draw?.pool ?? []);
   const mark = (id: string) => (sureSet.has(id) ? "확정" : poolSet.has(id) ? (live ? (pickedSet.has(id) ? "추첨 당첨" : "추첨 탈락") : "추첨 대상") : "");
+  const drawKey = JSON.stringify([draw, result]);
+  const isArmed = armed === drawKey;
+  const canDraw = d.window === "closed"; // 미션 마감(마무리 · 시상) 뒤에만 뽑는다(API 도 같음)
   const winners = d.candidates.filter((c) => sureSet.has(c.id) || pickedSet.has(c.id));
 
   return (
@@ -107,14 +117,15 @@ export default function MissionsPanel() {
             <>
               <button
                 type="button"
-                disabled={busy}
-                onClick={() => drawAward(!!stale)}
-                className={`ml-auto rounded-lg px-3 py-1 font-semibold text-white disabled:bg-gray-300 ${armed ? "bg-red-600" : "bg-black"}`}
+                disabled={busy || !canDraw}
+                onClick={() => drawAward(!!stale, drawKey)}
+                className={`ml-auto rounded-lg px-3 py-1 font-semibold text-white disabled:bg-gray-300 ${isArmed ? "bg-red-600" : "bg-black"}`}
               >
-                {armed ? "정말 뽑기 (다시 누름)" : stale ? "다시 추첨" : "추첨"}
+                {isArmed ? "정말 뽑기 (다시 누름)" : stale ? "다시 추첨" : "추첨"}
               </button>
-              {armed && (
-                <button type="button" onClick={() => setArmed(false)} className="text-gray-500 underline">
+              {!canDraw && <span className="text-gray-500">미션 마감(마무리) 뒤에 뽑는다</span>}
+              {isArmed && (
+                <button type="button" onClick={() => setArmed(null)} className="text-gray-500 underline">
                   취소
                 </button>
               )}
