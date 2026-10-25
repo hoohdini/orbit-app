@@ -1,6 +1,6 @@
 "use client";
 // 마이페이지 탭 첫 화면(피그마 마이페이지 탭). 내 명함은 피그마 명함 시안 A(ClassicCard)로 바꿨다(10/21). 운영자에게는 운영 콘솔 줄을 더한다
-// 행사 중(등록 · 개회 ~ 커피챗)에는 내 계정 위에 일찍 나가요 한 줄을 둔다(LeaveEarly, 10/25 민찬 결정)
+// 행사 중(등록 · 개회 ~ 커피챗)에는 내 계정 위에 조기 퇴장 한 줄을 둔다(LeaveEarly, 10/25 민찬 결정)
 import { useEffect, useState } from "react";
 import { api, type Me } from "@/lib/client";
 import Loading from "@/components/Loading";

@@ -19,7 +19,7 @@
 | profiles | offer_text(하는 일), seek_text(찾는 사람), 주제 태그, 관계 태그, 링크, card_edit(0014) | 사전 적재, 마이페이지 명함 편집(card_edit 만) | card_edit 은 마이페이지에서 고친 offer_text · seek_text · topic_tags · seek_tags(10/21, Seek 태그 따로). 명함에만 보이고 계산 서비스는 원래 칸만 읽는다 |
 | sids | 주소 두 개와 벡터 두 개, 코드북 버전 | 계산 서비스(전날 배치) | 당일 재발급 없음 |
 | labels | 주소 앞자리별 사람이 읽는 라벨 | 전날 배치, 운영 검수 | |
-| checkins | 체크인 시각, 지연 여부, 일찍 나감(left_at · left_by) | 첫 로그인이 자동 기록, 운영 콘솔은 지연 표시·수동 추가·나감 표시, 참가자 본인은 일찍 나가요(/api/checkin/leave) | 배정과 궤도는 체크인 명단만 쓴다. `left_at` · `left_by` 는 0019(10/25 민찬 결정): 일찍 나간다고 표시한 시각과 표시한 사람(null = 본인, 아니면 운영자 id). 되돌리면 둘 다 null. left_at 이 있으면 커피챗 계산(final 아님)이 앉히지 않고 주도 선배로도 뽑지 않으며 늦게 온 사람 자리도 주지 않는다. 커피챗 공개 뒤에 나가면 공개된 자리는 그대로(빈자리). 행사 직후 추천(final)은 빼지 않는다 |
+| checkins | 체크인 시각, 지연 여부, 일찍 나감(left_at · left_by) | 첫 로그인이 자동 기록, 운영 콘솔은 지연 표시·수동 추가·나감 표시, 참가자 본인은 조기 퇴장(/api/checkin/leave) | 배정과 궤도는 체크인 명단만 쓴다. `left_at` · `left_by` 는 0019(10/25 민찬 결정): 일찍 나간다고 표시한 시각과 표시한 사람(null = 본인, 아니면 운영자 id). 되돌리면 둘 다 null. left_at 이 있으면 커피챗 계산(final 아님)이 앉히지 않고 주도 선배로도 뽑지 않으며 늦게 온 사람 자리도 주지 않는다. 커피챗 공개 뒤에 나가면 공개된 자리는 그대로(빈자리). 행사 직후 추천(final)은 빼지 않는다 |
 | assign_versions | 배정 버전(라운드, 상태, 파라미터, 행사 번호 event_id) | 계산 서비스 생성, 운영자 publish | event_id 는 0007. 행사가 섞인 개발 DB 에서도 자기 행사 배정만 본다 |
 | codebooks | 주소(SID)를 정하는 기준표. 버전, 행사, 평균 벡터, 층별 대표 지점, 활성 여부 | 계산 서비스(전날 배치) | 0007. 행사마다 활성 하나. 체크인 마감 때 같은 기준으로 현장 등록자를 붙인다 |
 | tables_meta | 테이블 라벨과 대화거리, 궤도용 대표 라벨 | 계산 서비스 | label 은 화면용(지금은 비움). orbit_prefix · orbit_label 은 0009, 궤도 화면 전용(v0.2 B-08) |
@@ -62,7 +62,7 @@
 | ops(콘솔) | 전부 | checkins, assign_versions(공개 · 철회 · 수동 교체 복사본), table_members · tables_meta · pair_scores · recs · group_reasons(수동 교체 복사본, 워크인 좌석), ops_state |
 | event | event_feedback | event_feedback, event_log |
 | 공용 상태 API(/api/state) · 미션(lib/missions.ts) | ops_state, current_tables, assign_versions, poster_responses, quiz_attempts, card_exchanges, event_feedback, checkins(left_at) | 없음 |
-| 공용 일찍 나가요(/api/checkin/leave) | checkins, ops_state | checkins.left_at · left_by(본인 것만), event_log |
+| 공용 조기 퇴장(/api/checkin/leave) | checkins, ops_state | checkins.left_at · left_by(본인 것만), event_log |
 | compute | participants, profiles, checkins, card_exchanges, satisfaction, posters, poster_responses, poster_interest(응답이 없을 때), labels | sids, labels, codebooks, assign_versions, tables_meta, table_members, pair_scores, recs, group_reasons, ops_state |
 
 ## 미정이라 보류한 것

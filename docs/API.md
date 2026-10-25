@@ -28,8 +28,8 @@
 | 모듈 | 경로 | 방법 | 입력 | 응답 data | 상태 |
 |---|---|---|---|---|---|
 | 공용 | /api/health | GET | 없음 | { version, db: ok/fail } | 있음 |
-| 공용 | /api/state | GET | 없음 | { phase, phase_label, phase_at, notice: {text, expires_at} 또는 null, consent(agreed · refused · pending), share(명함 공개 및 추천 활용, 0014), tabletalk: {version, table_no, seat_no} 또는 null, coffeechat: {version, group_no, seat_no(10/23 부터, 예전 버전은 null)} 또는 null, published: {tabletalk, coffeechat}(공개 버전 번호 또는 null), recs_open, checked_in, left_at(일찍 나간다고 표시한 시각 또는 null, 0019), leave_open(일찍 나가요를 받는 단계인지), leave_available(DB 에 0019 가 있는지, false 면 화면이 버튼을 숨김), mission: {window(not_started · open · closed), done_count, total, progress(= done_count / total, 10/22)}, now } 참가자 화면이 15초마다 부르는 상태 하나(v0.2 B-09). 상태 띠(H-01) · 추천 접힘(H-04) · 만족도 노출(N-03) · 새 배정 안내(N-06, published 와 기기에 저장한 확인 버전을 비교) · 미션(E-01) · 일찍 나가요(10/25, left_at 이 있으면 다시 참여할게요를 보임) | 있음 |
-| 공용 | /api/checkin/leave | POST | undo?(기본 false) | { left_at } 일찍 나가요(10/25 민찬 결정, 아래 일찍 나가는 사람 절). 본인 표시(left_by null), undo true 면 다시 참여(left_at 을 비움). 이미 같은 상태면 그대로 두고 같은 값(쓰기에 상태 조건을 걸어 동시에 두 번 눌러도 처음 시각 유지). 체크인 안 했으면 409 NOT_CHECKED_IN, 등록 · 개회 ~ 커피챗 단계가 아니면 409 LEAVE_NOT_OPEN, DB 에 0019 가 없으면 503 LEAVE_UNAVAILABLE. event_log checkin_leave · checkin_leave_undo | 있음 |
+| 공용 | /api/state | GET | 없음 | { phase, phase_label, phase_at, notice: {text, expires_at} 또는 null, consent(agreed · refused · pending), share(명함 공개 및 추천 활용, 0014), tabletalk: {version, table_no, seat_no} 또는 null, coffeechat: {version, group_no, seat_no(10/23 부터, 예전 버전은 null)} 또는 null, published: {tabletalk, coffeechat}(공개 버전 번호 또는 null), recs_open, checked_in, left_at(일찍 나간다고 표시한 시각 또는 null, 0019), leave_open(조기 퇴장를 받는 단계인지), leave_available(DB 에 0019 가 있는지, false 면 화면이 버튼을 숨김), mission: {window(not_started · open · closed), done_count, total, progress(= done_count / total, 10/22)}, now } 참가자 화면이 15초마다 부르는 상태 하나(v0.2 B-09). 상태 띠(H-01) · 추천 접힘(H-04) · 만족도 노출(N-03) · 새 배정 안내(N-06, published 와 기기에 저장한 확인 버전을 비교) · 미션(E-01) · 조기 퇴장(10/25, left_at 이 있으면 재입장를 보임) | 있음 |
+| 공용 | /api/checkin/leave | POST | undo?(기본 false) | { left_at } 조기 퇴장(10/25 민찬 결정, 아래 일찍 나가는 사람 절). 본인 표시(left_by null), undo true 면 다시 참여(left_at 을 비움). 이미 같은 상태면 그대로 두고 같은 값(쓰기에 상태 조건을 걸어 동시에 두 번 눌러도 처음 시각 유지). 체크인 안 했으면 409 NOT_CHECKED_IN, 등록 · 개회 ~ 커피챗 단계가 아니면 409 LEAVE_NOT_OPEN, DB 에 0019 가 없으면 503 LEAVE_UNAVAILABLE. event_log checkin_leave · checkin_leave_undo | 있음 |
 | onboarding | /api/onboarding/login | POST | display_name, pin(숫자 4자리), participant_id? | { participant: {id, display_name, role, is_admin}, consented } 또는 동명이인이면 { choose: [{id, display_name, affiliation, role, cohort}] }. 실패 401, 5회 실패 후 10분 423 | 있음 |
 | onboarding | /api/onboarding/logout | POST | 없음 | { ok } | 있음 |
 | onboarding | /api/onboarding/consent | POST | agreed: true 또는 false, item?(collect · share) | { consent, consent_at, consent_refused_at, share, share_consent_at, share_refused_at } 거부도 저장한다(v0.2 H-00). 다시 동의하면 거부 기록을 지운다. 10/11(0014) 동의 두 항목: collect = 개인정보 수집 및 이용, share = 명함 공개 및 추천 활용. item 을 빼면 두 항목을 같이 정한다(온보딩), 마이페이지 내 정보는 항목별로 보낸다 | 있음 |
@@ -149,7 +149,7 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 
 ## 일찍 나가는 사람 (10/25 민찬 결정)
 
-checkins.left_at(0019)이 있으면 일찍 나간 사람이다. 본인이 마이 탭의 일찍 나가요(/api/checkin/leave)를 누르거나 운영자가 체크인 칸에서 나감 표시(/api/ops/checkin/leave)를 한다. 되돌리면 left_at 이 비고 행사장에 있는 사람으로 돌아간다.
+checkins.left_at(0019)이 있으면 일찍 나간 사람이다. 본인이 마이 탭의 조기 퇴장(/api/checkin/leave)를 누르거나 운영자가 체크인 칸에서 나감 표시(/api/ops/checkin/leave)를 한다. 되돌리면 left_at 이 비고 행사장에 있는 사람으로 돌아간다.
 
 | 어디 | 나감 표시한 사람 |
 |---|---|
