@@ -1,5 +1,5 @@
-// POST /api/checkin/leave { undo? }  참가자 본인이 일찍 나간다고 표시한다(10/25 민찬 결정, checkins.left_at · 0019).
-// undo 가 없거나 false 면 left_at = 지금 · left_by = null(본인). undo: true 면 다시 참여(left_at · left_by 를 비운다).
+// POST /api/checkin/leave { undo? }  참가자 본인이 조기 퇴장을 표시한다(10/25 민찬 결정, checkins.left_at · 0019).
+// undo 가 없거나 false 면 left_at = 지금 · left_by = null(본인). undo: true 면 재입장(left_at · left_by 를 비운다).
 // 체크인한 사람만(아니면 409 NOT_CHECKED_IN). 등록 · 개회부터 커피챗까지만 받는다(lib/phase.ts LEAVE_OPEN, 아니면 409 LEAVE_NOT_OPEN).
 // 0019 가 DB 에 없으면 503 LEAVE_UNAVAILABLE.
 // 표시하면 커피챗 계산이 이 사람을 앉히지 않고, 늦게 온 사람 자리(lib/coffeechatLate.ts)도 주지 않는다. 이미 공개된 커피챗 자리는 그대로 둔다(빈자리).

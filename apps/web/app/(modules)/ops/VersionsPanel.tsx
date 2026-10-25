@@ -107,7 +107,7 @@ export default function VersionsPanel() {
       const isLead = (id: string, t: typeof ta) => !!t?.members.find((m) => m.id === id)?.lead;
       const [la, lb] = [isLead(pick[0], ta), isLead(pick[1], tb)];
       if (ta && tb && ta.table_no !== tb.table_no && la !== lb) {
-        const leads = (t: NonNullable<typeof ta>) => t.members.filter((m) => m.lead).length;
+        const leads = (t: NonNullable<typeof ta>) => t.members.filter((m) => m.lead && !m.left).length; // 나간 선배는 세지 않는다
         const [from, to] = la ? [ta, tb] : [tb, ta];                         // from = 선배가 떠나는 테이블, to = 선배가 오는 테이블
         if (!window.confirm(`주도 선배와 일반 참가자를 바꾸면 ${to.table_no}번 테이블은 주도 선배 ${leads(to) + 1}명, ${from.table_no}번 테이블은 ${leads(from) - 1}명이 된다. 선배끼리 바꾸는 것을 권한다. 그래도 바꿀까?`)) return;
       }
