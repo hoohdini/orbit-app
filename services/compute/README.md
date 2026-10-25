@@ -177,6 +177,10 @@ python sim/make_seat_eval_dataset.py                 # 가상 80명 CSV(적재 �
   계산 기록 params: leads · lead_pool(후보 수) · lead_beyond(2k 줄 밖에서 뽑은 수) · lead_skipped(뽑힌 사람보다 기수가 높은데 빠진 후보) · lead_met(만난 둘을 묶은 테이블)
   · lead_seating(아래 좌석 방식) · late_checkins(지연 체크인 수) · seat_neighbor_sum(테이블별 이웃 점수 합)
 - 지연 체크인(`checkins.is_late`, 콘솔 수동 체크인의 지연 체크인으로 표시)한 사람은 커피챗 배정에는 들어가고 주도 선배로는 뽑지 않는다(구현하며 정함: 늦게 오는 선배는 테이블을 이끌 사람 없이 둔다, `pick_leads(exclude=)`)
+- 일찍 나간 사람(10/25 민찬 결정, `checkins.left_at` · 0019, `repo.left_checkins`): 커피챗 계산(final 아님)은 체크인 명단에서 빼고 돌린다. 앉지 않고 주도 선배 후보도 아니며
+  그 버전 추천 목록 · 그룹 근거에도, 남의 커피챗 추천에도 없다. params.left · 응답 left 에 뺀 수. 커피챗 공개 뒤에 나간 사람의 자리는 그대로 둔다(웹이 고치지 않음, 빈자리).
+  행사 직후 추천(final)은 빼지 않는다(구현하며 정함: 원본 자리가 있으면 그대로, 없으면 자리 없이 추천만 = late 에 셈. 행사 뒤 연락할 사람 추천은 일찍 간 사람에게도 쓸모가 있다).
+  0019 전 DB(left_at 칸 없음)면 나간 사람이 없는 것으로 본다
 - 커피챗 좌석(10/23, `seating.seat_order(fixed=)` · `lead_fixed`): 테이블토크와 같이 원형 테이블 이웃 점수 합이 가장 큰 순서를 `table_members.seat_no` 에 저장한다.
   주도 선배 두 자리를 먼저 정하고 나머지만 맞춘다(16명까지 정확 계산). 방식은 환경변수 `COFFEE_LEAD_SEATING`:
   facing(기본, 마주 보게. 첫 선배 좌석 1번 · 둘째 선배 1 + 인원 ÷ 2 내림번, 8명이면 1 · 5번, 7명이면 1 · 4번. 10/23 운영진 확정) · adjacent(1 · 2번) · free(첫 선배만 1번, 둘째는 점수로).
@@ -187,9 +191,10 @@ python sim/make_seat_eval_dataset.py                 # 가상 80명 CSV(적재 �
   DB 에 쓰지 않고 table_no · seat_no · reason 만 돌려준다(웹 lib/coffeechatLate.ts 가 공개 버전 table_members 에 쓰고, 2.5초 안에 답이 없으면 인원이 가장 적은 테이블로).
   점수는 행사 전 정보만: 저장된 벡터(sids)로 커피챗과 같은 좌석 점수(seat_directional → table_matrix min). 그날 신호는 없고 테이블토크 동석자 금지도 걸지 않는다(테이블토크에 없었다).
   인원이 (가장 적은 테이블 + 1) 이하인 테이블 중 같은 기수가 상한(3)을 넘지 않는 곳(없으면 상한 무시) → 구성원과의 점수 평균 최대(같으면 인원 적은 곳 → 번호 작은 곳).
-  좌석 = max(가장 큰 좌석 번호, 인원) + 1, reason = {text: 늦게 와서 배정 · 잘 맞는 사람 OO, late_join, best_mate, best_score, avg_score, cohort_over}. 주도 선배로 두지 않는다.
+  좌석 = max(가장 큰 좌석 번호, 행 수) + 1, reason = {text: 늦게 와서 배정 · 잘 맞는 사람 OO, late_join, best_mate, best_score, avg_score, cohort_over}. 주도 선배로 두지 않는다.
   저장된 벡터가 없는 현장 등록자는 모델이 이미 올라와 있을 때만 프로필을 임베딩한다(요청 안에서 모델을 올리지 않음, WARM_MODEL=1 권장). 프로필이 비었거나 모델이 없으면 409.
-  공개된 커피챗이 없거나 행사 직후 추천(final)이 공개됐으면 409. 이미 자리가 있으면 already true 로 그 자리
+  공개된 커피챗이 없거나 행사 직후 추천(final)이 공개됐으면 409. 이미 자리가 있으면 already true 로 그 자리.
+  본인이 일찍 나간다고 표시했으면 409(웹은 부르기 전에 걸러 앉히지 않는다). 나간 구성원은 인원 · 같은 기수 · 점수 평균에서 빼고(빈자리), 좌석 번호는 나간 사람 번호까지 센 다음 번호(구현하며 정함)
 - 만족도 응답률이 `min_response_rate`(기본 0.5) 미만이면 만남 반영 없이 텍스트 점수로만 커피챗을 낸다(대체 경로)
 - 요청 본문 선택값: `table_mode`(min · avg · harmonic) · `random_ratio` · `rec_mode`(없으면 `REC_SCORE`) · `beta`
 - 코드북 버전 이름은 `cb-<행사>-<날짜시각>`. 배정 버전에 행사 번호(`assign_versions.event_id`)를 남겨 개발 DB 에 행사가 여러 개 섞여도 서로 집지 않는다(0007)

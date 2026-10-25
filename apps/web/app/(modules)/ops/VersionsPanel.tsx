@@ -23,6 +23,7 @@ type Metrics = {
   reunion_pairs: number | null;
   cohort_over: number;
   not_checked_in: number;
+  left?: number; // 일찍 나간다고 표시한 사람(0019)
 };
 type Detail = {
   version: number;
@@ -33,7 +34,7 @@ type Detail = {
     table_no: number;
     mean_score?: number | null;
     check?: boolean;
-    members: { id: string; display_name: string; affiliation: string | null; role: string; seat_no?: number | null; random: boolean; lead?: boolean; late_join?: boolean; reason: string }[];
+    members: { id: string; display_name: string; affiliation: string | null; role: string; seat_no?: number | null; random: boolean; lead?: boolean; late_join?: boolean; left?: boolean; reason: string }[];
   }[];
 };
 
@@ -165,7 +166,7 @@ export default function VersionsPanel() {
                       <Metric label="그룹" value={`${open.metrics.groups}개 · ${open.metrics.size_min}~${open.metrics.size_max}명`} />
                       <Metric label="평균 · 최저 점수" value={`${open.metrics.mean_score ?? "-"} · ${open.metrics.low_score ?? "-"}`} />
                       <Metric label="재회 쌍 · 기수 초과" value={`${open.metrics.reunion_pairs ?? "-"} · ${open.metrics.cohort_over}`} warn={(open.metrics.reunion_pairs ?? 0) > 0 || open.metrics.cohort_over > 0} />
-                      <Metric label="체크인 안 한 사람" value={`${open.metrics.not_checked_in}명`} />
+                      <Metric label="체크인 안 한 사람 · 나감" value={`${open.metrics.not_checked_in}명 · ${open.metrics.left ?? 0}명`} />
                     </div>
                   )}
                   <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -197,6 +198,7 @@ export default function VersionsPanel() {
                             {m.lead && <span className="ml-1 rounded bg-purple-100 px-1 text-[10px] text-purple-800">주도</span>}
                             {m.random && <span className="ml-1 rounded bg-blue-100 px-1 text-[10px] text-blue-800">무작위</span>}
                             {m.late_join && <span className="ml-1 rounded bg-orange-100 px-1 text-[10px] text-orange-800">늦게 옴 · 의자 추가</span>}
+                            {m.left && <span className="ml-1 rounded bg-gray-200 px-1 text-[10px] text-gray-700">나감 · 빈자리</span>}
                             {m.reason && <p className="text-gray-600">{m.reason}</p>}
                           </li>
                         ))}

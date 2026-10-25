@@ -1,6 +1,7 @@
 // GET /api/ops/status  운영 콘솔 상태판. 이 행사(EVENT_ID)의 체크인 · 만족도 응답률 · 명함 교환 · 계산 서비스 생존 신호 · 라운드별 공개 버전
 // 개발 지시서 v0.2 A-01: 단계와 단계 바뀐 시각, 라운드별 응답률(무응답률은 1 - rate), 쏠림 지표 두 개(받은 교환 수의 지니 계수, 한 건도 받지 못한 사람 수).
 // 교환은 성립한 것(confirmed)만 센다. 받은 교환 = 남이 그 사람을 찍은 행(source qr · manual)
+// left = 체크인한 사람 중 일찍 나간다고 표시한 사람 수(checkins.left_at, 0019 · 10/25 민찬 결정). checkins 는 나간 사람도 센다(응답률 분모 그대로)
 import { db } from "@/lib/db";
 import { ok, handle, eventId } from "@/lib/api";
 import { requireAdmin } from "@/lib/session";
@@ -34,7 +35,7 @@ export async function GET() {
       opsGet<string>("phase"),
       opsGet<{ at: string; by: string }>("phase_meta"),
       db().from("assign_versions").select("round, version, published_at").eq("event_id", ev).eq("status", "published").order("version", { ascending: false }),
-      selectIn<{ participant_id: string }>("checkins", "participant_id", "participant_id", ids),
+      selectIn<{ participant_id: string; left_at: string | null }>("checkins", "participant_id, left_at", "participant_id", ids),
       selectIn<{ scanned_id: string; source: string; status: string }>("card_exchanges", "scanned_id, source, status", "scanned_id", ids),
     ]);
     if (published.error) throw published.error;
@@ -59,6 +60,7 @@ export async function GET() {
       phase_at: phaseMeta?.at ?? null,
       participants: ids.length,
       checkins,
+      left: checkedRows.filter((r) => r.left_at).length,
       satisfaction: { answered: satisfaction, rate: rate(satisfaction) },
       satisfaction_by_round: { tabletalk: { answered: satisfaction, rate: rate(satisfaction) }, coffeechat: { answered: satCoffee, rate: rate(satCoffee) } },
       skew: { gini: gini([...received.values()]), zero_received: [...received.values()].filter((v) => v === 0).length },

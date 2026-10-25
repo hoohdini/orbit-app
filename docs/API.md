@@ -28,7 +28,8 @@
 | 모듈 | 경로 | 방법 | 입력 | 응답 data | 상태 |
 |---|---|---|---|---|---|
 | 공용 | /api/health | GET | 없음 | { version, db: ok/fail } | 있음 |
-| 공용 | /api/state | GET | 없음 | { phase, phase_label, phase_at, notice: {text, expires_at} 또는 null, consent(agreed · refused · pending), share(명함 공개 및 추천 활용, 0014), tabletalk: {version, table_no, seat_no} 또는 null, coffeechat: {version, group_no, seat_no(10/23 부터, 예전 버전은 null)} 또는 null, published: {tabletalk, coffeechat}(공개 버전 번호 또는 null), recs_open, mission: {window(not_started · open · closed), done_count, total, progress(= done_count / total, 10/22)}, now } 참가자 화면이 15초마다 부르는 상태 하나(v0.2 B-09). 상태 띠(H-01) · 추천 접힘(H-04) · 만족도 노출(N-03) · 새 배정 안내(N-06, published 와 기기에 저장한 확인 버전을 비교) · 미션(E-01) | 있음 |
+| 공용 | /api/state | GET | 없음 | { phase, phase_label, phase_at, notice: {text, expires_at} 또는 null, consent(agreed · refused · pending), share(명함 공개 및 추천 활용, 0014), tabletalk: {version, table_no, seat_no} 또는 null, coffeechat: {version, group_no, seat_no(10/23 부터, 예전 버전은 null)} 또는 null, published: {tabletalk, coffeechat}(공개 버전 번호 또는 null), recs_open, checked_in, left_at(일찍 나간다고 표시한 시각 또는 null, 0019), leave_open(일찍 나가요를 받는 단계인지), mission: {window(not_started · open · closed), done_count, total, progress(= done_count / total, 10/22)}, now } 참가자 화면이 15초마다 부르는 상태 하나(v0.2 B-09). 상태 띠(H-01) · 추천 접힘(H-04) · 만족도 노출(N-03) · 새 배정 안내(N-06, published 와 기기에 저장한 확인 버전을 비교) · 미션(E-01) · 일찍 나가요(10/25, left_at 이 있으면 다시 참여할게요를 보임) | 있음 |
+| 공용 | /api/checkin/leave | POST | undo?(기본 false) | { left_at } 일찍 나가요(10/25 민찬 결정, 아래 일찍 나가는 사람 절). 본인 표시(left_by null), undo true 면 다시 참여(left_at 을 비움). 이미 같은 상태면 그대로 두고 같은 값. 체크인 안 했으면 409 NOT_CHECKED_IN, 등록 · 개회 ~ 커피챗 단계가 아니면 409 LEAVE_NOT_OPEN. event_log checkin_leave · checkin_leave_undo | 있음 |
 | onboarding | /api/onboarding/login | POST | display_name, pin(숫자 4자리), participant_id? | { participant: {id, display_name, role, is_admin}, consented } 또는 동명이인이면 { choose: [{id, display_name, affiliation, role, cohort}] }. 실패 401, 5회 실패 후 10분 423 | 있음 |
 | onboarding | /api/onboarding/logout | POST | 없음 | { ok } | 있음 |
 | onboarding | /api/onboarding/consent | POST | agreed: true 또는 false, item?(collect · share) | { consent, consent_at, consent_refused_at, share, share_consent_at, share_refused_at } 거부도 저장한다(v0.2 H-00). 다시 동의하면 거부 기록을 지운다. 10/11(0014) 동의 두 항목: collect = 개인정보 수집 및 이용, share = 명함 공개 및 추천 활용. item 을 빼면 두 항목을 같이 정한다(온보딩), 마이페이지 내 정보는 항목별로 보낸다 | 있음 |
@@ -67,7 +68,8 @@
 | ops | /api/ops/add-participant | POST | display_name, affiliation?, role, cohort?, is_host?, pin?, offer_text?, seek_text?, topic_tags?, assign_seat?(기본 true) | { participant, pin, seat: {version, table_no, seat_no} 또는 null, coffee_seat: {version, table_no, seat_no, fallback} 또는 null } 워크인 추가. 공개된 테이블토크가 있으면 고정 테이블을 뺀 가장 적은 테이블의 끝 좌석에 바로 넣는다(v0.2 A-05). 공개된 커피챗이 있으면 커피챗 자리도 준다(coffee_seat, 10/25. assign_seat 를 따름) | 있음 |
 | ops | /api/ops/compute | GET | 없음 | { reachable, model_loaded?, version? } 계산 서비스 상태. 운영자만 | 있음 |
 | ops | /api/ops/compute | POST | job: precompute(전날) · checkin(체크인 마감) · coffeechat(포스터세션 중) · final(시상 · 폐회 뒤 행사 직후 추천, 계산 서비스 /coffeechat {final:true}) | { job, ms, result } result 는 계산 서비스 응답(초안 version 등. checkin 은 새 초안이 없어 version 이 null. final 은 late = 커피챗 뒤에 들어와 자리 없이 추천만 받은 사람 수). 거절이면 409 COMPUTE_REFUSED. final 을 모르는 예전 계산 서비스면 409 COMPUTE_OLD. 운영자만 | 있음 |
-| ops | /api/ops/participants | GET | 없음 | { participants: [{id, display_name, affiliation, role, cohort, is_host, is_admin, consented, consent_refused, has_sid, checked_at, is_late, coffee_late}] } 이 행사 전원. coffee_late 는 커피챗 공개 뒤 늦게 와서 공개된 커피챗에 자리를 받은 사람의 {table_no, seat_no, fallback}, 아니면 null(10/25, 콘솔이 의자 추가 표시). 운영자만 | 있음 |
+| ops | /api/ops/participants | GET | 없음 | { participants: [{id, display_name, affiliation, role, cohort, is_host, is_admin, consented, consent_refused, has_sid, checked_at, is_late, left_at, left_self, coffee_late}] } 이 행사 전원. left_at 은 일찍 나간다고 표시한 시각(0019), left_self 는 본인이 눌렀으면 true · 운영자가 표시했으면 false(10/25). coffee_late 는 커피챗 공개 뒤 늦게 와서 공개된 커피챗에 자리를 받은 사람의 {table_no, seat_no, fallback}, 아니면 null(10/25, 콘솔이 의자 추가 표시). 운영자만 | 있음 |
+| ops | /api/ops/checkin/leave | POST | participant_id, undo? | { left_at, already } 운영자의 나감 표시 · 되돌리기(10/25 민찬 결정). 표시하면 left_by = 운영자. 단계와 상관없이 받는다(구현하며 정함). 체크인 안 한 사람은 409 NOT_CHECKED_IN. event_log ops_checkin_leave · ops_checkin_leave_undo. 운영자만 | 있음 |
 | ops | /api/ops/checkin | POST | participant_id, is_late? | { checked_at, is_late, already, coffee_seat } 수동 체크인. 이미 돼 있으면 already true. 커피챗 배정이 공개된 뒤 처음 체크인하면 커피챗 자리 coffee_seat {version, table_no, seat_no, fallback}(10/25), 아니면 null. 운영자만 | 있음 |
 | ops | /api/ops/labels | GET | 없음 | { codebook_version, labels: [{prefix, label, members}] } 활성 코드북의 이름표. 운영자만 | 있음 |
 | ops | /api/ops/labels | POST | codebook_version, prefix, label | { saved: true } 이름표 한 줄 수정. 활성 코드북이 아니면 409 NOT_ACTIVE. 운영자만 | 있음 |
@@ -76,7 +78,7 @@
 | ops | /api/ops/unpublish | POST | version | { retired, round } 공개 철회(비상용). 공개 중이 아니면 409 NOT_PUBLISHED. 운영자만 | 있음 |
 | ops | /api/ops/publish | POST | version | { published_at, round, retired: [version] } 초안을 공개하고 같은 행사 · 라운드의 이전 공개 버전은 retired 로. 이미 공개 409 ALREADY_PUBLISHED, 철회본 409 RETIRED. 운영자만 | 있음 |
 | ops | /api/ops/versions | GET | 없음 | { versions: [{version, round, status, created_at, published_at, summary}] } 이 행사 최신 20개. 운영자만 | 있음 |
-| ops | /api/ops/versions/<version> | GET | 없음 | { version, round, status, metrics: {groups, sizes, size_min, size_max, mean_score, low_score, check_tables, reunion_pairs(커피챗만, 아니면 null), cohort_over, not_checked_in}, tables: [{table_no, mean_score, check, members: [{id, display_name, affiliation, role, cohort, seat_no, random, lead, late_join, reason}]}] } 배정 확인용(v0.2 A-03). 점수는 그 버전 pair_scores 의 테이블 안 쌍 평균. check 는 평균보다 1 표준편차 넘게 낮은 테이블(없으면 가장 낮은 하나). 기수 초과 상한은 계산 서비스와 같다(테이블토크 3, 커피챗 3. 10/22 전 3~4명 그룹은 2). members.lead 는 커피챗 주도 선배(10/22, 콘솔에 '주도' 표시). members.late_join 은 커피챗 공개 뒤 늦게 와서 앉은 사람(10/25, 콘솔에 '늦게 옴 · 의자 추가' 표시, 재회 쌍에서 뺌). 운영자만 | 있음 |
+| ops | /api/ops/versions/<version> | GET | 없음 | { version, round, status, metrics: {groups, sizes, size_min, size_max, mean_score, low_score, check_tables, reunion_pairs(커피챗만, 아니면 null), cohort_over, not_checked_in, left}, tables: [{table_no, mean_score, check, members: [{id, display_name, affiliation, role, cohort, seat_no, random, lead, late_join, left, reason}]}] } 배정 확인용(v0.2 A-03). 점수는 그 버전 pair_scores 의 테이블 안 쌍 평균. check 는 평균보다 1 표준편차 넘게 낮은 테이블(없으면 가장 낮은 하나). 기수 초과 상한은 계산 서비스와 같다(테이블토크 3, 커피챗 3. 10/22 전 3~4명 그룹은 2). members.lead 는 커피챗 주도 선배(10/22, 콘솔에 '주도' 표시). members.late_join 은 커피챗 공개 뒤 늦게 와서 앉은 사람(10/25, 콘솔에 '늦게 옴 · 의자 추가' 표시, 재회 쌍에서 뺌). members.left · metrics.left 는 일찍 나간다고 표시한 사람(10/25, 콘솔에 나감 · 빈자리 표시). 운영자만 | 있음 |
 | ops | /api/ops/swap | POST | version, a, b(participant id) | { version(새 초안), source_version, round, delta, before, after } 수동 교체(v0.2 A-04). 원본은 두고 복사본 초안을 만들어 두 사람의 테이블 · 좌석을 맞바꾼다. 두 사람의 reason 은 기존 키(주도 선배 lead 등)를 남기고 text(운영자 수동 교체) · table_no · seat_no 만 바꾼다. delta 는 두 사람이 낀 테이블 안 쌍 점수 합의 변화. 같은 테이블 409 SAME_TABLE, 철회본 409 RETIRED. 공개는 /api/ops/publish. 운영자만 | 있음 |
 | ops | /api/ops/phase | POST | phase(아래 단계 값), reopen_missions? | { phase, phase_label, at, mission_closed_at } 단계 전환(v0.2 A-02). 처음 wrapup · award 로 넘어갈 때 미션 마감 시각을 고정한다(reopen_missions true 면 마감을 지운다). 운영자만 | 있음 |
 | ops | /api/ops/notice | POST | preset?(start · move · last5) 또는 text?(80자), minutes?(기본 5), clear? | { notice: {text, preset, expires_at} 또는 null } 공지 송출(v0.2 A-06). 만료까지 /api/state 의 notice 로 나간다. clear true 면 내린다. 운영자만 | 있음 |
@@ -85,7 +87,7 @@
 | ops | /api/ops/award-exclude | GET | 없음 | { people: [{id, display_name, affiliation}], at } 특별 시상 제외 명단(v0.2 E-06). 운영자만 | 있음 |
 | ops | /api/ops/award-exclude | POST | csv?(한 줄에 이름,소속), ids? | { people, unmatched: [줄], at } 명단을 통째로 바꾼다. 이름이 없거나 동명이인을 못 가리면 unmatched. 운영자만 | 있음 |
 | ops | /api/ops/print | GET | round?(tabletalk 기본 · coffeechat), version? | 인쇄용 HTML(JSON 아님). 테이블별 좌석 순 명단(v0.2 A-10). 브라우저 인쇄로 PDF 저장. version 없으면 그 라운드 공개 버전. 운영자만 | 있음 |
-| ops | /api/ops/status | GET | 없음 | { event_id, phase, phase_label, phase_at, participants, checkins, satisfaction: {answered, rate}, satisfaction_by_round: {tabletalk, coffeechat: {answered, rate}}, skew: {gini, zero_received}, exchanges, compute_heartbeat: {at, last} 또는 null, published: {tabletalk, coffeechat: {version, published_at} 또는 null}, now } 상태판. 교환은 성립한 것만. skew 는 체크인한 사람이 받은 교환 수의 지니 계수(0 고르게, 1 한 사람에게 몰림)와 한 건도 못 받은 사람 수(v0.2 A-01). 무응답률 = 1 - rate. 운영자만 | 있음 |
+| ops | /api/ops/status | GET | 없음 | { event_id, phase, phase_label, phase_at, participants, checkins, left(체크인한 사람 중 일찍 나간다고 표시한 수, 0019), satisfaction: {answered, rate}, satisfaction_by_round: {tabletalk, coffeechat: {answered, rate}}, skew: {gini, zero_received}, exchanges, compute_heartbeat: {at, last} 또는 null, published: {tabletalk, coffeechat: {version, published_at} 또는 null}, now } 상태판. 교환은 성립한 것만. skew 는 체크인한 사람이 받은 교환 수의 지니 계수(0 고르게, 1 한 사람에게 몰림)와 한 건도 못 받은 사람 수(v0.2 A-01). 무응답률 = 1 - rate. 운영자만 | 있음 |
 
 card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name, affiliation, role, cohort, stage(1 명단만·2 프로필·3 주소), sid, label, theme(0~7 또는 null), offer_text, seek_text, topic_tags, links 또는 null, source?, exchanged_at?, status?, first_meet?, note?, met?, together? }`(물음표는 명함함 · 알림에서만). 링크는 상대의 visibility 가 all 이거나 내가 그 사람을 직접 찍었을 때만 들어간다.
 
@@ -141,8 +143,24 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 - table_members.reason: text(예: 늦게 와서 배정 · 잘 맞는 사람 OO), late_join true, table_no, seat_no, best_mate · best_score · avg_score(계산 서비스가 고른 경우). 주도 선배(lead)로 두지 않는다
 - (version, participant_id) 기본 키로 두 번 들어가지 않는다(upsert ignoreDuplicates). event_log 에 coffeechat_late_seat {version, table_no, seat_no, fallback, compute_status, ms, by}, 실패하면 coffeechat_late_seat_fail
 - 건너뜀: 공개된 커피챗이 없을 때, 행사 직후 추천(params.kind final)이 공개됐을 때, 단계가 마무리 · 시상(wrapup · award)일 때. 커피챗이 끝나 자리가 쓸모없고, final 은 원본 그룹을 그대로 쓰는 추천 전용 버전이기 때문이다(구현하며 정함)
+- 본인이 일찍 나간다고 표시했으면(checkins.left_at) 건너뛴다. 계산 서비스를 기다린 뒤에도 한 번 더 본다. 테이블 인원을 셀 때 나간 사람은 빼지만(빈자리) 좌석 번호는 나간 사람 번호까지 센 다음 번호다(10/25, 구현하며 정함)
 - 어떤 오류도 로그인 · 체크인을 막지 않는다. 참가자 화면은 current_tables 를 읽으므로 바로 n번 테이블 m번 자리가 보인다. 늦게 온 사람은 커피챗 추천 목록 · 그룹 근거 한 줄이 없다(그 버전 계산 때 없었다)
 - 행사 직후 추천(final)은 원본 커피챗 자리를 그대로 읽으므로 늦게 와서 앉은 사람도 같은 테이블 · 좌석으로 남는다
+
+## 일찍 나가는 사람 (10/25 민찬 결정)
+
+checkins.left_at(0019)이 있으면 일찍 나간 사람이다. 본인이 마이 탭의 일찍 나가요(/api/checkin/leave)를 누르거나 운영자가 체크인 칸에서 나감 표시(/api/ops/checkin/leave)를 한다. 되돌리면 left_at 이 비고 행사장에 있는 사람으로 돌아간다.
+
+| 어디 | 나감 표시한 사람 |
+|---|---|
+| 커피챗 계산(/coffeechat) | 앉히지 않고 주도 선배 후보도 아니다. 그 버전 추천 목록 · 그룹 근거에도 없고 남의 커피챗 추천에도 나오지 않는다. params.left · 응답 left 에 뺀 수 |
+| 늦게 온 사람 자리(lib/coffeechatLate.ts, /coffeechat/late) | 자리를 주지 않는다(계산 서비스는 409). 테이블 인원에서 빠진다 |
+| 커피챗 공개 뒤에 나감 | 공개된 자리는 그대로 둔다(빈자리). 다시 계산하지 않는다 |
+| 커피챗 계산 전에 나갔다가 되돌림 | 공개 뒤 /api/state 다음 폴링에서 늦게 온 사람처럼 자리를 받는다 |
+| 행사 직후 추천(/coffeechat final) | 빼지 않는다(구현하며 정함). 원본에 자리가 있으면 그대로, 없으면 자리 없이 추천만(응답 late 에 셈). 행사 뒤 연락할 사람 추천은 일찍 간 사람에게도 쓸모가 있다 |
+
+- 본인 버튼은 등록 · 개회부터 커피챗까지(lib/phase.ts LEAVE_OPEN)만 보이고 받는다. 마무리 뒤에는 숨긴다. 운영자는 단계와 상관없이 고친다
+- 말없이 나간 사람은 알 수 없다. 표시한 사람만 뺀다
 
 ## 계산 서비스 (services/compute, 내부 HTTP)
 
@@ -151,8 +169,8 @@ card 객체는 모든 card 응답에서 같은 모양이다: `{ id, display_name
 | /health | GET | 항상 | 모델·코드북 로드 여부 |
 | /precompute | POST | 행사 전날 | 사전 등록자 전원 임베딩·코드북·주소·라벨 발급, 테이블토크 배정 · 좌석 draft(1번 고정 + 2~10번, 10/21 민찬 결정), 전날 추천 목록. reuse_codebook=true 면 현장 등록자 주소만 |
 | /search | POST | 쓰지 않음(10/10 전체 회의에서 참석자 검색 제외, 웹 API 삭제) | q(2~30자), viewer_id, aliases?(웹 줄임말 사전의 같은 뜻 다른 표기, 최대 20) → { q, people: [{id, score}], all_scores } 하는 일 문장 · 관심 태그 중 검색어와 가장 가까운 것의 cos 를 그 사람 점수로(문장별 최고), 평균 + 1 표준편차 이상 최대 10. aliases 는 검색어 뒤 괄호로 붙여 벡터로 바꿈. score 는 웹 정렬 · 거르기용, 화면에 안 냄. WARM_MODEL=1 이면 켤 때 모델을 미리 올림 |
-| /coffeechat | POST | 포스터 응답 마감 뒤(16:45) | 체크인 명단 + 명함 교환 + 테이블토크 만족도 + 포스터 응답(docs/DATA_SPEC.md 규칙) 으로 점수 재계산, 체크인 전원 10테이블 draft(1번 고정 없음, 테이블마다 주도 선배 2명 = reason.lead, 응답 leads. 10/22 민찬 결정), 테이블마다 좌석 순서(table_members.seat_no, 주도 선배 둘은 마주 보게 = COFFEE_LEAD_SEATING facing, 10/23 운영진 확정), 지연 체크인(checkins.is_late)한 사람은 주도 선배로 뽑지 않음(구현하며 정함), 그룹 카드 근거 한 줄, 커피챗 버전 추천 목록(커피챗 중 이동 없음, 10/21) |
-| /coffeechat/late | POST | 커피챗 공개 뒤 늦게 온 사람 체크인 때(웹이 부름) | {event_id, participant_id, version?} → {version, already, table_no, seat_no, reason, tables: [{table_no, size, same_cohort, mean}]}. 고르기만 하고 쓰지 않는다(쓰기는 웹). 위 늦게 온 사람의 커피챗 자리 규칙. 저장된 벡터가 없으면 모델이 이미 올라와 있을 때만 프로필을 임베딩하고, 아니면 또는 프로필이 비었으면 409 → 웹 대체 경로(10/25) |
-| /coffeechat { final: true } | POST | 행사 직후(시상 · 폐회 뒤) | 행사 직후 추천(10/6). 한 번이라도 공개된 커피챗 버전(final 제외, retired 포함)의 그룹을 그대로 두고 커피챗 계산과 같은 신호(검색은 감쇠 없이 그날 것 전부)로 추천 목록만 다시 만든다. 테이블토크 · 커피챗 동석자와 이미 교환한 사람은 빠진다(오늘 못 만났지만 연락해 볼 만한 사람). 커피챗 뒤에 들어온 사람은 자리 없이 추천만 받는다(응답 late). 새 draft(round=coffeechat, params.kind=final, source_version)로 저장하고 운영자가 공개하면 원래 커피챗 버전은 retired 가 되고 H-04 추천(/api/card/recs)이 이 목록을 쓴다. 공개된 커피챗 배정이 없으면 409 |
+| /coffeechat | POST | 포스터 응답 마감 뒤(16:45) | 체크인 명단 + 명함 교환 + 테이블토크 만족도 + 포스터 응답(docs/DATA_SPEC.md 규칙) 으로 점수 재계산, 체크인 전원 10테이블 draft(1번 고정 없음, 테이블마다 주도 선배 2명 = reason.lead, 응답 leads. 10/22 민찬 결정), 테이블마다 좌석 순서(table_members.seat_no, 주도 선배 둘은 마주 보게 = COFFEE_LEAD_SEATING facing, 10/23 운영진 확정), 지연 체크인(checkins.is_late)한 사람은 주도 선배로 뽑지 않음(구현하며 정함), 일찍 나간다고 표시한 사람(checkins.left_at)은 배정 · 주도 선배 · 추천에서 뺌(응답 left, 10/25 민찬 결정), 그룹 카드 근거 한 줄, 커피챗 버전 추천 목록(커피챗 중 이동 없음, 10/21) |
+| /coffeechat/late | POST | 커피챗 공개 뒤 늦게 온 사람 체크인 때(웹이 부름) | {event_id, participant_id, version?} → {version, already, table_no, seat_no, reason, tables: [{table_no, size, same_cohort, mean}]}. 고르기만 하고 쓰지 않는다(쓰기는 웹). 위 늦게 온 사람의 커피챗 자리 규칙. 저장된 벡터가 없으면 모델이 이미 올라와 있을 때만 프로필을 임베딩하고, 아니면 또는 프로필이 비었으면 409 → 웹 대체 경로(10/25). 본인이 일찍 나간다고 표시했으면 409(웹은 부르기 전에 걸러 앉히지 않는다), 나간 구성원은 테이블 인원 · 점수 평균에서 뺀다 |
+| /coffeechat { final: true } | POST | 행사 직후(시상 · 폐회 뒤) | 행사 직후 추천(10/6). 한 번이라도 공개된 커피챗 버전(final 제외, retired 포함)의 그룹을 그대로 두고 커피챗 계산과 같은 신호(검색은 감쇠 없이 그날 것 전부)로 추천 목록만 다시 만든다. 테이블토크 · 커피챗 동석자와 이미 교환한 사람은 빠진다(오늘 못 만났지만 연락해 볼 만한 사람). 커피챗 뒤에 들어온 사람은 자리 없이 추천만 받는다(응답 late). 일찍 나간다고 표시한 사람도 빼지 않는다(10/25, 구현하며 정함). 새 draft(round=coffeechat, params.kind=final, source_version)로 저장하고 운영자가 공개하면 원래 커피챗 버전은 retired 가 되고 H-04 추천(/api/card/recs)이 이 목록을 쓴다. 공개된 커피챗 배정이 없으면 409 |
 
 호출자는 헤더 `X-Compute-Secret` 을 보낸다. 결과는 계산 서비스가 DB 에 직접 쓰고 `assign_versions.version` 만 돌려준다.

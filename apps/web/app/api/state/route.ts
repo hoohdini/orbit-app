@@ -5,7 +5,7 @@ import { ok, fail, handle, eventId } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 import { consentOf, shareOf } from "@/lib/consent";
 import { opsSnapshot } from "@/lib/opsState";
-import { phaseLabel, recsOpen, missionWindow, MISSION_CLOSED } from "@/lib/phase";
+import { phaseLabel, recsOpen, missionWindow, leaveOpen, MISSION_CLOSED } from "@/lib/phase";
 import { seatLateCoffeechat } from "@/lib/coffeechatLate";
 import { missionStatus } from "@/lib/missions";
 
@@ -14,23 +14,27 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   return handle(async () => {
     const s = await requireSession();
-    const [me, ops, mine, published] = await Promise.all([
+    const [me, ops, mine, published, ck] = await Promise.all([
       db().from("participants").select("consent_at, consent_refused_at, share_consent_at, share_refused_at").eq("id", s.pid).maybeSingle(),
       opsSnapshot(),
       db().from("current_tables").select("round, version, table_no, seat_no").eq("participant_id", s.pid).eq("event_id", eventId()),
       db().from("assign_versions").select("round, version").eq("event_id", eventId()).eq("status", "published").order("version", { ascending: false }),
+      db().from("checkins").select("left_at").eq("participant_id", s.pid).maybeSingle(), // 일찍 나가요 표시(0019, 10/25 민찬 결정)
     ]);
     if (me.error) throw me.error;
     if (!me.data) return fail("NOT_FOUND", "참가자를 찾을 수 없다", 404);
     if (mine.error) throw mine.error;
     if (published.error) throw published.error;
+    if (ck.error) throw ck.error;
+    const leftAt = (ck.data?.left_at as string | null | undefined) ?? null;
 
     const seat = (round: string) => (mine.data ?? []).find((r) => r.round === round);
     const tt = seat("tabletalk");
     const pub = (round: string) => ((published.data ?? []).find((v) => v.round === round)?.version as number | undefined) ?? null;
     // 커피챗 계산 뒤 · 공개 전에 들어와 공개된 커피챗에 자리가 없는 사람은 여기서 앉힌다(10/25, 구현하며 정함 · 10/25 민찬 확정. 로그인 때는 아직 공개 전이라 못 앉혔다). 이미 앉은 사람은 추가 쿼리가 없다
     let cc: { version: unknown; table_no: unknown; seat_no: unknown } | undefined = seat("coffeechat");
-    if (!cc && pub("coffeechat") !== null && !(ops.phase && MISSION_CLOSED.includes(ops.phase))) {
+    // 일찍 나간다고 표시한 사람은 앉히지 않는다(10/25 민찬 결정). 되돌리면 다음 폴링에서 앉는다
+    if (!cc && !leftAt && pub("coffeechat") !== null && !(ops.phase && MISSION_CLOSED.includes(ops.phase))) {
       const late = await seatLateCoffeechat(s.pid);
       if (late) cc = late;
     }
@@ -48,6 +52,9 @@ export async function GET() {
       coffeechat: cc ? { version: cc.version as number, group_no: cc.table_no as number, seat_no: (cc.seat_no as number | null) ?? null } : null, // 커피챗 좌석은 10/23 부터(예전 버전은 null)
       published: { tabletalk: pub("tabletalk"), coffeechat: pub("coffeechat") },
       recs_open: recsOpen(ops.phase),
+      checked_in: !!ck.data, // 첫 로그인이 체크인이라 보통 true. 일찍 나가요 버튼은 체크인한 사람에게만
+      left_at: leftAt, // 일찍 나가요를 누른(또는 운영자가 나감 표시한) 시각. null 이면 행사장에 있음(0019). 화면은 다시 참여할게요를 보인다
+      leave_open: leaveOpen(ops.phase), // 일찍 나가요 · 다시 참여할게요를 받는 단계인지(등록 · 개회 ~ 커피챗)
       mission: { window, done_count: m.done_count, total: m.total, progress: m.progress },
       now: new Date().toISOString(),
     });

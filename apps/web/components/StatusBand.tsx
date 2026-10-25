@@ -23,7 +23,8 @@ export default function StatusBand({ showMission = false }: { showMission?: bool
     );
   }
 
-  const parts = [s.phase_label ? `${s.phase_label} 진행 중` : "The ORBIT", where(s)].filter(Boolean);
+  // 일찍 나간다고 표시했으면(0019, 10/25 민찬 결정) 커피챗까지 끝에 붙인다. 되돌리기는 마이 탭
+  const parts = [s.phase_label ? `${s.phase_label} 진행 중` : "The ORBIT", where(s), s.left_at && s.leave_open ? "일찍 나감 표시" : ""].filter(Boolean);
   return (
     <div className={`${place} flex h-9 items-center gap-2 border-b border-navy/80 bg-strip px-5 text-[13px] font-medium text-brand`}>
       <span className="size-2 shrink-0 rounded-full bg-accent" aria-hidden />

@@ -4,7 +4,9 @@
 // 자리 고르기는 계산 서비스 POST /coffeechat/late(행사 전 정보로 잘 맞는 테이블, 인원 균형 · 같은 기수 상한). 2.5초 안에 답이 없거나 오류면
 //   인원이 가장 적은 테이블(같으면 번호가 작은 쪽)로 앉힌다. 좌석은 그 테이블의 다음 번호라 앉아 있는 사람 번호는 그대로다. 주도 선배로 두지 않는다.
 // 쓰는 곳은 공개된 커피챗 버전의 table_members(화면 current_tables 가 그대로 읽음). (version, participant_id) 기본 키로 두 번 들어가지 않는다.
-// 건너뜀: 공개된 커피챗이 없을 때, 행사 직후 추천(params.kind final)이 공개됐을 때, 단계가 마무리 · 시상(wrapup · award)일 때(커피챗이 끝남. 구현하며 정함).
+// 건너뜀: 공개된 커피챗이 없을 때, 행사 직후 추천(params.kind final)이 공개됐을 때, 단계가 마무리 · 시상(wrapup · award)일 때(커피챗이 끝남. 구현하며 정함),
+//   본인이 일찍 나간다고 표시했을 때(checkins.left_at, 0019 · 10/25 민찬 결정. 계산 서비스를 기다린 뒤에도 한 번 더 본다).
+// 인원을 셀 때 나감 표시한 사람은 빼고 센다(그 자리는 비어 있다). 좌석 번호는 그 사람 번호도 포함해 다음 번호(구현하며 정함).
 // 어떤 오류도 밖으로 던지지 않는다(로그인 · 체크인이 이것 때문에 실패하면 안 된다).
 import "server-only";
 import { db } from "./db";
@@ -49,6 +51,12 @@ export async function seatLateCoffeechat(pid: string, by: string | null = null):
   try {
     const ops = await readOps(["phase"]);
     if (isPhase(ops.phase) && MISSION_CLOSED.includes(ops.phase)) return null;
+    const hasLeft = async () => {
+      const { data, error: e } = await db().from("checkins").select("left_at").eq("participant_id", pid).maybeSingle();
+      if (e) throw e;
+      return !!data?.left_at;
+    };
+    if (await hasLeft()) return null;
     const { data: v, error } = await db()
       .from("assign_versions")
       .select("version, params")
@@ -73,16 +81,20 @@ export async function seatLateCoffeechat(pid: string, by: string | null = null):
     const asked = await askCompute(pid, version);
     // 계산 서비스를 기다리는 동안 다른 사람이 앉았을 수 있어 대체 테이블 · 좌석 번호는 응답(또는 시간 초과) 뒤에 다시 읽어 센다
     const rows = await readRows();
-    if (rows.some((r) => r.participant_id === pid)) return null;
-    const count = new Map<number, { n: number; seat: number }>();
+    if (rows.some((r) => r.participant_id === pid) || (await hasLeft())) return null;
+    const { data: leftRows, error: eL } = await db().from("checkins").select("participant_id").not("left_at", "is", null);
+    if (eL) throw eL;
+    const left = new Set((leftRows ?? []).map((r) => r.participant_id as string));
+    // n = 남아 있는 인원(대체 테이블 고르기), k = 나간 사람까지 센 행 수(좌석 번호)
+    const count = new Map<number, { n: number; k: number; seat: number }>();
     for (const r of rows) {
-      const c = count.get(r.table_no as number) ?? { n: 0, seat: 0 };
-      count.set(r.table_no as number, { n: c.n + 1, seat: Math.max(c.seat, (r.seat_no as number | null) ?? 0) });
+      const c = count.get(r.table_no as number) ?? { n: 0, k: 0, seat: 0 };
+      count.set(r.table_no as number, { n: c.n + (left.has(r.participant_id as string) ? 0 : 1), k: c.k + 1, seat: Math.max(c.seat, (r.seat_no as number | null) ?? 0) });
     }
     const pick = asked.pick && count.has(asked.pick.table_no) ? asked.pick : null;
     const table_no = pick ? pick.table_no : [...count.entries()].sort((a, b) => a[1].n - b[1].n || a[0] - b[0])[0][0];
     const c = count.get(table_no)!;
-    const seat_no = Math.max(c.seat, c.n) + 1; // 가장 큰 좌석 번호와 인원 중 큰 쪽 + 1
+    const seat_no = Math.max(c.seat, c.k) + 1; // 가장 큰 좌석 번호와 인원(나간 사람 포함) 중 큰 쪽 + 1
     const reason = pick
       ? { ...pick.reason, late_join: true, table_no, seat_no }
       : { text: FALLBACK_TEXT, late_join: true, fallback: true, table_no, seat_no };

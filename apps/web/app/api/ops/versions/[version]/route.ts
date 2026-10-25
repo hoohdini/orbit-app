@@ -43,7 +43,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
     if (pErr) throw pErr;
     const who = new Map((people ?? []).map((p) => [p.id as string, p]));
 
-    type Row = { id: string; display_name: string; affiliation: string | null; role: string; cohort: number | null; seat_no: number | null; random: boolean; lead: boolean; late_join: boolean; reason: string };
+    type Row = { id: string; display_name: string; affiliation: string | null; role: string; cohort: number | null; seat_no: number | null; random: boolean; lead: boolean; late_join: boolean; left?: boolean; reason: string };
     const tables = new Map<number, { table_no: number; mean_score: number | null; check: boolean; members: Row[] }>();
     for (const r of rows ?? []) {
       const t = r.table_no as number;
@@ -105,8 +105,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
           }
     }
 
-    const { data: ci, error: ciErr } = ids.length ? await db().from("checkins").select("participant_id").in("participant_id", ids) : { data: [], error: null };
+    const { data: ci, error: ciErr } = ids.length ? await db().from("checkins").select("participant_id, left_at").in("participant_id", ids) : { data: [], error: null };
     if (ciErr) throw ciErr;
+    // 일찍 나간다고 표시한 사람(0019, 10/25 민찬 결정). 공개 뒤에 나가면 자리는 그대로 두고 표시만 한다(빈자리)
+    const left = new Set((ci ?? []).filter((c) => c.left_at).map((c) => c.participant_id as string));
+    for (const t of list) for (const m of t.members) m.left = left.has(m.id);
     const sizes = list.map((t) => t.members.length);
 
     return ok({
@@ -124,6 +127,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
         reunion_pairs: reunion,
         cohort_over: cohortOver,
         not_checked_in: ids.length - (ci ?? []).length,
+        left: left.size,
       },
       tables: list,
     });

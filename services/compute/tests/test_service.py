@@ -623,6 +623,59 @@ def test_coffeechat_late_seat():
     assert fm[late]["table_no"] == x["table_no"] and fm[late]["seat_no"] == x["seat_no"]
 
 
+def test_coffeechat_left_early():
+    """10/25 민찬 결정: 일찍 나간다고 표시한 사람(checkins.left_at, 0019)은 커피챗 배정 · 주도 선배 · 추천에서 빠지고 늦게 온 사람 자리도 받지 않는다.
+    공개 뒤에 나간 사람의 자리는 그대로(빈자리)이고 늦게 온 사람 자리 고르기의 인원에서 빠진다. 행사 직후 추천(final)은 빼지 않는다(구현하며 정함)."""
+    repo, enc = seed_repo(n=44, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    repo.t["checkins"] += [{"participant_id": pid} for pid in ids[:-1]]
+    late = ids[-1]
+    coh = {p["id"]: p["cohort"] for p in repo.t["participants"]}
+    top = sorted((pid for pid in ids[:-1] if coh[pid] is not None), key=lambda q: coh[q])[:2]   # 기수가 가장 높은 둘(주도 선배 1순위)
+    gone = top + [ids[0]]
+    for c in repo.t["checkins"]:
+        if c["participant_id"] in gone:
+            c["left_at"] = "2026-10-25T16:00:00+00:00"
+    r = service.coffeechat(repo, enc, iters=300)
+    cm = {m["participant_id"]: m for m in repo.t["table_members"] if m["version"] == r["version"]}
+    assert r["left"] == 3 and r["n"] == len(ids) - 1 - 3 and len(cm) == r["n"]
+    assert not any(pid in cm for pid in gone)                            # 앉지도 않고 주도 선배도 아니다
+    assert next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]["left"] == 3
+    assert not any(pid in (x["participant_id"], x["target_id"]) for x in repo.t["recs"] if x["version"] == r["version"] for pid in gone)
+    # 나간 사람 본인은 늦게 온 사람 자리를 받지 않는다(409 → 웹은 부르기 전에 걸러 아예 앉히지 않는다)
+    next(v for v in repo.t["assign_versions"] if v["version"] == r["version"])["status"] = "published"
+    try:
+        service.coffeechat_late(repo, None, gone[0])
+    except ValueError as e:
+        assert "일찍 나간다고" in str(e)
+    else:
+        raise AssertionError("나간 사람에게 자리를 골랐다")
+    # 공개 뒤에 나간 사람: 자리는 그대로 두고, 늦게 온 사람 자리 고르기의 인원에서 뺀다. 좌석 번호는 그 사람 번호까지 센 다음 번호
+    x0 = service.coffeechat_late(repo, None, late)
+    t = x0["table_no"]
+    mates = [pid for pid, m in cm.items() if m["table_no"] == t]
+    for c in repo.t["checkins"]:
+        if c["participant_id"] in mates[:2]:
+            c["left_at"] = "2026-10-25T17:00:00+00:00"
+    n_rows = len(repo.t["table_members"])
+    x1 = service.coffeechat_late(repo, None, late)
+    assert len(repo.t["table_members"]) == n_rows and all(pid in cm for pid in mates[:2])   # 공개된 자리는 그대로
+    sizes = {c["table_no"]: c["size"] for c in x1["tables"]}
+    assert sizes[t] == len(mates) - 2
+    if x1["table_no"] == t:
+        assert x1["seat_no"] == max(cm[pid]["seat_no"] for pid in mates) + 1
+    # 행사 직후 추천(final): 나간 사람도 뺀 것 없이 추천을 받는다. 공개 뒤에 나간 사람은 원본 자리 그대로, 계산 전에 나간 사람은 자리 없이(late)
+    repo.t["checkins"].append({"participant_id": late})
+    f = service.coffeechat(repo, enc, final=True)
+    fm = {m["participant_id"]: m for m in repo.t["table_members"] if m["version"] == f["version"]}
+    assert f["left"] == 0 and f["late"] == 1 + 3                         # 늦게 온 사람(원본에 자리 없음) + 계산 전에 나간 셋
+    assert all(fm[pid]["table_no"] == t for pid in mates[:2]) and not any(pid in fm for pid in gone)
+    got = {x["participant_id"] for x in repo.t["recs"] if x["version"] == f["version"]}
+    assert all(pid in got for pid in gone + mates[:2])
+
+
 def test_recs_rule_puts_givers_first():
     """기본 추천 점수(rule): 취업 · 이직 정보를 원하는 학생의 추천 10명에 재직자가 많이 들어간다. REC_SCORE=min(예전)과 비교."""
     import os

@@ -47,6 +47,11 @@ class MemoryRepo:
         s = set(ids)
         return {r["participant_id"] for r in self.t["checkins"] if r["participant_id"] in s and r.get("is_late")}
 
+    def left_checkins(self, ids: list[str]) -> set[str]:
+        """일찍 나간다고 표시한 사람(checkins.left_at, 0019 · 10/25 민찬 결정). 커피챗 배정 · 늦게 온 사람 자리에서 뺀다."""
+        s = set(ids)
+        return {r["participant_id"] for r in self.t["checkins"] if r["participant_id"] in s and r.get("left_at")}
+
     def edges(self) -> list[dict]:
         """edges 뷰와 같은 모양 — 명함 교환을 무방향 간선 0.3 으로."""
         seen = {}
@@ -214,6 +219,16 @@ class SupabaseRepo:
 
     def late_checkins(self, ids):
         return {r["participant_id"] for r in self._in("checkins", "participant_id, is_late", "participant_id", ids) if r.get("is_late")}
+
+    def left_checkins(self, ids):
+        from postgrest.exceptions import APIError
+        try:
+            rows = self._in("checkins", "participant_id, left_at", "participant_id", ids)
+        except APIError as e:
+            if e.code not in ("42703", "PGRST204"):     # 0019 전 DB(left_at 칸 없음)만 나간 사람 없음으로. 다른 오류는 그대로
+                raise
+            return set()
+        return {r["participant_id"] for r in rows if r.get("left_at")}
 
     def edges(self):
         return self._all(lambda: self.db.table("edges").select("a, b, kind, weight"))

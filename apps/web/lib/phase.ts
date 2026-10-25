@@ -47,6 +47,13 @@ export function feedbackOpen(p: Phase | string | null): boolean {
   return !!p && (FEEDBACK_OPEN as readonly string[]).includes(p);
 }
 
+// 참가자가 일찍 나가요(checkins.left_at, 0019)를 누를 수 있는 단계. 등록 · 개회부터 커피챗까지(10/25 민찬 결정).
+// 마무리(wrapup) 뒤에는 커피챗이 끝나 의미가 없어 버튼을 숨기고 API 도 받지 않는다. 행사 전(before)은 행사장에 오기 전이라 뺀다(구현하며 정함)
+export const LEAVE_OPEN: readonly Phase[] = ["checkin", "tabletalk", "tabletalk_end", "poster", "coffeechat_seated"];
+export function leaveOpen(p: Phase | string | null): boolean {
+  return !!p && (LEAVE_OPEN as readonly string[]).includes(p);
+}
+
 // 공지 버튼 3종(A-06). 자유 입력도 받는다
 export const NOTICE_PRESETS = [
   { key: "start", text: "곧 다음 순서가 시작됩니다. 자리로 모여 주세요" },

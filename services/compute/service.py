@@ -8,6 +8,7 @@ coffeechat  테이블토크 뒤(포스터세션 중, v0.2 B-04). 행사장 10테
             테이블마다 주도 선배 2명(높은 기수 중 분야가 맞는 둘)을 먼저 앉히고 나머지를 점수로 채운다.
             테이블마다 좌석 순서도 정한다(테이블토크와 같은 이웃 점수 합 최대, table_members.seat_no). 주도 선배 둘은 마주 보게(COFFEE_LEAD_SEATING, 10/23 운영진 확정).
             지연 체크인(checkins.is_late)한 사람은 배정에는 넣되 주도 선배로 뽑지 않는다(구현하며 정함).
+            일찍 나간다고 표시한 사람(checkins.left_at, 0019)은 배정에도 주도 선배에도 넣지 않는다(10/25 민찬 결정). 행사 직후 추천(final)은 빼지 않는다.
             커피챗 중에는 이동하지 않는다(10/21 민찬 결정, 이동 불가). 저장된 벡터 + 명함 교환 간선 + 만족도 답 + 포스터 관심도 → 만남 반영 → 커피챗 배정 초안 → 개인 추천
             포스터 관심도는 부르는 시점까지 들어온 답만 쓴다. 포스터세션 끝 무렵에 부를수록 많이 반영된다
 coffeechat_late  커피챗 배정 공개 뒤 처음 체크인한 사람 한 명의 자리를 고른다(10/25 민찬 결정, 쓰기는 웹). 행사 전 정보만으로 잘 맞는 테이블
@@ -376,6 +377,11 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     새 초안 버전(round=coffeechat, params.kind=final)으로 저장하고 운영자가 공개한다. 공개하면 원본 커피챗 버전은 retired 가 되고
     화면은 이 버전을 읽는다(그룹 · 번호는 같음). 최근 10분 쏠림 규칙(H-04, 웹)은 행사가 끝나면 최근 교환이 없어 저절로 꺼진다"""
     P = _people(repo, event_id, only_checked_in=True)
+    # 일찍 나간다고 표시한 사람(checkins.left_at, 0019)은 커피챗 계산에서 뺀다 — 앉지도 않고 주도 선배 후보도 아니다(10/25 민찬 결정).
+    #   커피챗 그룹 · 추천 목록에도 없고 남의 커피챗 추천에도 나오지 않는다. 공개 뒤에 나간 사람의 자리는 웹이 그대로 둔다(빈자리, 다시 계산하지 않음)
+    #   행사 직후 추천(final)은 빼지 않는다(구현하며 정함): 원본 커피챗 그룹을 그대로 쓰고, 행사 뒤 연락할 사람 추천은 일찍 간 사람에게도 쓸모가 있다
+    left_ids = set() if final else repo.left_checkins([p["id"] for p in P])
+    P = [p for p in P if p["id"] not in left_ids]
     if len(P) < 5:
         raise ValueError(f"배정할 사람이 {len(P)}명뿐이다 (5명 이상 필요)")
     ids = [p["id"] for p in P]
@@ -528,6 +534,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
             seat.update({int(i): k + 1 for k, i in enumerate(order)})
             seat_sum[str(t + 1)] = round(total, 3)
     params = {"kind": "final" if final else "coffeechat", "table_mode": table_mode, **_rec_params(P, intents, rec_mode), "beta": beta,
+              "left": len(left_ids),                                   # 일찍 나간다고 표시해 뺀 사람 수(0019, final 은 0)
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2), "cards": card_stat,
               "sat_weights": sw, "sat_counts": dict(Counter(sat.values())), "sat_fast": sat_fast,
               "sat_picks": {"people": len(picked), "picked": sum(len(v) for v in picked.values())},
@@ -573,7 +580,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     exposure = _write_recs(repo, v, P, ids, _rec_scores(S2, O2, a, P, intents, rec_mode), met, tags, intents,
                            [(c,) for c in first_prefix], n_exact, n_explore, seed)
     _heartbeat(repo, "final" if final else "coffeechat")
-    return {"version": v, "final": final, "late": int((~seated).sum()), "n": n, "tables": len(sizes), "groups": len(sizes), "fallback": fallback,
+    return {"version": v, "final": final, "late": int((~seated).sum()), "left": len(left_ids), "n": n, "tables": len(sizes), "groups": len(sizes), "fallback": fallback,
             "response_rate": round(rate, 3), "forbid_hits": r.forbid_hits, "group_reasons": n_reasons,
             "leads": len(lead), "cohort_over": r.cohort_over,
             "exposure_min": int(exposure.min()), "exposure_max": int(exposure.max())}
@@ -594,6 +601,8 @@ def coffeechat_late(repo, enc, participant_id: str, event_id: str = "dev", versi
       2. 그중 같은 기수가 상한(COFFEECHAT_COHORT_CAP)을 넘지 않는 테이블만. 그런 테이블이 없으면 1 의 테이블 전부
       3. 테이블 구성원과의 점수 평균이 가장 높은 곳(같으면 인원이 적은 곳 → 번호가 작은 곳)
     좌석 = 그 테이블의 (가장 큰 좌석 번호, 인원) 중 큰 쪽 + 1. 앉아 있는 사람 번호는 그대로. 주도 선배로 두지 않는다.
+    일찍 나간다고 표시한 사람(checkins.left_at, 0019 · 10/25 민찬 결정): 본인이면 409(자리를 정하지 않는다). 테이블 구성원 중 나간 사람은
+      인원 · 같은 기수 · 점수 평균에서 뺀다(그 자리는 비어 있다). 좌석 번호는 나간 사람 번호까지 포함한 다음 번호(구현하며 정함)
     version 을 안 주면 이 행사의 최신 공개 커피챗 버전. 행사 직후 추천(params.kind final)이 공개됐으면 409(행사가 끝난 뒤라 자리를 정하지 않는다)"""
     if version is None:
         v = repo.coffeechat_published(event_id)
@@ -611,12 +620,19 @@ def coffeechat_late(repo, enc, participant_id: str, event_id: str = "dev", versi
     P = {p["id"]: p for p in repo.participants(event_id)}
     if participant_id not in P:
         raise ValueError("이 행사의 참가자가 아니다")
+    left = repo.left_checkins([participant_id] + [m["participant_id"] for m in rows])
+    if participant_id in left:
+        raise ValueError("일찍 나간다고 표시한 사람이라 커피챗 자리를 정하지 않는다")
 
     members: dict[int, list[str]] = {}
     top_seat: dict[int, int] = {}
+    n_rows: dict[int, int] = {}
     for m in rows:
         t = int(m["table_no"])
-        members.setdefault(t, []).append(m["participant_id"])
+        members.setdefault(t, [])
+        if m["participant_id"] not in left:                              # 나간 사람은 구성원에서 뺀다(빈자리)
+            members[t].append(m["participant_id"])
+        n_rows[t] = n_rows.get(t, 0) + 1
         top_seat[t] = max(top_seat.get(t, 0), int(m.get("seat_no") or 0))
     sid = repo.sids([participant_id] + [x for mem in members.values() for x in mem])
     if participant_id in sid:
@@ -650,7 +666,7 @@ def coffeechat_late(repo, enc, participant_id: str, event_id: str = "dev", versi
     fit = [c for c in pool if coh is None or c["same_cohort"] + 1 <= COFFEECHAT_COHORT_CAP]
     best = max(fit or pool, key=lambda c: (c["mean"] if c["mean"] is not None else -np.inf, -c["size"], -c["table_no"]))
     t = best["table_no"]
-    seat_no = max(top_seat[t], best["size"]) + 1
+    seat_no = max(top_seat[t], n_rows[t]) + 1
     mate = max(best["_js"], key=lambda j: A[0, j]) if best["_js"] else None
     name = (P[ids[mate]].get("display_name") or "") if mate is not None else ""
     reason = {"text": f"{LATE_TEXT} · 잘 맞는 사람 {name}" if mate is not None else LATE_TEXT,

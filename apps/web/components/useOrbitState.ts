@@ -16,6 +16,9 @@ export type OrbitState = {
   coffeechat: { version: number; group_no: number; seat_no?: number | null } | null;
   published: { tabletalk: number | null; coffeechat: number | null };
   recs_open: boolean;
+  checked_in?: boolean; // 일찍 나가요(0019, 10/25): 체크인했는지 · 나간다고 표시한 시각 · 지금 바꿀 수 있는 단계인지
+  left_at?: string | null;
+  leave_open?: boolean;
   mission: { window: "not_started" | "open" | "closed"; done_count: number; total: number; progress: number };
   now: string;
 };
