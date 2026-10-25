@@ -115,6 +115,16 @@ class MemoryRepo:
         s = set(ids)
         return v, [m for m in self.t["table_members"] if m["version"] == v["version"] and m["participant_id"] in s]
 
+    def coffeechat_published(self, event_id: str = "dev") -> dict | None:
+        """이 행사의 최신 공개(published) 커피챗 버전 {version, params}. 화면(current_tables)이 읽는 버전과 같다. 없으면 None."""
+        vs = [v for v in self.t["assign_versions"] if v["round"] == "coffeechat" and v["status"] == "published"
+              and v.get("event_id", "dev") == event_id]
+        return max(vs, key=lambda v: v["version"]) if vs else None
+
+    def version_members(self, version: int) -> list[dict]:
+        """배정 버전 하나의 자리 전부 [{participant_id, table_no, seat_no, reason}]."""
+        return [m for m in self.t["table_members"] if m["version"] == version]
+
     def active_codebook(self, event_id: str) -> dict | None:
         return next((c for c in self.t["codebooks"] if c["event_id"] == event_id and c["active"]), None)
 
@@ -274,6 +284,14 @@ class SupabaseRepo:
         rows = self._all(lambda: self.db.table("table_members").select("version, table_no, participant_id, seat_no, reason")
                          .eq("version", v["version"]))
         return v, [m for m in rows if m["participant_id"] in s]
+
+    def coffeechat_published(self, event_id="dev"):
+        r = (self.db.table("assign_versions").select("version, status, params").eq("round", "coffeechat").eq("event_id", event_id)
+             .eq("status", "published").order("version", desc=True).limit(1).execute().data)
+        return r[0] if r else None
+
+    def version_members(self, version):
+        return self._all(lambda: self.db.table("table_members").select("participant_id, table_no, seat_no, reason").eq("version", version))
 
     def active_codebook(self, event_id):
         r = self.db.table("codebooks").select("*").eq("event_id", event_id).eq("active", True).limit(1).execute().data

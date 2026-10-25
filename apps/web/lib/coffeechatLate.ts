@@ -1,0 +1,112 @@
+// 커피챗 배정이 공개된 뒤 처음 체크인한 사람(늦게 온 사람)에게 커피챗 자리를 바로 준다(10/25 민찬 결정).
+// 부르는 곳: 첫 로그인(ensureCheckin), 운영자 수동 체크인(/api/ops/checkin), 워크인 추가(/api/ops/add-participant),
+//   상태(/api/state, 커피챗 계산 뒤 · 공개 전에 들어와 자리가 없는 사람도 다음 폴링에서 앉힌다. 구현하며 정함).
+// 자리 고르기는 계산 서비스 POST /coffeechat/late(행사 전 정보로 잘 맞는 테이블, 인원 균형 · 같은 기수 상한). 2.5초 안에 답이 없거나 오류면
+//   인원이 가장 적은 테이블(같으면 번호가 작은 쪽)로 앉힌다. 좌석은 그 테이블의 다음 번호라 앉아 있는 사람 번호는 그대로다. 주도 선배로 두지 않는다.
+// 쓰는 곳은 공개된 커피챗 버전의 table_members(화면 current_tables 가 그대로 읽음). (version, participant_id) 기본 키로 두 번 들어가지 않는다.
+// 건너뜀: 공개된 커피챗이 없을 때, 행사 직후 추천(params.kind final)이 공개됐을 때, 단계가 마무리 · 시상(wrapup · award)일 때(커피챗이 끝남. 구현하며 정함).
+// 어떤 오류도 밖으로 던지지 않는다(로그인 · 체크인이 이것 때문에 실패하면 안 된다).
+import "server-only";
+import { db } from "./db";
+import { eventId } from "./api";
+import { logEvent } from "./log";
+import { readOps } from "./opsState";
+import { MISSION_CLOSED, isPhase } from "./phase";
+
+const TIMEOUT_MS = 2_500;
+const FALLBACK_TEXT = "늦게 와서 배정(계산 서비스 응답 없음 · 인원이 가장 적은 테이블)";
+
+export type LateSeat = { version: number; table_no: number; seat_no: number; fallback: boolean };
+
+type Pick = { table_no: number; reason: Record<string, unknown> };
+
+// 계산 서비스에 자리를 묻는다. 못 받으면 null(이유는 status 로)
+async function askCompute(pid: string, version: number): Promise<{ pick: Pick | null; status: number }> {
+  const base = (process.env.COMPUTE_URL ?? "").trim().replace(/\/+$/, "");
+  if (!base) return { pick: null, status: 0 };
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(base + "/coffeechat/late", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Compute-Secret": process.env.COMPUTE_SECRET ?? "" },
+      body: JSON.stringify({ event_id: eventId(), participant_id: pid, version }),
+      signal: ctl.signal,
+      cache: "no-store",
+    });
+    if (res.status !== 200) return { pick: null, status: res.status };
+    const b = (await res.json()) as { version?: number; table_no?: number; reason?: Record<string, unknown> };
+    if (b.version !== version || typeof b.table_no !== "number") return { pick: null, status: res.status };
+    return { pick: { table_no: b.table_no, reason: b.reason ?? {} }, status: 200 };
+  } catch {
+    return { pick: null, status: 0 };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function seatLateCoffeechat(pid: string, by: string | null = null): Promise<LateSeat | null> {
+  try {
+    const ops = await readOps(["phase"]);
+    if (isPhase(ops.phase) && MISSION_CLOSED.includes(ops.phase)) return null;
+    const { data: v, error } = await db()
+      .from("assign_versions")
+      .select("version, params")
+      .eq("event_id", eventId())
+      .eq("round", "coffeechat")
+      .eq("status", "published")
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (!v || (v.params as { kind?: string } | null)?.kind === "final") return null;
+    const version = v.version as number;
+    const { data: rows, error: e2 } = await db().from("table_members").select("table_no, seat_no, participant_id").eq("version", version);
+    if (e2) throw e2;
+    if (!rows?.length || rows.some((r) => r.participant_id === pid)) return null;
+
+    const count = new Map<number, { n: number; seat: number }>();
+    for (const r of rows) {
+      const c = count.get(r.table_no as number) ?? { n: 0, seat: 0 };
+      count.set(r.table_no as number, { n: c.n + 1, seat: Math.max(c.seat, (r.seat_no as number | null) ?? 0) });
+    }
+    const started = Date.now();
+    const asked = await askCompute(pid, version);
+    const pick = asked.pick && count.has(asked.pick.table_no) ? asked.pick : null;
+    const table_no = pick ? pick.table_no : [...count.entries()].sort((a, b) => a[1].n - b[1].n || a[0] - b[0])[0][0];
+    const c = count.get(table_no)!;
+    // 계산 서비스가 본 뒤에 다른 사람이 앉았을 수 있어 좌석 번호는 여기서 다시 센다(가장 큰 좌석 번호와 인원 중 큰 쪽 + 1)
+    let seat_no = Math.max(c.seat, c.n) + 1;
+    const reason = pick
+      ? { ...pick.reason, late_join: true, table_no, seat_no }
+      : { text: FALLBACK_TEXT, late_join: true, fallback: true, table_no, seat_no };
+    const { data: ins, error: e3 } = await db()
+      .from("table_members")
+      .upsert({ version, table_no, participant_id: pid, seat_no, reason }, { onConflict: "version,participant_id", ignoreDuplicates: true })
+      .select("participant_id");
+    if (e3) throw e3;
+    if (!ins?.length) return null; // 동시에 들어온 다른 요청이 먼저 앉혔다
+
+    // 같은 때 다른 늦은 사람이 같은 테이블 같은 번호를 받았으면 id 가 큰 쪽을 다음 번호로 옮긴다(먼저 알아챈 요청이 옮긴다. 둘 다 알아채도 같은 번호)
+    const { data: same, error: e4 } = await db().from("table_members").select("participant_id, seat_no, reason").eq("version", version).eq("table_no", table_no);
+    if (e4) throw e4;
+    const dup = (same ?? []).filter((r) => r.seat_no === seat_no).sort((a, b) => ((a.participant_id as string) < (b.participant_id as string) ? -1 : 1));
+    if (dup.length > 1) {
+      const move = dup[dup.length - 1];
+      const next = Math.max(...(same ?? []).map((r) => (r.seat_no as number | null) ?? 0), (same ?? []).length) + 1;
+      const { error: e5 } = await db()
+        .from("table_members")
+        .update({ seat_no: next, reason: { ...((move.reason ?? {}) as Record<string, unknown>), seat_no: next } })
+        .eq("version", version)
+        .eq("participant_id", move.participant_id as string);
+      if (e5) throw e5;
+      if (move.participant_id === pid) seat_no = next;
+    }
+    await logEvent("coffeechat_late_seat", pid, { version, table_no, seat_no, fallback: !pick, compute_status: asked.status, ms: Date.now() - started, by });
+    return { version, table_no, seat_no, fallback: !pick };
+  } catch (e) {
+    console.error("늦게 온 사람 커피챗 자리 실패", pid, e);
+    await logEvent("coffeechat_late_seat_fail", pid, { by, message: e instanceof Error ? e.message : String(e) });
+    return null;
+  }
+}

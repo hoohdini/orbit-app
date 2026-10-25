@@ -13,7 +13,7 @@ const COHORT_CAP: Record<string, number> = { tabletalk: 3, coffeechat: 3 };
 
 export const dynamic = "force-dynamic";
 
-type Reason = { text?: string; random?: boolean; lead?: boolean } | null;   // lead = 커피챗 주도 선배(10/22)
+type Reason = { text?: string; random?: boolean; lead?: boolean; late_join?: boolean } | null;   // lead = 커피챗 주도 선배(10/22), late_join = 커피챗 공개 뒤 늦게 와서 앉음(10/25)
 
 export async function GET(_req: Request, { params }: { params: Promise<{ version: string }> }) {
   return handle(async () => {
@@ -43,7 +43,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
     if (pErr) throw pErr;
     const who = new Map((people ?? []).map((p) => [p.id as string, p]));
 
-    type Row = { id: string; display_name: string; affiliation: string | null; role: string; cohort: number | null; seat_no: number | null; random: boolean; lead: boolean; reason: string };
+    type Row = { id: string; display_name: string; affiliation: string | null; role: string; cohort: number | null; seat_no: number | null; random: boolean; lead: boolean; late_join: boolean; reason: string };
     const tables = new Map<number, { table_no: number; mean_score: number | null; check: boolean; members: Row[] }>();
     for (const r of rows ?? []) {
       const t = r.table_no as number;
@@ -59,6 +59,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
         seat_no: (r.seat_no as number | null) ?? null,
         random: !!reason?.random,
         lead: !!reason?.lead,
+        late_join: !!reason?.late_join,
         reason: reason?.text ?? "",
       });
     }
@@ -88,7 +89,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
       for (const c of cnt.values()) cohortOver += Math.max(0, c - cap);
     }
 
-    // 재회 쌍: 커피챗 그룹 안에서 공개된 테이블토크 때 같은 테이블이었던 쌍
+    // 재회 쌍: 커피챗 그룹 안에서 공개된 테이블토크 때 같은 테이블이었던 쌍. 늦게 와서 앉은 사람(late_join)은 테이블토크에 없었으므로 세지 않는다(10/25)
     let reunion: number | null = null;
     if (v.round === "coffeechat") {
       const { data: tt, error: tErr } = await db().from("current_tables").select("participant_id, table_no").eq("round", "tabletalk").eq("event_id", eventId());
@@ -98,6 +99,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
       for (const t of list)
         for (let i = 0; i < t.members.length; i++)
           for (let j = i + 1; j < t.members.length; j++) {
+            if (t.members[i].late_join || t.members[j].late_join) continue;
             const a = ttOf.get(t.members[i].id);
             if (a !== undefined && a === ttOf.get(t.members[j].id)) reunion++;
           }

@@ -530,6 +530,98 @@ def test_errors():
         raise AssertionError("코드북 없이 reuse 가 통과했다")
 
 
+def test_coffeechat_late_seat():
+    """10/25 민찬 결정: 커피챗 공개 뒤 처음 체크인한 사람은 행사 전 정보만으로 잘 맞는 테이블의 다음 좌석.
+    인원이 (가장 적은 테이블 + 1) 이하인 테이블만, 같은 기수 상한을 넘지 않는 테이블 우선, 테이블토크 동석자 금지 없음. 쓰지 않고 고르기만 한다."""
+    repo, enc = seed_repo(n=44, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    late = ids[-1]
+    repo.t["checkins"] += [{"participant_id": pid} for pid in ids[:-1]]
+    r = service.coffeechat(repo, enc, iters=300)
+    try:                                                                 # 공개 전에는 409
+        service.coffeechat_late(repo, enc, late)
+    except ValueError as e:
+        assert "공개된 커피챗" in str(e)
+    else:
+        raise AssertionError("공개 안 된 커피챗으로 자리를 골랐다")
+    next(v for v in repo.t["assign_versions"] if v["version"] == r["version"])["status"] = "published"
+    n_rows = len(repo.t["table_members"])
+    P = {p["id"]: p for p in repo.t["participants"]}
+    P[late]["cohort"] = None
+    x = service.coffeechat_late(repo, None, late)                        # 저장된 벡터가 있으면 모델 없이
+    assert len(repo.t["table_members"]) == n_rows                        # 쓰지 않는다
+    assert x["version"] == r["version"] and not x["already"]
+    cm = [m for m in repo.t["table_members"] if m["version"] == r["version"]]
+    sizes = {t["table_no"]: t["size"] for t in x["tables"]}
+    assert len(sizes) == r["tables"]                                     # 테이블토크 동석자가 있는 테이블도 빠지지 않는다
+    pool = [t for t in x["tables"] if t["size"] <= min(sizes.values()) + 1]
+    assert x["table_no"] in {t["table_no"] for t in pool}
+    assert next(t for t in x["tables"] if t["table_no"] == x["table_no"])["mean"] == max(t["mean"] for t in pool)
+    assert x["seat_no"] == max(m["seat_no"] for m in cm if m["table_no"] == x["table_no"]) + 1
+    rs = x["reason"]
+    assert rs["late_join"] and not rs.get("lead") and rs["text"].startswith("늦게 와서 배정 · 잘 맞는 사람 ")
+    assert rs["best_mate"] in {m["participant_id"] for m in cm if m["table_no"] == x["table_no"]}
+    # 같은 기수 상한: 고른 테이블에 같은 기수가 이미 상한만큼 있으면 다른 테이블로
+    mates = [m["participant_id"] for m in cm if m["table_no"] == x["table_no"]][:service.COFFEECHAT_COHORT_CAP]
+    for p in P.values():
+        if p["cohort"] == 99:
+            p["cohort"] = 10
+    for pid in mates + [late]:
+        P[pid]["cohort"] = 99
+    y = service.coffeechat_late(repo, None, late)
+    assert y["table_no"] != x["table_no"] and not y["reason"]["cohort_over"]
+    # 인원 균형: 가장 잘 맞는 테이블에 두 명을 더 앉혀 (가장 적은 테이블 + 1) 을 넘기면 그 테이블은 후보에서 빠진다
+    P[late]["cohort"] = None
+    big = x["table_no"]
+    extra = [{"version": r["version"], "table_no": big, "participant_id": f"extra-{k}", "seat_no": 50 + k, "reason": {}} for k in range(2)]
+    repo.t["table_members"] += extra
+    assert service.coffeechat_late(repo, None, late)["table_no"] != big
+    repo.t["table_members"] = [m for m in repo.t["table_members"] if m not in extra]
+    # 이미 자리가 있으면 그대로(두 번 불러도 같은 자리)
+    repo.t["table_members"].append({"version": r["version"], "table_no": x["table_no"], "participant_id": late,
+                                    "seat_no": x["seat_no"], "reason": x["reason"]})
+    z = service.coffeechat_late(repo, None, late)
+    assert z["already"] and z["table_no"] == x["table_no"] and z["seat_no"] == x["seat_no"]
+    # 현장 등록자(주소 없음): 모델이 있으면 프로필을 바로 임베딩, 없으면 409
+    w = str(uuid.UUID(int=999))
+    repo.t["participants"].append({"id": w, "event_id": "dev", "display_name": "현장", "role": "student", "cohort": None, "is_host": False})
+    repo.t["profiles"].append({"participant_id": w, "offer_text": "추천시스템 일을 한다", "seek_text": "", "topic_tags": ["추천시스템"], "intent_tags": []})
+    assert service.coffeechat_late(repo, enc, w)["reason"]["late_join"]
+    blank = str(uuid.UUID(int=998))                                      # 프로필이 빈 현장 등록자는 409(웹이 인원 적은 테이블로)
+    repo.t["participants"].append({"id": blank, "event_id": "dev", "display_name": "빈칸", "role": "student", "cohort": None, "is_host": False})
+    repo.t["profiles"].append({"participant_id": blank, "offer_text": "", "seek_text": "", "topic_tags": [], "intent_tags": []})
+    try:
+        service.coffeechat_late(repo, enc, blank)
+    except ValueError as e:
+        assert "프로필" in str(e)
+    else:
+        raise AssertionError("빈 프로필로 자리를 골랐다")
+    try:
+        service.coffeechat_late(repo, None, w)
+    except ValueError as e:
+        assert "모델" in str(e)
+    else:
+        raise AssertionError("벡터도 모델도 없이 자리를 골랐다")
+    # 행사 직후 추천(final)이 공개되면 자리를 정하지 않는다
+    repo.t["checkins"].append({"participant_id": late})
+    f = service.coffeechat(repo, enc, final=True)
+    for v in repo.t["assign_versions"]:
+        if v["version"] == r["version"]:
+            v["status"] = "retired"
+        if v["version"] == f["version"]:
+            v["status"] = "published"
+    try:
+        service.coffeechat_late(repo, enc, w)
+    except ValueError as e:
+        assert "행사 직후" in str(e)
+    else:
+        raise AssertionError("final 공개 뒤에 자리를 골랐다")
+    # 원본에 쓴 늦게 온 사람 자리는 행사 직후 추천에서도 그대로(_keep_groups 가 원본 자리를 읽음)
+    fm = {m["participant_id"]: m for m in repo.t["table_members"] if m["version"] == f["version"]}
+    assert fm[late]["table_no"] == x["table_no"] and fm[late]["seat_no"] == x["seat_no"]
+
 
 def test_recs_rule_puts_givers_first():
     """기본 추천 점수(rule): 취업 · 이직 정보를 원하는 학생의 추천 10명에 재직자가 많이 들어간다. REC_SCORE=min(예전)과 비교."""

@@ -5,7 +5,8 @@ import { ok, fail, handle, eventId } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 import { consentOf, shareOf } from "@/lib/consent";
 import { opsSnapshot } from "@/lib/opsState";
-import { phaseLabel, recsOpen, missionWindow } from "@/lib/phase";
+import { phaseLabel, recsOpen, missionWindow, MISSION_CLOSED } from "@/lib/phase";
+import { seatLateCoffeechat } from "@/lib/coffeechatLate";
 import { missionStatus } from "@/lib/missions";
 
 export const dynamic = "force-dynamic";
@@ -26,8 +27,13 @@ export async function GET() {
 
     const seat = (round: string) => (mine.data ?? []).find((r) => r.round === round);
     const tt = seat("tabletalk");
-    const cc = seat("coffeechat");
     const pub = (round: string) => ((published.data ?? []).find((v) => v.round === round)?.version as number | undefined) ?? null;
+    // 커피챗 계산 뒤 · 공개 전에 들어와 공개된 커피챗에 자리가 없는 사람은 여기서 앉힌다(10/25, 구현하며 정함. 로그인 때는 아직 공개 전이라 못 앉혔다)
+    let cc: { version: unknown; table_no: unknown; seat_no: unknown } | undefined = seat("coffeechat");
+    if (!cc && pub("coffeechat") !== null && !(ops.phase && MISSION_CLOSED.includes(ops.phase))) {
+      const late = await seatLateCoffeechat(s.pid);
+      if (late) cc = late;
+    }
     const window = missionWindow(ops.phase);
     const m = await missionStatus(s.pid, ops.missionClosedAt);
 

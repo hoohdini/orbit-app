@@ -183,6 +183,13 @@ python sim/make_seat_eval_dataset.py                 # 가상 80명 CSV(적재 �
   행사 직후 추천(final)은 원본 커피챗의 좌석 번호를 그대로 쓴다
   가상 80명 시드 5개(`sim/eval_coffeechat_leads.py`, 문장 점수만): 10테이블 × 8명, 21위 아래에서 뽑힌 선배 평균 3.0명, 두 선배 숨은 분야 일치 60%, 재회 0 · 기수 넘침 0.
   동석자 중 좋은 상대 1.36명(주도 선배 없이 10테이블 1.39, 예전 3~4명 그룹 0.81). 쌍 점수 평균은 테이블이 커져 0.391 → 0.033(선배 없이 0.078)
+- 늦게 온 사람(10/25 민찬 결정, `service.coffeechat_late`, POST /coffeechat/late {event_id, participant_id, version?}): 커피챗 공개 뒤 처음 체크인한 사람 한 명의 자리를 고른다.
+  DB 에 쓰지 않고 table_no · seat_no · reason 만 돌려준다(웹 lib/coffeechatLate.ts 가 공개 버전 table_members 에 쓰고, 2.5초 안에 답이 없으면 인원이 가장 적은 테이블로).
+  점수는 행사 전 정보만: 저장된 벡터(sids)로 커피챗과 같은 좌석 점수(seat_directional → table_matrix min). 그날 신호는 없고 테이블토크 동석자 금지도 걸지 않는다(테이블토크에 없었다).
+  인원이 (가장 적은 테이블 + 1) 이하인 테이블 중 같은 기수가 상한(3)을 넘지 않는 곳(없으면 상한 무시) → 구성원과의 점수 평균 최대(같으면 인원 적은 곳 → 번호 작은 곳).
+  좌석 = max(가장 큰 좌석 번호, 인원) + 1, reason = {text: 늦게 와서 배정 · 잘 맞는 사람 OO, late_join, best_mate, best_score, avg_score, cohort_over}. 주도 선배로 두지 않는다.
+  저장된 벡터가 없는 현장 등록자는 모델이 이미 올라와 있을 때만 프로필을 임베딩한다(요청 안에서 모델을 올리지 않음, WARM_MODEL=1 권장). 프로필이 비었거나 모델이 없으면 409.
+  공개된 커피챗이 없거나 행사 직후 추천(final)이 공개됐으면 409. 이미 자리가 있으면 already true 로 그 자리
 - 만족도 응답률이 `min_response_rate`(기본 0.5) 미만이면 만남 반영 없이 텍스트 점수로만 커피챗을 낸다(대체 경로)
 - 요청 본문 선택값: `table_mode`(min · avg · harmonic) · `random_ratio` · `rec_mode`(없으면 `REC_SCORE`) · `beta`
 - 코드북 버전 이름은 `cb-<행사>-<날짜시각>`. 배정 버전에 행사 번호(`assign_versions.event_id`)를 남겨 개발 DB 에 행사가 여러 개 섞여도 서로 집지 않는다(0007)
@@ -198,6 +205,7 @@ python sim/make_seat_eval_dataset.py                 # 가상 80명 CSV(적재 �
 | GET /health | 항상 | 생존 신호. 운영 콘솔이 `ops_state.compute_heartbeat` 로 기록한다 |
 | POST /precompute | 행사 전날 | 발급과 테이블토크 배정 draft |
 | POST /coffeechat | 테이블토크 종료 뒤 | 점수 재계산, 커피챗 배정 draft, 추천 |
+| POST /coffeechat/late | 커피챗 공개 뒤 늦게 온 사람 체크인 때(웹) | 한 사람의 커피챗 자리 고르기만(쓰기는 웹). 아래 늦게 온 사람 |
 
 헤더 `X-Compute-Secret` 이 `.env` 의 `COMPUTE_SECRET` 과 같아야 한다.
 

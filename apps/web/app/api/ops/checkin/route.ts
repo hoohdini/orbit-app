@@ -1,9 +1,11 @@
 // POST /api/ops/checkin { participant_id, is_late? }  운영자가 수동으로 체크인한다. 이미 돼 있으면 그대로 두고 already:true 로 알린다
+// 커피챗 배정이 공개된 뒤 처음 체크인하면 커피챗 자리를 바로 준다(coffee_seat, 10/25 민찬 결정, lib/coffeechatLate.ts). 못 주면 null 이고 체크인은 그대로 된다
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ok, fail, handle } from "@/lib/api";
 import { requireAdmin } from "@/lib/session";
 import { logEvent } from "@/lib/log";
+import { seatLateCoffeechat } from "@/lib/coffeechatLate";
 import { eventParticipant, UUID } from "../_lib";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +21,7 @@ export async function POST(req: Request) {
 
     const { data: prev, error } = await db().from("checkins").select("checked_at, is_late").eq("participant_id", b.participant_id).maybeSingle();
     if (error) throw error;
-    if (prev) return ok({ checked_at: prev.checked_at, is_late: prev.is_late, already: true });
+    if (prev) return ok({ checked_at: prev.checked_at, is_late: prev.is_late, already: true, coffee_seat: null });
 
     const { data, error: e2 } = await db()
       .from("checkins")
@@ -28,6 +30,7 @@ export async function POST(req: Request) {
       .single();
     if (e2) throw e2;
     await logEvent("ops_checkin", admin.pid, { target: b.participant_id, is_late: b.is_late });
-    return ok({ checked_at: data.checked_at, is_late: data.is_late, already: false });
+    const coffee_seat = await seatLateCoffeechat(b.participant_id, admin.pid);
+    return ok({ checked_at: data.checked_at, is_late: data.is_late, already: false, coffee_seat });
   });
 }

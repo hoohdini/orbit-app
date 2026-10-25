@@ -10,6 +10,7 @@ coffeechat  테이블토크 뒤(포스터세션 중, v0.2 B-04). 행사장 10테
             지연 체크인(checkins.is_late)한 사람은 배정에는 넣되 주도 선배로 뽑지 않는다(구현하며 정함).
             커피챗 중에는 이동하지 않는다(10/21 민찬 결정, 이동 불가). 저장된 벡터 + 명함 교환 간선 + 만족도 답 + 포스터 관심도 → 만남 반영 → 커피챗 배정 초안 → 개인 추천
             포스터 관심도는 부르는 시점까지 들어온 답만 쓴다. 포스터세션 끝 무렵에 부를수록 많이 반영된다
+coffeechat_late  커피챗 배정 공개 뒤 처음 체크인한 사람 한 명의 자리를 고른다(10/25 민찬 결정, 쓰기는 웹). 행사 전 정보만으로 잘 맞는 테이블
 
 배정마다 사람별 이유(table_members.reason)를 남긴다. 운영진 대시보드가 이걸로 배정을 확인한다(9/27 회의)
 
@@ -576,6 +577,89 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
             "response_rate": round(rate, 3), "forbid_hits": r.forbid_hits, "group_reasons": n_reasons,
             "leads": len(lead), "cohort_over": r.cohort_over,
             "exposure_min": int(exposure.min()), "exposure_max": int(exposure.max())}
+
+
+LATE_TEXT = "늦게 와서 배정"
+
+
+def coffeechat_late(repo, enc, participant_id: str, event_id: str = "dev", version: int | None = None,
+                    table_mode: str = "min") -> dict:
+    """커피챗 배정 공개 뒤에 처음 체크인한 사람(늦게 온 사람)의 자리(10/25 민찬 결정). 고르기만 하고 쓰지 않는다 — 자리는 웹이 쓴다.
+    웹이 2 ~ 3초만 기다리므로 모델은 올리지 않는다(enc 가 None 이면 저장된 벡터만 쓴다).
+    점수 = 행사 전 정보만: 저장된 벡터(sids, 없으면 프로필을 그 자리에서 임베딩)로 커피챗 배정과 같은 좌석 점수(seat_directional → table_matrix).
+      테이블토크 · 포스터세션에 없었으므로 그날 신호(만족도 · 명함 · 포스터 · 검색)는 없고, 테이블토크 동석자 금지도 걸지 않는다
+      (미리 정해 둔 테이블토크 동석자를 실제로 만나지 않았다. 10/25 민찬 결정)
+    고르기(10/25 민찬 결정)
+      1. 인원: 인원이 (가장 적은 테이블 + 1) 이하인 테이블만
+      2. 그중 같은 기수가 상한(COFFEECHAT_COHORT_CAP)을 넘지 않는 테이블만. 그런 테이블이 없으면 1 의 테이블 전부
+      3. 테이블 구성원과의 점수 평균이 가장 높은 곳(같으면 인원이 적은 곳 → 번호가 작은 곳)
+    좌석 = 그 테이블의 (가장 큰 좌석 번호, 인원) 중 큰 쪽 + 1. 앉아 있는 사람 번호는 그대로. 주도 선배로 두지 않는다.
+    version 을 안 주면 이 행사의 최신 공개 커피챗 버전. 행사 직후 추천(params.kind final)이 공개됐으면 409(행사가 끝난 뒤라 자리를 정하지 않는다)"""
+    if version is None:
+        v = repo.coffeechat_published(event_id)
+        if v is None:
+            raise ValueError("공개된 커피챗 배정이 없다")
+        if (v.get("params") or {}).get("kind") == "final":
+            raise ValueError("행사 직후 추천이 공개된 뒤라 커피챗 자리를 정하지 않는다")
+        version = int(v["version"])
+    rows = repo.version_members(version)
+    if not rows:
+        raise ValueError(f"커피챗 배정 {version} 에 자리가 없다")
+    mine = next((m for m in rows if m["participant_id"] == participant_id), None)
+    if mine is not None:                                                 # 이미 자리가 있으면 그대로 돌려준다
+        return {"version": version, "already": True, "table_no": int(mine["table_no"]), "seat_no": mine.get("seat_no")}
+    P = {p["id"]: p for p in repo.participants(event_id)}
+    if participant_id not in P:
+        raise ValueError("이 행사의 참가자가 아니다")
+
+    members: dict[int, list[str]] = {}
+    top_seat: dict[int, int] = {}
+    for m in rows:
+        t = int(m["table_no"])
+        members.setdefault(t, []).append(m["participant_id"])
+        top_seat[t] = max(top_seat.get(t, 0), int(m.get("seat_no") or 0))
+    sid = repo.sids([participant_id] + [x for mem in members.values() for x in mem])
+    if participant_id in sid:
+        o0, s0 = np.array(sid[participant_id]["offer_vec"], float), np.array(sid[participant_id]["seek_vec"], float)
+    elif enc is not None:                                                # 현장 등록자(주소 없음)는 프로필을 바로 임베딩
+        prof = repo.profiles([participant_id])
+        pr = prof.get(participant_id) or {}
+        if not ((pr.get("offer_text") or "").strip() or (pr.get("seek_text") or "").strip() or pr.get("topic_tags")):
+            raise ValueError("프로필이 비어 있어 잘 맞는 테이블을 고를 수 없다")   # 웹이 인원이 가장 적은 테이블로(구현하며 정함)
+        O1, S1, _ = _embed(enc, [P[participant_id]], prof)
+        o0, s0 = O1[0], S1[0]
+    else:
+        raise ValueError("이 사람의 저장된 벡터(주소)가 없고 모델이 아직 올라오지 않았다")
+    have = [x for mem in members.values() for x in mem if x in sid and x in P]
+    ids = [participant_id] + have
+    col = {x: k for k, x in enumerate(ids)}
+    O = unit(np.vstack([o0] + [np.array(sid[x]["offer_vec"], float) for x in have]))
+    S = unit(np.vstack([s0] + [np.array(sid[x]["seek_vec"], float) for x in have]))
+    is_host = np.array([bool(P[x].get("is_host")) for x in ids])
+    A = scoring.table_matrix(scoring.seat_directional(S, O), is_host, table_mode)
+
+    coh = P[participant_id].get("cohort")
+    cand = []
+    for t in sorted(members):
+        js = [col[x] for x in members[t] if x in col]
+        same = sum(1 for x in members[t] if coh is not None and (P.get(x) or {}).get("cohort") == coh)
+        cand.append({"table_no": t, "size": len(members[t]), "same_cohort": same,
+                     "mean": round(float(np.mean(A[0, js])), 4) if js else None, "_js": js})
+    lo = min(c["size"] for c in cand)
+    pool = [c for c in cand if c["size"] <= lo + 1]
+    fit = [c for c in pool if coh is None or c["same_cohort"] + 1 <= COFFEECHAT_COHORT_CAP]
+    best = max(fit or pool, key=lambda c: (c["mean"] if c["mean"] is not None else -np.inf, -c["size"], -c["table_no"]))
+    t = best["table_no"]
+    seat_no = max(top_seat[t], best["size"]) + 1
+    mate = max(best["_js"], key=lambda j: A[0, j]) if best["_js"] else None
+    name = (P[ids[mate]].get("display_name") or "") if mate is not None else ""
+    reason = {"text": f"{LATE_TEXT} · 잘 맞는 사람 {name}" if mate is not None else LATE_TEXT,
+              "late_join": True, "table_no": t, "seat_no": seat_no,
+              "best_mate": ids[mate] if mate is not None else None,
+              "best_score": round(float(A[0, mate]), 3) if mate is not None else None,
+              "avg_score": best["mean"], "cohort_over": not fit}
+    return {"version": version, "already": False, "table_no": t, "seat_no": seat_no, "reason": reason,
+            "tables": [{k: c[k] for k in ("table_no", "size", "same_cohort", "mean")} for c in cand]}
 
 
 _SEARCH_CACHE: dict[tuple[int, int, str], tuple[float, list[str], np.ndarray, np.ndarray]] = {}
