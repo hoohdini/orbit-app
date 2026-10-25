@@ -1,6 +1,6 @@
 "use client";
 // 일찍 나가요(10/25 민찬 결정, POST /api/checkin/leave · checkins.left_at). 마이 탭 첫 화면, 내 계정 위에 한 줄로 둔다.
-// 등록 · 개회부터 커피챗까지(state.leave_open)이고 체크인한 사람에게만 보인다. 마무리 뒤에는 숨긴다.
+// 등록 · 개회부터 커피챗까지(state.leave_open)이고 체크인한 사람에게만 보인다. 마무리 뒤에는 숨긴다. DB 에 0019 가 없으면(state.leave_available false) 숨긴다.
 // 누르면 화면 안의 작은 확인 시트(window.confirm 아님)가 뜨고, 확인하면 표시한다. 표시한 뒤에는 같은 자리가 다시 참여할게요로 바뀐다
 import { useState } from "react";
 import { api } from "@/lib/client";
@@ -17,7 +17,7 @@ export default function LeaveEarly() {
   const s = useOrbitState();
   const [sheet, setSheet] = useState(false);
   const [busy, setBusy] = useState(false);
-  if (!s || !s.leave_open || !s.checked_in) return null;
+  if (!s || !s.leave_open || !s.checked_in || s.leave_available === false) return null;
   const left = !!s.left_at;
 
   async function submit() {
@@ -25,7 +25,13 @@ export default function LeaveEarly() {
     const r = await api<{ left_at: string | null }>("/api/checkin/leave", { json: { undo: left } });
     setBusy(false);
     setSheet(false);
-    if (!r.ok) return toast(r.code === "LEAVE_NOT_OPEN" ? "지금은 바꿀 수 없습니다" : "바꾸지 못했습니다. 다시 눌러 주세요", "error");
+    if (!r.ok) {
+      const msg: Record<string, string> = {
+        LEAVE_NOT_OPEN: "지금은 바꿀 수 없습니다",
+        LEAVE_UNAVAILABLE: "지금은 일찍 나가요를 쓸 수 없습니다. 운영진에게 말씀해 주세요", // DB 에 0019 가 없음(503)
+      };
+      return toast(msg[r.code] ?? "바꾸지 못했습니다. 다시 눌러 주세요", "error");
+    }
     toast(left ? "다시 참여로 바꿨습니다" : "일찍 나가신다고 표시했습니다");
     refreshOrbitState(); // 되돌렸으면 다음 상태에서 커피챗 자리를 받는다
   }

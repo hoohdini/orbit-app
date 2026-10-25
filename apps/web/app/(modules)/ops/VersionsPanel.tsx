@@ -23,7 +23,8 @@ type Metrics = {
   reunion_pairs: number | null;
   cohort_over: number;
   not_checked_in: number;
-  left?: number; // 일찍 나간다고 표시한 사람(0019)
+  left?: number; // 계산 뒤 나감: 구성원 중 지금 나감 표시가 있는 사람(0019)
+  left_excluded?: number | null; // 계산에서 뺌: 계산 때 나감 표시로 뺀 수(params.left)
 };
 type Detail = {
   version: number;
@@ -166,7 +167,10 @@ export default function VersionsPanel() {
                       <Metric label="그룹" value={`${open.metrics.groups}개 · ${open.metrics.size_min}~${open.metrics.size_max}명`} />
                       <Metric label="평균 · 최저 점수" value={`${open.metrics.mean_score ?? "-"} · ${open.metrics.low_score ?? "-"}`} />
                       <Metric label="재회 쌍 · 기수 초과" value={`${open.metrics.reunion_pairs ?? "-"} · ${open.metrics.cohort_over}`} warn={(open.metrics.reunion_pairs ?? 0) > 0 || open.metrics.cohort_over > 0} />
-                      <Metric label="체크인 안 한 사람 · 나감" value={`${open.metrics.not_checked_in}명 · ${open.metrics.left ?? 0}명`} />
+                      <Metric label="체크인 안 한 사람" value={`${open.metrics.not_checked_in}명`} />
+                      {open.round === "coffeechat" && (
+                        <Metric label="계산에서 뺌 · 계산 뒤 나감" value={`${open.metrics.left_excluded ?? "-"}명 · ${open.metrics.left ?? 0}명`} warn={(open.metrics.left ?? 0) > 0} />
+                      )}
                     </div>
                   )}
                   <div className="flex flex-wrap items-center gap-2 text-xs">

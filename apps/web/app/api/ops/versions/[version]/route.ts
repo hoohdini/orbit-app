@@ -24,7 +24,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
 
     const { data: v, error: vErr } = await db()
       .from("assign_versions")
-      .select("version, round, status")
+      .select("version, round, status, params")
       .eq("version", version)
       .eq("event_id", eventId())
       .maybeSingle();
@@ -128,7 +128,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
         reunion_pairs: reunion,
         cohort_over: cohortOver,
         not_checked_in: ids.length - (ci ?? []).length,
-        left: left.size,
+        left: left.size, // 계산 뒤 나감: 이 버전 구성원 중 지금 나감 표시가 있는 사람(자리는 빈자리)
+        left_excluded: typeof (v.params as { left?: unknown } | null)?.left === "number" ? ((v.params as { left: number }).left) : null, // 계산에서 뺌: 계산 때 나감 표시로 뺀 수(params.left, 10/25 전 버전 · 테이블토크는 null)
       },
       tables: list,
     });

@@ -19,6 +19,7 @@ export type OrbitState = {
   checked_in?: boolean; // 일찍 나가요(0019, 10/25): 체크인했는지 · 나간다고 표시한 시각 · 지금 바꿀 수 있는 단계인지
   left_at?: string | null;
   leave_open?: boolean;
+  leave_available?: boolean; // false = DB 에 0019 가 없어 버튼을 숨김
   mission: { window: "not_started" | "open" | "closed"; done_count: number; total: number; progress: number };
   now: string;
 };

@@ -23,7 +23,9 @@ const SUMMARY: [string, string][] = [
   ["response_rate", "만족도 응답률"],
   ["fallback", "만남 반영 끔(응답률 부족)"],
   ["forbid_hits", "이미 만난 사람끼리 같은 테이블"],
-  ["late", "커피챗 뒤에 와서 추천만 받은 사람"],
+  // late(final 만): 원본 커피챗에 자리가 없는 체크인한 사람. 커피챗 계산 뒤에 왔는데 자리를 못 받았거나, 계산 전에 일찍 나간다고 표시해 빠진 사람(10/25)
+  ["late", "커피챗 자리 없이 추천만 받은 사람(계산 뒤에 왔거나 계산 전에 나감)"],
+  ["left", "일찍 나가 뺀 사람"], // 커피챗 계산(final 아님)이 checkins.left_at 으로 뺀 수(10/25 민찬 결정)
 ];
 
 export default function ComputePanel() {
@@ -91,7 +93,7 @@ export default function ComputePanel() {
         <section className="rounded-2xl border border-green-200 bg-green-50 p-4">
           <h2 className="text-sm font-semibold">{JOBS.find((j) => j.job === done.job)?.label} 끝 · {(done.ms / 1000).toFixed(1)}초</h2>
           <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-            {SUMMARY.filter(([k]) => k in done.result && (k !== "late" || done.job === "final")).map(([k, name]) => (
+            {SUMMARY.filter(([k]) => k in done.result && (k !== "late" || done.job === "final") && (k !== "left" || done.job !== "final")).map(([k, name]) => (
               <div key={k} className="contents">
                 <dt className="text-gray-600">{name}</dt>
                 <dd>{String(done.result[k])}</dd>

@@ -655,17 +655,22 @@ def test_coffeechat_left_early():
     # 공개 뒤에 나간 사람: 자리는 그대로 두고, 늦게 온 사람 자리 고르기의 인원에서 뺀다. 좌석 번호는 그 사람 번호까지 센 다음 번호
     x0 = service.coffeechat_late(repo, None, late)
     t = x0["table_no"]
-    mates = [pid for pid, m in cm.items() if m["table_no"] == t]
+    mates = sorted((pid for pid, m in cm.items() if m["table_no"] == t), key=lambda q: -cm[q]["seat_no"])   # 좌석 번호가 큰 순
     for c in repo.t["checkins"]:
-        if c["participant_id"] in mates[:2]:
+        if c["participant_id"] in mates[:2]:                             # 마지막 좌석 둘이 나감
             c["left_at"] = "2026-10-25T17:00:00+00:00"
+    # 다른 테이블마다 (나가지 않은) 가상 구성원 둘을 더해 t 만 인원 기준(가장 적은 테이블 + 1 이하)에 남게 고정한다
+    extra = [{"version": r["version"], "table_no": no, "participant_id": f"extra-{no}-{k}", "seat_no": 90 + k, "reason": {}}
+             for no in {m["table_no"] for m in cm.values()} - {t} for k in range(2)]
+    repo.t["table_members"] += extra
     n_rows = len(repo.t["table_members"])
     x1 = service.coffeechat_late(repo, None, late)
-    assert len(repo.t["table_members"]) == n_rows and all(pid in cm for pid in mates[:2])   # 공개된 자리는 그대로
+    assert len(repo.t["table_members"]) == n_rows and all(pid in cm for pid in mates[:2])   # 공개된 자리는 그대로(쓰지 않음)
     sizes = {c["table_no"]: c["size"] for c in x1["tables"]}
-    assert sizes[t] == len(mates) - 2
-    if x1["table_no"] == t:
-        assert x1["seat_no"] == max(cm[pid]["seat_no"] for pid in mates) + 1
+    assert sizes[t] == len(mates) - 2                                    # 나간 둘은 인원에서 빠진다
+    assert x1["table_no"] == t                                           # 다른 테이블은 인원 기준(가장 적은 테이블 + 1)을 넘어 t 만 후보
+    assert x1["seat_no"] == cm[mates[0]]["seat_no"] + 1                  # 좌석은 나간 사람 번호까지 센 다음 번호(빈 번호를 다시 쓰지 않음)
+    repo.t["table_members"] = [m for m in repo.t["table_members"] if m not in extra]
     # 행사 직후 추천(final): 나간 사람도 뺀 것 없이 추천을 받는다. 공개 뒤에 나간 사람은 원본 자리 그대로, 계산 전에 나간 사람은 자리 없이(late)
     repo.t["checkins"].append({"participant_id": late})
     f = service.coffeechat(repo, enc, final=True)

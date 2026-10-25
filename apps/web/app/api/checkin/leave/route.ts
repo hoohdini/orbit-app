@@ -32,14 +32,15 @@ export async function POST(req: Request) {
     if (!prev.checked_in) return fail("NOT_CHECKED_IN", "체크인한 뒤에 표시할 수 있다", 409);
     if (!!prev.left_at === !b.undo) return ok({ left_at: prev.left_at });
 
-    const { data, error: e2 } = await db()
+    // 상태 조건을 같이 건다(표시는 left_at 이 비었을 때만, 되돌리기는 있을 때만). 동시에 두 번 눌러도 처음 시각이 덮이지 않는다(구현하며 정함)
+    const q = db()
       .from("checkins")
       .update(b.undo ? { left_at: null, left_by: null } : { left_at: new Date().toISOString(), left_by: null })
-      .eq("participant_id", s.pid)
-      .select("left_at")
-      .single();
+      .eq("participant_id", s.pid);
+    const { data, error: e2 } = await (b.undo ? q.not("left_at", "is", null) : q.is("left_at", null)).select("left_at").maybeSingle();
     if (noLeftColumn(e2)) return fail("LEAVE_UNAVAILABLE", UNAVAILABLE, 503);
     if (e2) throw e2;
+    if (!data) return ok({ left_at: (await myCheckin(s.pid)).left_at }); // 다른 요청이 먼저 바꿨다
     await logEvent(b.undo ? "checkin_leave_undo" : "checkin_leave", s.pid, { by: null, phase: ops.phase });
     return ok({ left_at: (data.left_at as string | null) ?? null });
   });
