@@ -19,3 +19,26 @@ export function rankAward<T extends AwardInput>(rows: T[]): AwardRanked<T>[] {
   });
   return out;
 }
+
+export const AWARD_SEATS = 5; // 시상 5명(10/25 민찬 결정)
+
+// 상 자리(seats, 시상 5명 = 10/25 민찬 결정)에 순위표를 나눈다. 공동 순위 묶음이 통째로 들어가면 확정(sure),
+// 경계의 공동 순위 묶음을 다 넣으면 자리를 넘으면 그 묶음(drawGroup) 안에서 남은 자리 수(drawCount)만큼 추첨한다(10/25 민찬 결정).
+// 예: 순위 1 · 2 · 3 · 4 · 4 · 4, 5자리 → 확정 3명, 공동 4위 3명 중 2명 추첨. 사람이 자리보다 적으면 모두 확정.
+export function splitSeats<T extends { place: number }>(ranked: T[], seats: number): { sure: T[]; drawGroup: T[]; drawCount: number } {
+  const sure: T[] = [];
+  for (let i = 0; i < ranked.length && sure.length < seats; ) {
+    const group = ranked.filter((r) => r.place === ranked[i].place);
+    if (sure.length + group.length > seats) return { sure, drawGroup: group, drawCount: seats - sure.length };
+    sure.push(...group);
+    i += group.length;
+  }
+  return { sure, drawGroup: [], drawCount: 0 };
+}
+
+// 저장된 추첨 결과가 지금 추첨 대상(같은 순위 · 같은 사람들)과 맞는지. 순위가 바뀌어 대상이 달라졌으면 false
+export function sameDraw(saved: { place: number; pool: string[] } | null, cur: { place: number; pool: string[] } | null): boolean {
+  if (!saved || !cur || saved.place !== cur.place || saved.pool.length !== cur.pool.length) return false;
+  const a = new Set(saved.pool);
+  return cur.pool.every((id) => a.has(id));
+}
