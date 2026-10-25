@@ -53,8 +53,8 @@ export async function GET() {
       published: { tabletalk: pub("tabletalk"), coffeechat: pub("coffeechat") },
       recs_open: recsOpen(ops.phase),
       checked_in: ck.checked_in, // 첫 로그인이 체크인이라 보통 true. 조기 퇴장 버튼은 체크인한 사람에게만
-      left_at: leftAt, // 조기 퇴장를 누른(또는 운영자가 나감 표시한) 시각. null 이면 행사장에 있음(0019). 화면은 재입장를 보인다
-      leave_open: leaveOpen(ops.phase), // 조기 퇴장 · 재입장를 받는 단계인지(등록 · 개회 ~ 커피챗)
+      left_at: leftAt, // 조기 퇴장을 누른(또는 운영자가 나감 표시한) 시각. null 이면 행사장에 있음(0019). 화면은 재입장을 보인다
+      leave_open: leaveOpen(ops.phase), // 조기 퇴장 · 재입장을 받는 단계인지(등록 · 개회 ~ 커피챗)
       leave_available: !ck.legacy, // DB 에 0019(left_at 칸)가 있는지. false 면 화면이 버튼을 숨긴다
       mission: { window, done_count: m.done_count, total: m.total, progress: m.progress },
       now: new Date().toISOString(),
