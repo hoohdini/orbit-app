@@ -99,6 +99,19 @@ export default function VersionsPanel() {
   }
   async function swap() {
     if (!open || pick.length !== 2) return;
+    // 커피챗 주도 선배와 일반 참가자를 서로 다른 테이블끼리 바꾸면 주도 표시가 사람을 따라가 선배 수가 3명 · 1명이 된다. 먼저 묻는다(10/25 민찬 결정)
+    //   선배끼리 · 같은 테이블 안에서는 묻지 않는다
+    if (open.round === "coffeechat") {
+      const at = (id: string) => open.tables.find((t) => t.members.some((m) => m.id === id));
+      const [ta, tb] = pick.map(at);
+      const isLead = (id: string, t: typeof ta) => !!t?.members.find((m) => m.id === id)?.lead;
+      const [la, lb] = [isLead(pick[0], ta), isLead(pick[1], tb)];
+      if (ta && tb && ta.table_no !== tb.table_no && la !== lb) {
+        const leads = (t: NonNullable<typeof ta>) => t.members.filter((m) => m.lead).length;
+        const [from, to] = la ? [ta, tb] : [tb, ta];                         // from = 선배가 떠나는 테이블, to = 선배가 오는 테이블
+        if (!window.confirm(`주도 선배와 일반 참가자를 바꾸면 ${to.table_no}번 테이블은 주도 선배 ${leads(to) + 1}명, ${from.table_no}번 테이블은 ${leads(from) - 1}명이 된다. 선배끼리 바꾸는 것을 권한다. 그래도 바꿀까?`)) return;
+      }
+    }
     setBusy(open.version);
     const r = await api<{ version: number; delta: number }>("/api/ops/swap", { json: { version: open.version, a: pick[0], b: pick[1] } });
     setBusy(null);
