@@ -17,8 +17,10 @@ export async function GET() {
   return handle(async () => {
     const s = await requireSession();
     const ops = await opsSnapshot();
-    const m = await missionStatus(s.pid, ops.missionClosedAt);
-    const fbOpen = feedbackOpen(ops.phase) || !!(await myCheckin(s.pid)).left_at; // 열린 단계면 체크인은 읽지 않는다
+    const open = feedbackOpen(ops.phase);
+    // 열린 단계면 체크인은 읽지 않는다. 체크인 조회가 실패해도 현황판은 그대로 주고 후기 칸만 잠근다(검토 반영)
+    const [m, ck] = await Promise.all([missionStatus(s.pid, ops.missionClosedAt), open ? null : myCheckin(s.pid).catch(() => null)]);
+    const fbOpen = open || !!ck?.left_at;
     return ok({ window: missionWindow(ops.phase), closed_at: ops.missionClosedAt, feedback_open: fbOpen, ...publicMission(m) });
   });
 }
