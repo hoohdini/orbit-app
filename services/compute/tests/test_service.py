@@ -673,28 +673,50 @@ def test_coffeechat_left_early():
     repo.t["table_members"] = [m for m in repo.t["table_members"] if m not in extra]
     # 행사 직후 추천(final): 나간 사람도 뺀 것 없이 추천을 받는다. 공개 뒤에 나간 사람은 원본 자리 그대로, 계산 전에 나간 사람은 자리 없이(late)
     repo.t["checkins"].append({"participant_id": late})
-    seen = {}
     orig_write = service._write_recs
 
-    def spy(repo_, v, P, ids_, scores, met, *a, **k):                      # final 추천이 '만난 사람'으로 뺀 쌍을 본다
-        seen["ids"], seen["met"] = list(ids_), met.copy()
-        return orig_write(repo_, v, P, ids_, scores, met, *a, **k)
-    service._write_recs = spy
-    try:
-        f = service.coffeechat(repo, enc, final=True)
-    finally:
-        service._write_recs = orig_write
-    # 10/25 민찬 결정: 공개 뒤 나간 사람과 같은 커피챗 테이블 사람은 '만난 사람'이 아니다(교환 · 테이블토크 동석이 없으면 서로 추천에 오를 수 있음)
-    pos = {pid: i for i, pid in enumerate(seen["ids"])}
+    def final():                                                         # final 추천이 '만난 사람'으로 뺀 쌍을 본다
+        seen = {}
+
+        def spy(repo_, v, P, ids_, scores, met, *a, **k):
+            seen["ids"], seen["met"] = list(ids_), met.copy()
+            return orig_write(repo_, v, P, ids_, scores, met, *a, **k)
+        service._write_recs = spy
+        try:
+            return service.coffeechat(repo, enc, final=True), seen
+        finally:
+            service._write_recs = orig_write
+
+    # 10/25 민찬 결정: 커피챗 시작 전에 나간 사람과 같은 커피챗 테이블 사람은 '만난 사람'이 아니다(교환 · 테이블토크 동석이 없으면 서로 추천에 오를 수 있음)
+    #   커피챗 시작 = 원본 공개(published_at) 뒤 처음 단계를 커피챗(coffeechat_seated)으로 바꾼 시각(event_log ops_phase). 마친 뒤 나간 사람은 만난 사람
+    src = next(v for v in repo.t["assign_versions"] if v["version"] == r["version"])
+    src["published_at"] = "2026-10-25T16:20:00+00:00"
+    phase = lambda ph, at: {"participant_id": None, "kind": "ops_phase", "payload": {"phase": ph}, "created_at": at}
     ttv = next(v["version"] for v in repo.t["assign_versions"] if v["round"] == "tabletalk" and v["status"] == "published")
     tt = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == ttv}
     ex = {(e["scanner_id"], e["scanned_id"]) for e in repo.t.get("card_exchanges", [])}
-    stay = [pid for pid in mates[2:] if pid in pos]
-    pairs = [(a, b) for a in mates[:2] for b in stay if tt.get(a) != tt.get(b) and (a, b) not in ex and (b, a) not in ex]
-    assert pairs, "시험 입력에 테이블토크도 교환도 없던 커피챗 동석 쌍이 있어야 한다"
-    assert all(not seen["met"][pos[a], pos[b]] and not seen["met"][pos[b], pos[a]] for a, b in pairs)
-    stay_pairs = [(a, b) for a in stay for b in stay if a != b]
-    assert all(seen["met"][pos[a], pos[b]] for a, b in stay_pairs)         # 남아 있던 동석자끼리는 그대로 '만난 사람'
+
+    def met_pairs(seen):                                                 # (나간 둘 ↔ 남은 동석자 쌍이 met 인지, 남은 동석자끼리 met 인지)
+        pos = {pid: i for i, pid in enumerate(seen["ids"])}
+        stay = [pid for pid in mates[2:] if pid in pos]
+        pairs = [(a, b) for a in mates[:2] for b in stay if tt.get(a) != tt.get(b) and (a, b) not in ex and (b, a) not in ex]
+        assert pairs, "시험 입력에 테이블토크도 교환도 없던 커피챗 동석 쌍이 있어야 한다"
+        gone_met = [bool(seen["met"][pos[a], pos[b]]) or bool(seen["met"][pos[b], pos[a]]) for a, b in pairs]
+        return gone_met, all(seen["met"][pos[a], pos[b]] for a in stay for b in stay if a != b)
+
+    # 시작 기록 없음(공개 전 커피챗 단계 · 공개 뒤 다른 단계만) → 시작 시각을 몰라 동석을 그대로 '만난 사람'으로(보수적)
+    repo.t["event_log"] += [phase("coffeechat_seated", "2026-10-25T16:10:00+00:00"), phase("wrapup", "2026-10-25T16:40:00+00:00")]
+    gone_met, stay_met = met_pairs(final()[1])
+    assert all(gone_met) and stay_met
+    # 17:00 에 나갔는데 커피챗이 17:30 에 시작(공개 뒤 첫 커피챗 단계, 그 뒤 두 번째 전환은 보지 않음) → 나간 둘의 동석은 '만난 사람' 아님
+    repo.t["event_log"] += [phase("coffeechat_seated", "2026-10-25T17:45:00+00:00"), phase("coffeechat_seated", "2026-10-25T17:30:00+00:00")]
+    f, seen = final()
+    gone_met, stay_met = met_pairs(seen)
+    assert not any(gone_met) and stay_met                                # 남아 있던 동석자끼리는 그대로 '만난 사람'
+    # 커피챗이 16:30 에 시작하고 17:00 에 나감(커피챗을 마치고 나감) → 그대로 '만난 사람'
+    repo.t["event_log"].append(phase("coffeechat_seated", "2026-10-25T16:30:00+00:00"))
+    gone_met, stay_met = met_pairs(final()[1])
+    assert all(gone_met) and stay_met
     fm = {m["participant_id"]: m for m in repo.t["table_members"] if m["version"] == f["version"]}
     assert f["left"] == 0 and f["late"] == 1 + 3                         # 늦게 온 사람(원본에 자리 없음) + 계산 전에 나간 셋
     assert all(fm[pid]["table_no"] == t for pid in mates[:2]) and not any(pid in fm for pid in gone)

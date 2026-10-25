@@ -577,11 +577,16 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     # 커피챗 버전 추천 목록(B-06). 테이블토크 · 커피챗 동석자와 명함을 교환한 사람은 뺀다
     same = seating.same_table_pairs(r.table)
     if final:
-        # 커피챗 공개 뒤 일찍 나간 사람은 자리만 남고 실제로 동석자를 만나지 않았다 → 커피챗 동석을 '만난 사람'으로 보지 않는다(10/25 민찬 결정).
+        # 커피챗이 시작되기 전에 나간 사람은 자리만 남고 실제로 동석자를 만나지 않았다 → 커피챗 동석을 '만난 사람'으로 보지 않는다(10/25 민찬 결정).
+        # 커피챗 시작 = 원본 버전이 공개된(published_at) 뒤 처음 단계를 커피챗(coffeechat_seated)으로 바꾼 시각(event_log ops_phase).
+        # 커피챗을 마치고 나간 사람(예: 17:00~17:25 커피챗 뒤 퇴장)은 만난 것이라 그대로 뺀다. 시작 시각을 모르면 동석을 그대로 '만난 사람'으로 둔다(보수적으로)
         # 테이블토크 동석(forbid) · 명함 교환(W)은 실제로 있었던 일이라 그대로 뺀다
-        gone = repo.left_checkins(ids)
-        if gone:
-            g = np.array([pid in gone for pid in ids])
+        left_at = repo.left_times(ids)
+        pub = src.get("published_at")
+        start = min((t for t in map(datetime.fromisoformat, repo.phase_times("coffeechat_seated"))
+                     if t > datetime.fromisoformat(pub)), default=None) if left_at and pub else None
+        if start:
+            g = np.array([pid in left_at and datetime.fromisoformat(left_at[pid]) < start for pid in ids])
             same[g, :] = False
             same[:, g] = False
     met = forbid | same | (W > 0)

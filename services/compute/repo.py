@@ -52,6 +52,16 @@ class MemoryRepo:
         s = set(ids)
         return {r["participant_id"] for r in self.t["checkins"] if r["participant_id"] in s and r.get("left_at")}
 
+    def left_times(self, ids: list[str]) -> dict[str, str]:
+        """{사람: 나간다고 표시한 시각(checkins.left_at, ISO)}. 행사 직후 추천(final)이 커피챗 시작 전에 나갔는지 가른다(10/25 민찬 결정)."""
+        s = set(ids)
+        return {r["participant_id"]: r["left_at"] for r in self.t["checkins"] if r["participant_id"] in s and r.get("left_at")}
+
+    def phase_times(self, phase: str) -> list[str]:
+        """운영진이 행사 단계를 phase 로 바꾼 시각들(event_log 의 ops_phase, 웹 /api/ops/phase 가 남김). 오래된 순."""
+        return sorted(r["created_at"] for r in self.t["event_log"]
+                      if r.get("kind") == "ops_phase" and (r.get("payload") or {}).get("phase") == phase)
+
     def edges(self) -> list[dict]:
         """edges 뷰와 같은 모양 — 명함 교환을 무방향 간선 0.3 으로."""
         seen = {}
@@ -230,6 +240,21 @@ class SupabaseRepo:
             return set()
         return {r["participant_id"] for r in rows if r.get("left_at")}
 
+    def left_times(self, ids):
+        from postgrest.exceptions import APIError
+        try:
+            rows = self._in("checkins", "participant_id, left_at", "participant_id", ids)
+        except APIError as e:
+            if e.code not in ("42703", "PGRST204"):     # 0019 전 DB(left_at 칸 없음)만 나간 사람 없음으로. 다른 오류는 그대로
+                raise
+            return {}
+        return {r["participant_id"]: r["left_at"] for r in rows if r.get("left_at")}
+
+    def phase_times(self, phase):
+        rows = self._all(lambda: self.db.table("event_log").select("created_at").eq("kind", "ops_phase")
+                         .eq("payload->>phase", phase).order("created_at"))
+        return [r["created_at"] for r in rows]
+
     def edges(self):
         return self._all(lambda: self.db.table("edges").select("a, b, kind, weight"))
 
@@ -289,7 +314,7 @@ class SupabaseRepo:
         return [m for m in rows if m["participant_id"] in s]
 
     def coffeechat_source(self, ids, event_id="dev"):
-        vs = self._all(lambda: self.db.table("assign_versions").select("version, status, params")
+        vs = self._all(lambda: self.db.table("assign_versions").select("version, status, params, published_at")
                        .eq("round", "coffeechat").eq("event_id", event_id).in_("status", ["published", "retired"]))
         vs = [v for v in vs if (v.get("params") or {}).get("kind") != "final"]
         if not vs:
