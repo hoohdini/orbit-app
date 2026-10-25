@@ -33,7 +33,7 @@ export async function GET(req: Request) {
     const who = new Map((people ?? []).map((p) => [p.id as string, p]));
     const seatOf = new Map(members.map((m) => [m.participant_id, m.seat_no]));
 
-    const unit = v.round === "tabletalk" ? "테이블" : "그룹";
+    const unit = "테이블"; // 커피챗도 10테이블(10/22 민찬 결정)이라 두 라운드 모두 테이블. 예전 커피챗은 그룹
     const blocks = [...byTable(members).entries()]
       .sort((a, b) => a[0] - b[0])
       .map(([t, list]) => {
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
       })
       .join("");
 
-    const title = `${v.round === "tabletalk" ? "테이블토크 좌석표" : "커피챗 배정표"} (버전 ${v.version}${v.status === "published" ? "" : `, ${v.status}`})`;
+    const title = `${v.round === "tabletalk" ? "테이블토크 좌석표" : "커피챗 좌석표"} (버전 ${v.version}${v.status === "published" ? "" : `, ${v.status}`})`;
     const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
 body{font-family:system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;margin:16px;color:#000;background:#fff}
 h1{font-size:18px;margin:0 0 12px}main{columns:3;column-gap:16px}section{break-inside:avoid;margin:0 0 14px}

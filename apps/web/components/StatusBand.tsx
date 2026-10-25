@@ -5,7 +5,7 @@
 import { useOrbitState, type OrbitState } from "./useOrbitState";
 
 function where(s: OrbitState): string {
-  if (s.phase?.startsWith("coffeechat") && s.coffeechat) return `${s.coffeechat.group_no}번 그룹`;
+  if (s.phase?.startsWith("coffeechat") && s.coffeechat) return `${s.coffeechat.group_no}번 테이블${s.coffeechat.seat_no ? ` ${s.coffeechat.seat_no}번 자리` : ""}`;
   if (s.tabletalk) return `${s.tabletalk.table_no}번 테이블${s.tabletalk.seat_no ? ` ${s.tabletalk.seat_no}번 자리` : ""}`;
   return "";
 }
@@ -23,7 +23,8 @@ export default function StatusBand({ showMission = false }: { showMission?: bool
     );
   }
 
-  const parts = [s.phase_label ? `${s.phase_label} 진행 중` : "The ORBIT", where(s)].filter(Boolean);
+  // 조기 퇴장을 표시했으면(0019, 10/25 민찬 결정) 커피챗까지 끝에 붙인다. 재입장은 마이 탭
+  const parts = [s.phase_label ? `${s.phase_label} 진행 중` : "The ORBIT", where(s), s.left_at && s.leave_open ? "조기 퇴장" : ""].filter(Boolean);
   return (
     <div className={`${place} flex h-9 items-center gap-2 border-b border-navy/80 bg-strip px-5 text-[13px] font-medium text-brand`}>
       <span className="size-2 shrink-0 rounded-full bg-accent" aria-hidden />

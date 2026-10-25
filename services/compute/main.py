@@ -90,6 +90,12 @@ class CoffeechatRequest(BaseModel):
     final: bool = False                   # 행사 직후 추천: 커피챗 그룹은 그대로 두고 그날 신호를 모두 반영해 추천 목록만 다시(10/6)
 
 
+class CoffeechatLateRequest(BaseModel):
+    event_id: str = "dev"
+    participant_id: str = Field(min_length=1, max_length=64)
+    version: int | None = None            # 웹이 읽은 공개 커피챗 버전. 없으면 최신 공개 버전
+
+
 @app.get("/health")
 def health() -> dict:
     return {
@@ -113,6 +119,16 @@ def precompute(req: PrecomputeRequest) -> dict:
 def coffeechat(req: CoffeechatRequest) -> dict:
     try:
         return service.coffeechat(get_repo(), encoder(), **req.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@app.post("/coffeechat/late", dependencies=[Depends(require_secret)])
+def coffeechat_late(req: CoffeechatLateRequest) -> dict:
+    """커피챗 공개 뒤 처음 체크인한 사람의 자리 추천(10/25 민찬 결정). 쓰지 않는다. 웹이 2 ~ 3초만 기다리므로 모델은 올리지 않고
+    이미 올라와 있을 때만 쓴다(현장 등록자처럼 저장된 벡터가 없는 사람). 못 정하면 409 → 웹이 인원이 가장 적은 테이블로 앉힌다."""
+    try:
+        return service.coffeechat_late(get_repo(), _enc, **req.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 

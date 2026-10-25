@@ -5,7 +5,7 @@
 // 번호(rank)는 가까운 순서다(10/11 성하 결정: 번호를 보여 준다). 계산 서비스의 순위를 1부터 다시 매긴 값이고 점수 · 근거는 내보내지 않는다.
 // 목록에서 빼는 사람은 본인과 동의 거부자뿐이다. 이미 교환한 사람은 exchanged, 체크인하지 않은 사람은 checked_in false 로 표시만 한다.
 // offer_text 는 하는 일 원문이다(10/11 성하 결정: 원문을 보여 주고 나중에 고친다).
-// 보여 준 사람은 rec_impressions 에 처음 시각만 남긴다(미션 ③ 추천 인물 판정).
+// 보여 준 사람은 rec_impressions 에 처음 시각만 남긴다(시상 순위의 추천 인물 교환 판정, 10/23 · lib/missions.ts).
 // 단계가 tabletalk · tabletalk_end · coffeechat_seated 이면 접는다(folded, 빈 목록).
 import { db } from "@/lib/db";
 import { ok, handle, eventId } from "@/lib/api";

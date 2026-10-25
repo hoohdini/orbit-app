@@ -11,8 +11,8 @@ type Done = { job: Job; ms: number; result: Record<string, unknown> };
 const JOBS: { job: Job; label: string; when: string; what: string }[] = [
   { job: "precompute", label: "전날 계산", when: "행사 전날, 설문 마감 뒤 한 번", what: "새 코드북을 만들고 전원에게 주소를 준 뒤 테이블토크 자리를 배정한다. 다시 누르면 주소가 바뀐다" },
   { job: "checkin", label: "체크인 마감 계산", when: "체크인 마감 직후", what: "현장 등록자에게만 주소를 붙인다. 테이블토크는 전날 확정이라 다시 배정하지 않는다(새 초안 없음). 현장 등록자 자리는 체크인 칸의 워크인 추가에서 정한다" },
-  { job: "coffeechat", label: "커피챗 계산", when: "포스터 응답 마감(16:45) 뒤", what: "만난 사람 · 만족도 · 포스터 응답을 반영해 커피챗 3~4명 그룹을 만든다. 커피챗 중에는 이동하지 않는다. 다시 누르면 새 초안이 생긴다" }, // 이동 불가(10/21 민찬 결정)
-  { job: "final", label: "행사 직후 추천", when: "시상 · 폐회 뒤", what: "커피챗 그룹은 그대로 두고 그날 신호로 추천 목록만 다시 만든다. 오늘 동석했거나 명함을 교환한 사람은 빠진다. 공개하면 참가자 화면에 '새 테이블' 카드가 다시 뜨므로(조 번호는 같음) 공개 전에 단톡방에 알린다" },
+  { job: "coffeechat", label: "커피챗 계산", when: "포스터 응답 마감(16:45) 뒤", what: "만난 사람 · 만족도 · 포스터 응답을 반영해 체크인한 전원(운영진 · 교수 포함)을 10테이블에 고르게 앉힌다. 테이블마다 기수가 높은 선배 2명이 주도한다. 커피챗 중에는 이동하지 않는다. 다시 누르면 새 초안이 생긴다" }, // 이동 불가(10/21 민찬 결정), 10테이블 · 주도 선배 2명(10/22 민찬 결정)
+  { job: "final", label: "행사 직후 추천", when: "시상 · 폐회 뒤", what: "커피챗 테이블은 그대로 두고 그날 신호로 추천 목록만 다시 만든다. 오늘 동석했거나 명함을 교환한 사람은 빠진다. 공개하면 참가자 화면에 '새 테이블' 카드가 다시 뜨므로(테이블 번호는 같음) 공개 전에 단톡방에 알린다" },
 ];
 
 const SUMMARY: [string, string][] = [
@@ -23,7 +23,9 @@ const SUMMARY: [string, string][] = [
   ["response_rate", "만족도 응답률"],
   ["fallback", "만남 반영 끔(응답률 부족)"],
   ["forbid_hits", "이미 만난 사람끼리 같은 테이블"],
-  ["late", "커피챗 뒤에 와서 추천만 받은 사람"],
+  // late(final 만): 원본 커피챗에 자리가 없는 체크인한 사람. 커피챗 계산 뒤에 왔는데 자리를 못 받았거나, 계산 전에 일찍 나간다고 표시해 빠진 사람(10/25)
+  ["late", "커피챗 자리 없이 추천만 받은 사람(계산 뒤에 왔거나 계산 전에 나감)"],
+  ["left", "일찍 나가 뺀 사람"], // 커피챗 계산(final 아님)이 checkins.left_at 으로 뺀 수(10/25 민찬 결정)
 ];
 
 export default function ComputePanel() {
@@ -91,7 +93,7 @@ export default function ComputePanel() {
         <section className="rounded-2xl border border-green-200 bg-green-50 p-4">
           <h2 className="text-sm font-semibold">{JOBS.find((j) => j.job === done.job)?.label} 끝 · {(done.ms / 1000).toFixed(1)}초</h2>
           <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-            {SUMMARY.filter(([k]) => k in done.result && (k !== "late" || done.job === "final")).map(([k, name]) => (
+            {SUMMARY.filter(([k]) => k in done.result && (k !== "late" || done.job === "final") && (k !== "left" || done.job !== "final")).map(([k, name]) => (
               <div key={k} className="contents">
                 <dt className="text-gray-600">{name}</dt>
                 <dd>{String(done.result[k])}</dd>

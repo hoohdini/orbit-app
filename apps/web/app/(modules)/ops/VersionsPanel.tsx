@@ -23,6 +23,8 @@ type Metrics = {
   reunion_pairs: number | null;
   cohort_over: number;
   not_checked_in: number;
+  left?: number; // 계산 뒤 나감: 구성원 중 지금 나감 표시가 있는 사람(0019)
+  left_excluded?: number | null; // 계산에서 뺌: 계산 때 나감 표시로 뺀 수(params.left)
 };
 type Detail = {
   version: number;
@@ -33,7 +35,7 @@ type Detail = {
     table_no: number;
     mean_score?: number | null;
     check?: boolean;
-    members: { id: string; display_name: string; affiliation: string | null; role: string; seat_no?: number | null; random: boolean; reason: string }[];
+    members: { id: string; display_name: string; affiliation: string | null; role: string; seat_no?: number | null; random: boolean; lead?: boolean; late_join?: boolean; left?: boolean; reason: string }[];
   }[];
 };
 
@@ -97,6 +99,19 @@ export default function VersionsPanel() {
   }
   async function swap() {
     if (!open || pick.length !== 2) return;
+    // 커피챗 주도 선배와 일반 참가자를 서로 다른 테이블끼리 바꾸면 주도 표시가 사람을 따라가 선배 수가 3명 · 1명이 된다. 먼저 묻는다(10/25 민찬 결정)
+    //   선배끼리 · 같은 테이블 안에서는 묻지 않는다
+    if (open.round === "coffeechat") {
+      const at = (id: string) => open.tables.find((t) => t.members.some((m) => m.id === id));
+      const [ta, tb] = pick.map(at);
+      const isLead = (id: string, t: typeof ta) => !!t?.members.find((m) => m.id === id)?.lead;
+      const [la, lb] = [isLead(pick[0], ta), isLead(pick[1], tb)];
+      if (ta && tb && ta.table_no !== tb.table_no && la !== lb) {
+        const leads = (t: NonNullable<typeof ta>) => t.members.filter((m) => m.lead && !m.left).length; // 나간 선배는 세지 않는다
+        const [from, to] = la ? [ta, tb] : [tb, ta];                         // from = 선배가 떠나는 테이블, to = 선배가 오는 테이블
+        if (!window.confirm(`주도 선배와 일반 참가자를 바꾸면 ${to.table_no}번 테이블은 주도 선배 ${leads(to) + 1}명, ${from.table_no}번 테이블은 ${leads(from) - 1}명이 된다. 선배끼리 바꾸는 것을 권한다. 그래도 바꿀까?`)) return;
+      }
+    }
     setBusy(open.version);
     const r = await api<{ version: number; delta: number }>("/api/ops/swap", { json: { version: open.version, a: pick[0], b: pick[1] } });
     setBusy(null);
@@ -166,6 +181,9 @@ export default function VersionsPanel() {
                       <Metric label="평균 · 최저 점수" value={`${open.metrics.mean_score ?? "-"} · ${open.metrics.low_score ?? "-"}`} />
                       <Metric label="재회 쌍 · 기수 초과" value={`${open.metrics.reunion_pairs ?? "-"} · ${open.metrics.cohort_over}`} warn={(open.metrics.reunion_pairs ?? 0) > 0 || open.metrics.cohort_over > 0} />
                       <Metric label="체크인 안 한 사람" value={`${open.metrics.not_checked_in}명`} />
+                      {open.round === "coffeechat" && (
+                        <Metric label="계산에서 뺌 · 계산 뒤 나감" value={`${open.metrics.left_excluded ?? "-"}명 · ${open.metrics.left ?? 0}명`} warn={(open.metrics.left ?? 0) > 0} />
+                      )}
                     </div>
                   )}
                   <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -194,7 +212,10 @@ export default function VersionsPanel() {
                               {m.display_name}
                             </button>
                             {m.affiliation && <span className="ml-1 text-gray-500">{m.affiliation}</span>}
+                            {m.lead && <span className="ml-1 rounded bg-purple-100 px-1 text-[10px] text-purple-800">주도</span>}
                             {m.random && <span className="ml-1 rounded bg-blue-100 px-1 text-[10px] text-blue-800">무작위</span>}
+                            {m.late_join && <span className="ml-1 rounded bg-orange-100 px-1 text-[10px] text-orange-800">늦게 옴 · 의자 추가</span>}
+                            {m.left && <span className="ml-1 rounded bg-gray-200 px-1 text-[10px] text-gray-700">나감 · 빈자리</span>}
                             {m.reason && <p className="text-gray-600">{m.reason}</p>}
                           </li>
                         ))}

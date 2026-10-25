@@ -24,7 +24,7 @@ const COUNTS: Record<Scenario, [number, number, number, number]> = {
 export function build(counts: [number, number, number, number], closed = false): Missions {
   const missions = [mission("poster", "포스터 관심도", 2, counts[0]), mission("quiz", "퀴즈", 3, counts[1]), mission("exchange", "명함 교환", 5, counts[2], [3, 5]), mission("feedback", "행사 후기", 1, counts[3])];
   const stamps = missions.reduce((n, m) => n + stampsOf(m).filter(Boolean).length, 0);
-  return { window: closed ? "closed" : "open", closed_at: closed ? "2026-10-24T07:45:00Z" : null, missions, done_count: stamps, total: 5, progress: stamps / 5, completed_all_at: stamps === 5 ? "2026-10-24T07:30:00Z" : null };
+  return { window: closed ? "closed" : "open", closed_at: closed ? "2026-10-24T07:45:00Z" : null, feedback_open: closed, missions, done_count: stamps, total: 5, progress: stamps / 5, completed_all_at: stamps === 5 ? "2026-10-24T07:30:00Z" : null };
 }
 
 export function scenarioFromUrl(): Scenario {
@@ -33,7 +33,7 @@ export function scenarioFromUrl(): Scenario {
   return SCENARIOS.find((s) => s === v) ?? "base";
 }
 
-// 후기 제출 기록. 서버 대신 이 기기에 저장한다(마감 뒤에는 보지 않는다)
+// 후기 제출 기록. 서버 대신 이 기기에 저장한다(후기는 마감 뒤에 받으므로 closed 에서도 센다, 10/22)
 export type Feedback = { rating: number; tags: string[]; comment: string };
 const FEEDBACK_KEY = "orbit:mock-feedback";
 
@@ -55,6 +55,6 @@ export function saveFeedback(f: Feedback) {
 export function mockMissions(): Missions {
   const s = scenarioFromUrl();
   const c = [...COUNTS[s]] as [number, number, number, number];
-  if (s !== "closed" && loadFeedback()) c[3] = 1;
+  if (loadFeedback()) c[3] = 1;
   return build(c, s === "closed");
 }

@@ -40,6 +40,20 @@ export function missionWindow(p: Phase | null): MissionWindow {
   return "not_started";
 }
 
+// 행사 후기(미션 ④)를 받는 단계. 커피챗이 끝난 뒤(wrapup)부터 시상(award)까지(10/22 민찬 결정).
+// 미션 마감(wrapup)과 같은 때 열리므로 후기만 마감 뒤에도 쓸 수 있다
+export const FEEDBACK_OPEN: readonly Phase[] = ["wrapup", "award"];
+export function feedbackOpen(p: Phase | string | null): boolean {
+  return !!p && (FEEDBACK_OPEN as readonly string[]).includes(p);
+}
+
+// 참가자가 조기 퇴장(checkins.left_at, 0019)를 누를 수 있는 단계. 등록 · 개회부터 커피챗까지(10/25 민찬 결정).
+// 마무리(wrapup) 뒤에는 커피챗이 끝나 의미가 없어 버튼을 숨기고 API 도 받지 않는다. 행사 전(before)은 행사장에 오기 전이라 뺀다(구현하며 정함)
+export const LEAVE_OPEN: readonly Phase[] = ["checkin", "tabletalk", "tabletalk_end", "poster", "coffeechat_seated"];
+export function leaveOpen(p: Phase | string | null): boolean {
+  return !!p && (LEAVE_OPEN as readonly string[]).includes(p);
+}
+
 // 공지 버튼 3종(A-06). 자유 입력도 받는다
 export const NOTICE_PRESETS = [
   { key: "start", text: "곧 다음 순서가 시작됩니다. 자리로 모여 주세요" },

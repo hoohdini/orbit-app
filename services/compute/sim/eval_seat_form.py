@@ -2,7 +2,7 @@
 DSL 활동 2.55 → 2.27, 어려운 필요 98%)을 저장소에서 다시 돌릴 수 있게 옮긴 것.
 
 사람 · 배치 · 아는 사이 = sim/make_seat_eval_dataset.make(seed), 폼 답 = sim/eval_recs_rule.form(같은 하는 일 · 분야 · 기대하는 점 · 구분, --seek 도 같음)
-배정 = 서비스와 같은 순서: 테이블토크(9개 테이블, 같은 기수 3명 상한) → 커피챗(3~4명, 테이블토크 동석자 금지)
+배정 = 서비스와 같은 순서: 테이블토크(9개 테이블, 같은 기수 3명 상한) → 커피챗(10/22 전 규칙 3~4명, 테이블토크 동석자 금지)
 비교
   무작위(--random 번 평균), 예전(0/0) = pair_directional(평균 빼기 X, 분야 0), 배정용 보정(1/0.5) = 지금 좌석 기본(#44),
   보정 + 규칙 = scoring.rec_rule_score(추천 10명과 같은 1 : 1 : 2), 보정 + DSL 활동 = 하는 일에 'DSL 활동: …' 줄을 더함(재학 · 수료 · 운영진)
@@ -31,7 +31,9 @@ from make_seat_eval_dataset import make  # noqa: E402
 from pipeline import scoring, seating  # noqa: E402
 from pipeline.embed import Encoder, offer_items, seek_items  # noqa: E402
 from pipeline.people import acquainted  # noqa: E402
-from service import COFFEECHAT_COHORT_CAP, COFFEECHAT_GROUP_MAX, TABLETALK_COHORT_CAP  # noqa: E402
+from service import TABLETALK_COHORT_CAP  # noqa: E402
+
+COFFEECHAT_GROUP_MAX, COFFEECHAT_COHORT_CAP = 4, 2   # 10/22 전 커피챗 규칙(3~4명 그룹). 10/19 평가 재현용, 지금 서비스는 sim/eval_coffeechat_leads.py
 
 HARD = {"취업정보", "이직정보", "멘토링", "대학원진학", "채용", "연구협업", "창업"}
 DSL_ACT = ["모델링", "EDA", "도메인", "논문 리딩", "공모전"]

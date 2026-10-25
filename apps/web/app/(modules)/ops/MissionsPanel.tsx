@@ -1,26 +1,50 @@
 "use client";
 // 이벤트 · 미션 · 시상 현황(개발 지시서 v0.2 A-07)과 특별 시상 제외 명단(E-06).
-// 시상은 미션 진행도 순, 동점은 유효 포스터 응답 수 → 첫 대화로 확인한 교환 수 → 전체 미션 완료 시각(결정 12, 10/11 부터 미션 5개). 응모권 추첨은 명찰 번호로 앱 밖에서 한다.
+// 미션 4종 · 스탬프 5칸. 시상은 스탬프 수 → 추천 인물과의 교환 수(최대 5) → 유효 포스터 응답 수 순, 셋이 같으면 공동 순위(10/23 민찬 결정, 표 칸도 이 순서). 응모권 추첨은 명찰 번호로 앱 밖에서 한다.
+// 시상 5명. 공동 순위 때문에 5명을 넘으면 그 순위의 공동인 사람들 중 남은 자리만큼 여기서 추첨한다(10/25 민찬 결정, /api/ops/award-draw).
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
+import { sameDraw } from "@/lib/award";
 
 type Data = {
   window: string;
   closed_at: string | null;
   checked_in: number;
+  stamp_total: number;
+  avg_stamps: number | null;
   avg_progress: number | null;
   completed_all: number;
   by_mission: { key: string; label: string; done: number }[];
   excluded: number;
-  candidates: { place: number; id: string; display_name: string; affiliation: string | null; progress: number; done_count: number; valid_poster_responses: number; first_meet_exchanges: number; completed_all_at: string | null }[];
+  candidates: { place: number; tied: boolean; id: string; display_name: string; affiliation: string | null; progress: number; done_count: number; recommended_exchanges: number; valid_poster_responses: number }[];
   qr: { card_scans: number; poster_scans: number; tab_mismatch: number };
+  award: {
+    seats: number;
+    sure: string[];
+    draw: { place: number; pool: string[]; count: number } | null;
+    result: { at: string; place: number; picked: string[]; pool: string[] } | null;
+  };
 };
+
+function fmt(iso: string) {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
 
 export default function MissionsPanel() {
   const [d, setD] = useState<Data | null>(null);
   const [csv, setCsv] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [armed, setArmed] = useState<string | null>(null); // 누른 때의 추첨 대상(drawKey). 대상이 바뀌면 저절로 풀린다
+  const [busy, setBusy] = useState(false);
   const load = useCallback(() => api<Data>("/api/ops/missions").then((r) => (r.ok ? setD(r.data) : setMsg(r.message))), []);
+
+  // 한 번 누른 뒤 10초 안에 다시 누르지 않으면 푼다
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(null), 10_000);
+    return () => clearTimeout(t);
+  }, [armed]);
 
   useEffect(() => {
     load();
@@ -36,14 +60,40 @@ export default function MissionsPanel() {
     load();
   }
 
+  // 두 번 눌러야 뽑는다(포스터 추첨과 같음). 저장된 결과가 지금 대상과 다르면 redo 로 다시 뽑는다
+  async function drawAward(redo: boolean, key: string) {
+    if (armed !== key) return setArmed(key);
+    setBusy(true);
+    try {
+      const r = await api<{ reused: boolean }>("/api/ops/award-draw", { json: { redo } });
+      if (!r.ok) return setMsg(r.message);
+      setMsg(r.data.reused ? "대상이 그대로라 저장된 추첨 결과를 그대로 보인다" : "추첨했다");
+      load();
+    } finally {
+      setBusy(false);
+      setArmed(null);
+    }
+  }
+
   if (!d) return <p className="text-sm text-gray-500">{msg ?? "불러오는 중"}</p>;
-  const all = `${d.by_mission.length}/${d.by_mission.length}`; // 미션 수(lib/missions.ts MISSIONS)를 따라간다
+  const all = `${d.stamp_total}/${d.stamp_total}`; // 스탬프 칸 수(lib/missions.ts STAMP_TOTAL)를 따라간다
+  const { seats, sure, draw, result } = d.award;
+  const live = draw && result && sameDraw(result, draw) ? result : null; // 지금 대상과 맞는 추첨 결과만 쓴다
+  const stale = result && !live ? result : null; // 순위가 바뀌어 지금 대상과 다른 예전 결과
+  const sureSet = new Set(sure);
+  const pickedSet = new Set(live?.picked ?? []);
+  const poolSet = new Set(draw?.pool ?? []);
+  const mark = (id: string) => (sureSet.has(id) ? "확정" : poolSet.has(id) ? (live ? (pickedSet.has(id) ? "추첨 당첨" : "추첨 탈락") : "추첨 대상") : "");
+  const drawKey = JSON.stringify([draw, result]);
+  const isArmed = armed === drawKey;
+  const canDraw = d.window === "closed"; // 미션 마감(마무리 · 시상) 뒤에만 뽑는다(API 도 같음)
+  const winners = d.candidates.filter((c) => sureSet.has(c.id) || pickedSet.has(c.id));
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
-        <Box label="평균 진행도" value={d.avg_progress == null ? "-" : `${Math.round(d.avg_progress * 100)}%`} />
-        <Box label={`${all} 완료`} value={`${d.completed_all} / ${d.checked_in}명`} />
+        <Box label="평균 스탬프" value={d.avg_stamps == null ? "-" : `${d.avg_stamps} / ${d.stamp_total}`} />
+        <Box label={`스탬프 ${all}`} value={`${d.completed_all} / ${d.checked_in}명`} />
         <Box label="QR 처리" value={`명함 ${d.qr.card_scans} · 포스터 ${d.qr.poster_scans}`} />
         <Box label="탭 불일치" value={String(d.qr.tab_mismatch)} />
       </div>
@@ -52,29 +102,66 @@ export default function MissionsPanel() {
       </p>
 
       <div className="rounded-xl border border-gray-200 bg-white p-3">
-        <p className="text-sm font-semibold">특별 시상 후보 <span className="font-normal text-gray-500">(제외 {d.excluded}명)</span></p>
+        <p className="text-sm font-semibold">특별 시상 후보(5명) <span className="font-normal text-gray-500">(제외 {d.excluded}명)</span></p>
+        <p className="mt-0.5 text-xs text-gray-500">순위: 스탬프 많은 순 → 추천 인물 교환(최대 5명) 많은 순 → 포스터 유효 응답(5초 이상) 많은 순 → 셋이 같으면 공동 순위, 5명을 넘으면 그 순위 안에서 추첨. 시각은 보지 않는다</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-2 py-1.5 text-xs">
+          <span className="font-semibold">
+            {draw
+              ? `수상 ${seats}명: 확정 ${sure.length}명 + ${draw.place}위 공동 ${draw.pool.length}명 중 ${draw.count}명 추첨`
+              : sure.length >= seats
+                ? `수상 ${seats}명 확정`
+                : `수상 ${sure.length}명 확정(후보가 ${seats}명보다 적다)`}
+          </span>
+          {live && <span className="text-gray-600">추첨 완료 {fmt(live.at)}</span>}
+          {draw && !live && (
+            <>
+              <button
+                type="button"
+                disabled={busy || !canDraw}
+                onClick={() => drawAward(!!stale, drawKey)}
+                className={`ml-auto rounded-lg px-3 py-1 font-semibold text-white disabled:bg-gray-300 ${isArmed ? "bg-red-600" : "bg-black"}`}
+              >
+                {isArmed ? "정말 뽑기 (다시 누름)" : stale ? "다시 추첨" : "추첨"}
+              </button>
+              {!canDraw && <span className="text-gray-500">미션 마감(마무리) 뒤에 뽑는다</span>}
+              {isArmed && (
+                <button type="button" onClick={() => setArmed(null)} className="text-gray-500 underline">
+                  취소
+                </button>
+              )}
+            </>
+          )}
+        </div>
+        {stale && <p className="mt-1 text-xs text-yellow-800">순위가 바뀌어 {fmt(stale.at)} 추첨 결과({stale.place}위 공동 {stale.pool.length}명 중 {stale.picked.length}명)는 지금 대상과 다르다. 쓰지 않는다{draw ? ". 다시 추첨한다" : ""}</p>}
+        {(!draw || live) && winners.length > 0 && (
+          <p className="mt-1 text-xs">
+            수상자: <span className="font-semibold">{winners.map((c) => c.display_name).join(" · ")}</span>
+          </p>
+        )}
         <table className="mt-2 w-full text-xs">
           <thead className="text-left text-gray-500">
             <tr>
               <th className="py-1">순위</th>
               <th>이름</th>
-              <th>진행도</th>
+              <th>스탬프</th>
+              <th>추천 인물 교환(최대 5)</th>
               <th>포스터</th>
-              <th>첫 대화</th>
-              <th>{all} 시각</th>
+              <th>수상</th>
             </tr>
           </thead>
           <tbody>
             {d.candidates.map((c) => (
-              <tr key={c.id} className="border-t border-gray-100">
-                <td className="py-1">{c.place}</td>
+              <tr key={c.id} className={`border-t border-gray-100 ${sureSet.has(c.id) || pickedSet.has(c.id) ? "bg-green-50 font-semibold" : ""}`}>
+                <td className="py-1">{c.tied ? `공동 ${c.place}위` : `${c.place}위`}</td>
                 <td>
                   {c.display_name} <span className="text-gray-400">{c.affiliation ?? ""}</span>
                 </td>
-                <td>{Math.round(c.progress * 100)}%</td>
+                <td>
+                  {c.done_count}/{d.stamp_total}
+                </td>
+                <td>{c.recommended_exchanges}</td>
                 <td>{c.valid_poster_responses}</td>
-                <td>{c.first_meet_exchanges}</td>
-                <td>{c.completed_all_at ? new Date(c.completed_all_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
+                <td className={mark(c.id) === "추첨 탈락" ? "text-gray-400" : ""}>{mark(c.id)}</td>
               </tr>
             ))}
           </tbody>

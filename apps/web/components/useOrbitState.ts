@@ -13,9 +13,13 @@ export type OrbitState = {
   consent: "agreed" | "refused" | "pending";
   share?: "agreed" | "refused" | "pending"; // 명함 공개 및 추천 활용(0014)
   tabletalk: { version: number; table_no: number; seat_no: number | null } | null;
-  coffeechat: { version: number; group_no: number } | null;
+  coffeechat: { version: number; group_no: number; seat_no?: number | null } | null;
   published: { tabletalk: number | null; coffeechat: number | null };
   recs_open: boolean;
+  checked_in?: boolean; // 조기 퇴장(0019, 10/25): 체크인했는지 · 나간다고 표시한 시각 · 지금 바꿀 수 있는 단계인지
+  left_at?: string | null;
+  leave_open?: boolean;
+  leave_available?: boolean; // false = DB 에 0019 가 없어 버튼을 숨김
   mission: { window: "not_started" | "open" | "closed"; done_count: number; total: number; progress: number };
   now: string;
 };

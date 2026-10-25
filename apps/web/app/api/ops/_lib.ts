@@ -2,6 +2,9 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { eventId } from "@/lib/api";
+import { rankAward } from "@/lib/award";
+import { consentOf } from "@/lib/consent";
+import type { MissionStatus } from "@/lib/missions";
 
 export type Round = "tabletalk" | "coffeechat";
 export const ROUNDS: Round[] = ["tabletalk", "coffeechat"];
@@ -58,3 +61,31 @@ export async function eventParticipant(id: string) {
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type RaffleResult = { at: string; n: number; winners: { id: string; display_name: string; affiliation: string | null; tickets: number }[] };
+
+// 특별 시상 경계 공동 순위 추첨 결과(ops_state award_draw, 10/25 민찬 결정). pool 은 그때의 추첨 대상, picked 는 당첨자
+export type AwardDraw = { at: string; place: number; pool: string[]; picked: string[] };
+
+// 특별 시상 순위표. 제외 명단 · 이용 동의(수집) 거부자 · 스탬프 0칸인 사람을 뺀다.
+// /api/ops/missions(현황)와 /api/ops/award-draw(추첨)가 같은 순위를 쓰도록 여기 둔다(10/25)
+export async function awardRanking(ids: string[], stat: Map<string, MissionStatus>) {
+  const excluded = await opsGet<{ ids: string[] }>("award_excluded");
+  const skip = new Set(excluded?.ids ?? []);
+  const people = ids.length ? await db().from("participants").select("id, display_name, affiliation, role, consent_refused_at, consent_at").in("id", ids) : { data: [], error: null };
+  if (people.error) throw people.error;
+  const who = new Map((people.data ?? []).map((p) => [p.id as string, p]));
+  const refused = new Set((people.data ?? []).filter((p) => consentOf(p) === "refused").map((p) => p.id as string));
+  const ranked = rankAward(
+    [...stat.entries()]
+      .filter(([id, m]) => !skip.has(id) && !refused.has(id) && m.done_count > 0)
+      .map(([id, m]) => ({
+        id,
+        name: (who.get(id)?.display_name as string) ?? "",
+        affiliation: (who.get(id)?.affiliation as string | null) ?? null,
+        stamps: m.done_count,
+        recommended: m.tiebreak.recommended_exchanges,
+        poster: m.tiebreak.valid_poster_responses,
+        progress: m.progress,
+      })),
+  );
+  return { excluded: skip.size, ranked };
+}

@@ -140,6 +140,146 @@ def test_group_sizes():
     assert seating.group_sizes(5) == [3, 2]
 
 
+def test_anchors_stay_and_pull_members():
+    """anchors(커피챗 주도 선배)는 처음 자리 그대로, 나머지는 크기 · 호스트 균등을 지키며 잘 맞는 anchor 테이블로 모인다."""
+    O, S, is_host, cohort, _ = fake_people()
+    A = scoring.table_matrix(scoring.directional(S, O), is_host)
+    sizes = seating.even_sizes(N, 10)
+    anchors = {i: t for t, i in enumerate(range(N - 20, N))}       # 끝 20명을 테이블마다 두 명씩(0~9 · 0~9)
+    anchors = {i: t % 10 for i, t in anchors.items()}
+    anchors[0] = 3                                                 # 호스트 anchor 도 셈에 넣어 호스트 균등을 지킨다
+    r = seating.assign(A, is_host, cohort, iters=20000, seed=1, sizes=sizes, cohort_penalty=0.5, cohort_cap=3, anchors=anchors)
+    assert all(r.table[i] == t for i, t in anchors.items())
+    assert sorted(np.bincount(r.table).tolist()) == sorted(sizes)
+    hosts = np.bincount(r.table[is_host], minlength=len(sizes))
+    assert hosts.max() - hosts.min() <= 1
+    free = [i for i in range(N) if i not in anchors]
+    own = np.mean([A[i, [j for j in anchors if r.table[j] == r.table[i]]].mean() for i in free])
+    assert own > np.mean(A[np.ix_(free, list(anchors))])            # 내 테이블 선배와의 점수 > 선배 전체 평균
+    # anchors 가 없으면 예전(ab2f799, anchors 추가 전) assign 과 같은 배정. 그 코드로 같은 입력 · 시드를 돌린 결과를 박아 둔다
+    before = "5270631479098396356135321464402451387684682068879982717450912520315709"
+    for kw in ({}, {"anchors": {}}, {"anchors": None}):
+        r0 = seating.assign(A, is_host, cohort, iters=2000, seed=1, sizes=sizes, cohort_penalty=0.5, cohort_cap=3, **kw)
+        assert "".join(str(x) for x in r0.table) == before, kw
+
+
+def test_pick_leads_seniority_and_field():
+    """주도 선배: 기수가 높은(숫자가 작은) 사람 위주, 분야가 같은 둘끼리, 이미 만난 둘은 피함, 분야가 꼭 맞으면 조금 아래 사람도."""
+    rng = np.random.default_rng(1)
+    k, n, DIMS = 4, 30, 8
+    field = np.array([t % k for t in range(n)])
+    F = unit(np.eye(DIMS)[field] + 0.05 * rng.normal(size=(n, DIMS)))
+    F = F @ F.T
+    cohort = np.arange(n) + 1                                      # 0번 = 1기(가장 높음)
+    cohort[n - 1] = -1                                             # 교수(기수 없음)는 후보가 아님
+    lp = seating.pick_leads(F, cohort, k)
+    used = [i for p in lp.pairs for i in p]
+    assert len(lp.pairs) == k and len(set(used)) == 2 * k
+    assert all(field[a] == field[b] for a, b in lp.pairs)          # 분야가 같은 둘
+    assert lp.beyond == 0 and sorted(used) == list(range(2 * k))   # 위 8명이 분야 넷에 둘씩이면 그 8명
+    assert len(lp.pool) == 2 * k + seating.LEAD_SLACK and n - 1 not in lp.pool
+    # 분야 0 이 위 8명 중 한 명뿐이어도(4번을 분야 1 로) 기수가 4 이상 아래인 분야 0 후보로 내려가지 않는다(10/25 민찬 결정: 기수가 먼저)
+    field2 = field.copy(); field2[4] = 1
+    F2 = unit(np.eye(DIMS)[field2] + 0.05 * rng.normal(size=(n, DIMS))); F2 = F2 @ F2.T
+    lp2 = seating.pick_leads(F2, cohort, k)
+    assert lp2.beyond == 0 and sorted(i for p in lp2.pairs for i in p) == list(range(2 * k))
+    # 기수 차를 없애면(cohort_cost 0) 후보 안에서 분야로만 골라 분야 0 후보를 아래에서 데려온다
+    lp2b = seating.pick_leads(F2, cohort, k, cohort_cost=0)
+    assert all(field2[a] == field2[b] for a, b in lp2b.pairs) and lp2b.beyond >= 1 and lp2b.skipped >= 1
+    # 이미 만난 둘(0 · 4)은 피한다. 만난 값 2 는 두 기수 차와 같아서, 같은 분야 · 같은 기수 대신할 사람(8번을 5기로)이 있을 때
+    forbid = np.zeros((n, n), bool); forbid[0, 4] = forbid[4, 0] = True
+    cohort3 = cohort.copy(); cohort3[8] = cohort3[4]
+    lp3 = seating.pick_leads(F, cohort3, k, forbid=forbid)
+    assert lp3.met == 0 and not any({a, b} == {0, 4} for a, b in lp3.pairs)
+    # 경계 기수가 같은 사람은 모두 후보, 후보가 모자라면 앞 테이블만
+    tie = np.where(np.arange(n) < 6, np.arange(n) + 1, 7); tie[-1] = -1
+    assert len(seating.pick_leads(F, tie, k).pool) == n - 1
+    few = np.full(n, -1); few[:5] = 3
+    lp4 = seating.pick_leads(F, few, k)
+    assert len(lp4.pairs) == 2 and seating.pick_leads(F, np.full(n, -1), k).pairs == []
+
+
+ROSTER_COHORTS = [5] * 2 + [6] * 2 + [7] * 3 + [8] * 3 + [9] * 9 + [10] * 6   # 실제 명단의 10기까지 참석자 25명
+
+
+def test_pick_leads_seniority_first_real_roster():
+    """기수 우선(10/25 민찬 결정): 실제 명단 분포(5~9기 19명 + 10기 6명, 10테이블 = 20명)면 분야 벡터가 무엇이든 5~8기는 모두 뽑히고 10기는 조금만."""
+    k, n = 10, 70
+    tens = []
+    for seed in range(30):
+        rng = np.random.default_rng(seed)
+        cohort = np.full(n, -1)
+        cohort[:25] = ROSTER_COHORTS
+        cohort[25:60] = rng.integers(11, 20, 35)
+        F = unit(rng.normal(size=(n, 16))); F = F @ F.T
+        lp = seating.pick_leads(F, cohort, k)
+        used = {i for p in lp.pairs for i in p}
+        assert len(lp.pairs) == k and len(used) == 2 * k and max(cohort[i] for i in used) == 10
+        assert all(i in used for i in range(25) if cohort[i] <= 8), seed       # 5~8기는 늘
+        tens.append(sum(1 for i in used if cohort[i] == 10))
+    assert min(tens) >= 1 and max(tens) <= 3 and np.mean(tens) < 2, tens      # 9기는 19명뿐이라 10기 1명은 꼭, 그 이상은 드물게
+
+
+def test_pick_leads_lower_cohort_only_for_clear_field_fit():
+    """10기가 9기를 대신하는 건 분야가 뚜렷이 더 맞을 때만: 9기 한 명(18번)만 혼자 다른 분야이고 10기 둘(19 · 20번)이 같은 분야면 18번 대신 10기 둘."""
+    k, DIMS = 10, 16
+    field = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 10, 9, 9, 11, 12, 13, 14]   # 0~9 = 5~8기, 10~18 = 9기, 19~24 = 10기
+    rng = np.random.default_rng(5)
+    F = unit(np.eye(DIMS)[field] + 0.05 * rng.normal(size=(25, DIMS))); F = F @ F.T
+    cohort = np.array(ROSTER_COHORTS)
+    lp = seating.pick_leads(F, cohort, k)
+    used = {i for p in lp.pairs for i in p}
+    assert used == (set(range(18)) | {19, 20}) and all(field[a] == field[b] for a, b in lp.pairs)
+    assert lp.skipped == 1                                                       # 빠진 윗기수 = 18번(9기)
+    # 같은 분야 10기가 한 명뿐이면(20번을 다른 분야로) 18번(9기)을 빼지 않는다
+    field2 = list(field); field2[20] = 15
+    F2 = unit(np.eye(DIMS)[field2] + 0.05 * rng.normal(size=(25, DIMS))); F2 = F2 @ F2.T
+    used2 = {i for p in seating.pick_leads(F2, cohort, k).pairs for i in p}
+    assert set(range(19)) <= used2 and sum(1 for i in used2 if cohort[i] == 10) == 1
+
+
+def test_pick_leads_excludes_late():
+    """지연 체크인한 사람(늦게 오는 사람)은 기수가 가장 높아도 주도 선배로 뽑지 않는다(구현하며 정함)."""
+    rng = np.random.default_rng(3)
+    k, n = 3, 20
+    F = unit(rng.normal(size=(n, 8))); F = F @ F.T
+    cohort = np.arange(n) + 1
+    late = np.zeros(n, bool); late[[0, 2]] = True                 # 1기 · 3기가 늦게 온다
+    lp = seating.pick_leads(F, cohort, k, exclude=late)
+    used = {i for p in lp.pairs for i in p}
+    assert len(lp.pairs) == k and not used & {0, 2} and 0 not in lp.pool and 2 not in lp.pool
+    assert 0 in {i for p in seating.pick_leads(F, cohort, k).pairs for i in p}   # 빼지 않으면 1기는 뽑힌다
+
+
+def test_seat_order_fixed_leads():
+    """커피챗 좌석: 주도 선배 두 자리를 정하고 나머지는 모든 순서를 다 본 것과 같은 답. facing 은 i · i + size // 2(8명이면 좌석 1 · 5번)."""
+    import itertools
+    rng = np.random.default_rng(7)
+    for k in (4, 7, 8, 10):
+        M = rng.normal(size=(12, 12)); A = (M + M.T) / 2
+        mem = [int(x) for x in rng.choice(12, k, replace=False)]
+        a, b = mem[2], mem[-1]                                    # 주도 선배(맨 앞이 아니어도 된다)
+        fx = seating.lead_fixed((a, b), k, "facing")
+        order, total = seating.seat_order(A, mem, fixed=fx)
+        assert sorted(order) == sorted(mem) and order[0] == a and order[k // 2] == b
+        if k == 8:
+            assert (order.index(a) + 1, order.index(b) + 1) == (1, 5)
+        rest = [x for x in mem if x not in (a, b)]
+        ring = lambda p: sum(A[p[i], p[(i + 1) % k]] for i in range(k))
+        best = -np.inf
+        for q in itertools.permutations(rest):
+            it = iter(q)
+            best = max(best, ring([a if s == 0 else b if s == k // 2 else next(it) for s in range(k)]))
+        assert abs(total - best) < 1e-9 and abs(ring(order) - total) < 1e-9, (k, total, best)
+        adj, _ = seating.seat_order(A, mem, fixed=seating.lead_fixed((a, b), k, "adjacent"))
+        assert adj[0] == a and adj[1] == b
+        free, t_free = seating.seat_order(A, mem, fixed=seating.lead_fixed((a, b), k, "free"))
+        assert free[0] == a and abs(t_free - seating.seat_order(A, [a] + [x for x in mem if x != a])[1]) < 1e-9
+    M = rng.normal(size=(20, 20)); A = (M + M.T) / 2               # 16명 넘으면 근사지만 고정 자리는 지킨다
+    order, _ = seating.seat_order(A, list(range(20)), fixed=seating.lead_fixed((5, 9), 20, "facing"))
+    assert sorted(order) == list(range(20)) and order[0] == 5 and order[10] == 9
+
+
 def test_seat_order_large_table_falls_back():
     rng = np.random.default_rng(2)
     M = rng.normal(size=(20, 20)); A = (M + M.T) / 2

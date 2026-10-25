@@ -19,18 +19,18 @@
 | profiles | offer_text(하는 일), seek_text(찾는 사람), 주제 태그, 관계 태그, 링크, card_edit(0014) | 사전 적재, 마이페이지 명함 편집(card_edit 만) | card_edit 은 마이페이지에서 고친 offer_text · seek_text · topic_tags · seek_tags(10/21, Seek 태그 따로). 명함에만 보이고 계산 서비스는 원래 칸만 읽는다 |
 | sids | 주소 두 개와 벡터 두 개, 코드북 버전 | 계산 서비스(전날 배치) | 당일 재발급 없음 |
 | labels | 주소 앞자리별 사람이 읽는 라벨 | 전날 배치, 운영 검수 | |
-| checkins | 체크인 시각, 지연 여부 | 첫 로그인이 자동 기록, 운영 콘솔은 지연 표시·수동 추가 | 배정과 궤도는 체크인 명단만 쓴다 |
+| checkins | 체크인 시각, 지연 여부, 일찍 나감(left_at · left_by) | 첫 로그인이 자동 기록, 운영 콘솔은 지연 표시·수동 추가·나감 표시, 참가자 본인은 조기 퇴장(/api/checkin/leave) | 배정과 궤도는 체크인 명단만 쓴다. `left_at` · `left_by` 는 0019(10/25 민찬 결정): 일찍 나간다고 표시한 시각과 표시한 사람(null = 본인, 아니면 운영자 id). 되돌리면 둘 다 null. left_at 이 있으면 커피챗 계산(final 아님)이 앉히지 않고 주도 선배로도 뽑지 않으며 늦게 온 사람 자리도 주지 않는다. 커피챗 공개 뒤에 나가면 공개된 자리는 그대로(빈자리). 행사 직후 추천(final)은 빼지 않는다 |
 | assign_versions | 배정 버전(라운드, 상태, 파라미터, 행사 번호 event_id) | 계산 서비스 생성, 운영자 publish | event_id 는 0007. 행사가 섞인 개발 DB 에서도 자기 행사 배정만 본다 |
 | codebooks | 주소(SID)를 정하는 기준표. 버전, 행사, 평균 벡터, 층별 대표 지점, 활성 여부 | 계산 서비스(전날 배치) | 0007. 행사마다 활성 하나. 체크인 마감 때 같은 기준으로 현장 등록자를 붙인다 |
 | tables_meta | 테이블 라벨과 대화거리, 궤도용 대표 라벨 | 계산 서비스 | label 은 화면용(지금은 비움). orbit_prefix · orbit_label 은 0009, 궤도 화면 전용(v0.2 B-08) |
-| table_members | 버전별 테이블 구성원, 좌석 번호(seat_no), 사람별 배정 이유(reason) | 계산 서비스 | reason 은 운영진 대시보드용. 참가자 화면에는 보내지 않는다(0006). seat_no 는 0008, 테이블토크만 채운다(원형 테이블 시계 방향 1부터) |
+| table_members | 버전별 테이블 구성원, 좌석 번호(seat_no), 사람별 배정 이유(reason) | 계산 서비스 | reason 은 운영진 대시보드용. 참가자 화면에는 보내지 않는다(0006). seat_no 는 0008, 원형 테이블 시계 방향 1부터. 테이블토크와 커피챗(10/23 부터, 주도 선배 둘은 마주 보게)이 채운다. 10/23 전 커피챗 버전은 비어 있다. 커피챗 공개 뒤 늦게 온 사람은 웹(lib/coffeechatLate.ts)이 공개 버전에 한 줄 더 쓴다(reason.late_join, 10/25) |
 | pair_scores | 배정에 쓴 쌍 점수 원본 | 계산 서비스 | 정확도 채점용. 재계산하지 않는다. score_no_poster 는 0009, 포스터 반영 없이 낸 점수(커피챗만) |
 | recs | 개인 추천(순위, 상대, 이유) | 계산 서비스 | 전날 계산(테이블토크 버전)과 커피챗 계산(커피챗 버전) 두 번 만든다. 생성 시점은 version 의 round 로 안다(v0.2 B-06) |
 | group_reasons | 커피챗 그룹 구성원 카드의 근거 한 줄(보는 사람 → 상대) | 계산 서비스 | 0009. 근거가 없는 쌍은 행이 없다(v0.2 B-07) |
 | card_exchanges | 명함 교환 기록(방향 있음). `source` qr·manual 은 찍은 쪽, auto 는 받은 쪽. `seen_at` 은 받은 쪽 알림 확인 시각. 0010: `status`(pending 이름 검색 교환의 상대 확인 전 · confirmed), `confirmed_at`(성립 시각, 미션 판정 기준), `first_meet` · `first_meet_at`(오늘 처음 대화한 분인가요? 의 답, 내 행에만), `note`(메모, 0013 부터 200자, 계산에 안 씀), `via`(스캐너를 연 탭 card · event). 0013: `phase`(교환이 생긴 때의 행사 단계, 명함 목록의 어디서 만났나 칩. 두 행에 같은 값, 그 전 행은 null) | card 모듈 API | 한 번 찍으면 두 행(양방향, 9/26 확정). 교환 수는 행 수 그대로(교환 1건 = 각자 +1, 전체 +2). 성립 전(pending) 교환은 미션 · 추천 · 간선 어디에도 세지 않는다 |
 | satisfaction | 테이블토크 · 커피챗 끝 만족도. 문장 선택지 choice(gained, different, mismatch. 예전 unsure 는 더 받지 않음), 고른 사람 picks(uuid[], 같은 테이블 사람), 답하는 데 걸린 시간 elapsed_ms, 한 줄 의견 | tabletalk 모듈 API | 라운드당 1건. 0005 에서 1~5 숫자를 선택지로 바꿨다. 0012 에서 3지선다 + 사람 고르기(picks · elapsed_ms) |
 | event_log | 화면 이벤트(열람, 스캔 실패 등) | 모든 모듈 API | 패시브 수집. 운영 쓰기(ops_*)는 운영자 id 를 participant_id 로 남겨 감사 로그(A-09)가 된다 |
-| rec_impressions | 오늘 만나면 좋을 분(H-04)에 처음 보인 시각(사람 쌍마다 한 행, version) | card 모듈 API(/api/card/recs) | 0010. 미션 ② 판정과 행사 뒤 분석. 다시 보여도 시각을 바꾸지 않는다 |
+| rec_impressions | 오늘 만나면 좋을 분(H-04)에 처음 보인 시각(사람 쌍마다 한 행, version) | card 모듈 API(/api/card/recs) | 0010. 시상 순위의 추천 인물 교환 판정(10/23 민찬 결정, lib/missions.ts)과 행사 뒤 분석. 다시 보여도 시각을 바꾸지 않는다 |
 | posters | 포스터 목록과 QR 코드, 요약 한 줄(summary), 발표자 참가자 id(presenter_ids) | 사전 적재 | summary · presenter_ids 는 0009. 포스터 벡터 = 제목 + tags + summary, 발표자 본인 · 같은 소속 응답은 계산에서 뺀다 |
 | poster_quizzes | 포스터별 퀴즈와 정답 | 사전 적재 | 정답은 서버만 본다 |
 | quiz_attempts | 퀴즈 시도 기록 | poster 모듈 API | 오답도 남긴다. 10/11 부터 정답 기록이 포스터 퀴즈 스탬프(미션 ②)다(별도 표 없음) |
@@ -38,8 +38,8 @@
 | poster_interest | 포스터 관심도. 문장 선택지 choice(learn_more, interesting, not_mine) | poster 모듈 API | 0005 에서 1~5 숫자를 선택지로 바꿨다. v0.2 부터는 poster_responses 를 쓴다(운영 콘솔 포스터 칸이 아직 읽어 남겨 둠) |
 | poster_responses | 포스터 응답(미션 ①). reason = 흥미 3단계(want, maybe, not_mine), 보여 준 순서, 소요 시간, 응답 순번, 퀴즈 시도 | poster 모듈 API | 0009. 0011 에서 관심 이유 4지선다(topic, method, experience, new_field)를 흥미 3단계로 바꿨다(칸 이름 reason 은 그대로). 계산 서비스가 B-05 전처리 뒤 커피챗에 반영(docs/DATA_SPEC.md). **배포 순서: DB 에 0011 · 0012 적용과 be/ 머지를 같이 → compute/ 머지** |
 | raffle_tickets | 응모권 | poster 모듈 API | v0.2 결정 6 으로 앱에서 발급하지 않는다(명찰 번호로 앱 밖). 표와 운영 콘솔 추첨은 남아 있다 |
-| event_feedback | 행사 후기(미션 ④). 한 사람당 한 행: rating(1 별로였다 · 2 좋았다 · 3 최고였다), tags(text[]), comment(100자) | event 모듈 API(/api/event/feedback) | 0018. created_at 이 처음 낸 시각으로 미션 마감 판정에 쓰이고, 다시 내면 updated_at 만 바뀐다. 운영 콘솔에서는 아직 읽지 않는다 |
-| ops_state | 운영 상태(키 · 값). phase(9개 값, lib/phase.ts), phase_meta(바꾼 시각 · 사람), notice(공지와 만료 시각), mission_closed_at(미션 마감, 처음 wrapup 으로 넘어간 시각), award_excluded(특별 시상 제외 명단), published_*, compute_heartbeat, raffle_result | 운영 콘솔, 계산 서비스 | 단계 값은 표가 아니라 API(zod)가 막는다 |
+| event_feedback | 행사 후기(미션 ④). 한 사람당 한 행: rating(1 별로였다 · 2 좋았다 · 3 최고였다), tags(text[]), comment(100자) | event 모듈 API(/api/event/feedback) | 0018. 커피챗이 끝난 뒤(wrapup · award)에만 받는다. 행이 있으면 스탬프 1칸이고 미션 마감 시각으로 자르지 않는다(10/22 민찬 결정). created_at 은 처음 낸 시각, 다시 내면 updated_at 만 바뀐다(participant_id 로 upsert). 운영 콘솔에서는 아직 읽지 않는다 |
+| ops_state | 운영 상태(키 · 값). phase(9개 값, lib/phase.ts), phase_meta(바꾼 시각 · 사람), notice(공지와 만료 시각), mission_closed_at(미션 마감, 처음 wrapup 으로 넘어간 시각), award_excluded(특별 시상 제외 명단), award_draw(특별 시상 경계 공동 순위 추첨 결과, 10/25), published_*, compute_heartbeat, raffle_result | 운영 콘솔, 계산 서비스 | 단계 값은 표가 아니라 API(zod)가 막는다 |
 | chat_logs | 챗봇 질문 기록(횟수 제한) | P2 | |
 
 ## 뷰
@@ -61,7 +61,8 @@
 | poster | posters, poster_quizzes(정답 제외), stamps, raffle_tickets, poster_responses | quiz_attempts, stamps, poster_responses, poster_interest(예전 화면), event_log |
 | ops(콘솔) | 전부 | checkins, assign_versions(공개 · 철회 · 수동 교체 복사본), table_members · tables_meta · pair_scores · recs · group_reasons(수동 교체 복사본, 워크인 좌석), ops_state |
 | event | event_feedback | event_feedback, event_log |
-| 공용 상태 API(/api/state) · 미션(lib/missions.ts) | ops_state, current_tables, assign_versions, poster_responses, quiz_attempts, card_exchanges, event_feedback | 없음 |
+| 공용 상태 API(/api/state) · 미션(lib/missions.ts) | ops_state, current_tables, assign_versions, poster_responses, quiz_attempts, card_exchanges, event_feedback, checkins(left_at) | 없음 |
+| 공용 조기 퇴장(/api/checkin/leave) | checkins, ops_state | checkins.left_at · left_by(본인 것만), event_log |
 | compute | participants, profiles, checkins, card_exchanges, satisfaction, posters, poster_responses, poster_interest(응답이 없을 때), labels | sids, labels, codebooks, assign_versions, tables_meta, table_members, pair_scores, recs, group_reasons, ops_state |
 
 ## 미정이라 보류한 것

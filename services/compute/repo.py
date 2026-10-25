@@ -42,6 +42,26 @@ class MemoryRepo:
         s = set(ids)
         return {r["participant_id"] for r in self.t["checkins"] if r["participant_id"] in s}
 
+    def late_checkins(self, ids: list[str]) -> set[str]:
+        """지연 체크인(checkins.is_late, 콘솔 수동 체크인의 지연 체크인으로 표시)한 사람. 커피챗 주도 선배에서 뺀다."""
+        s = set(ids)
+        return {r["participant_id"] for r in self.t["checkins"] if r["participant_id"] in s and r.get("is_late")}
+
+    def left_checkins(self, ids: list[str]) -> set[str]:
+        """일찍 나간다고 표시한 사람(checkins.left_at, 0019 · 10/25 민찬 결정). 커피챗 배정 · 늦게 온 사람 자리에서 뺀다."""
+        s = set(ids)
+        return {r["participant_id"] for r in self.t["checkins"] if r["participant_id"] in s and r.get("left_at")}
+
+    def left_times(self, ids: list[str]) -> dict[str, str]:
+        """{사람: 나간다고 표시한 시각(checkins.left_at, ISO)}. 행사 직후 추천(final)이 커피챗 시작 전에 나갔는지 가른다(10/25 민찬 결정)."""
+        s = set(ids)
+        return {r["participant_id"]: r["left_at"] for r in self.t["checkins"] if r["participant_id"] in s and r.get("left_at")}
+
+    def phase_times(self, phase: str) -> list[str]:
+        """운영진이 행사 단계를 phase 로 바꾼 시각들(event_log 의 ops_phase, 웹 /api/ops/phase 가 남김). 오래된 순."""
+        return sorted(r["created_at"] for r in self.t["event_log"]
+                      if r.get("kind") == "ops_phase" and (r.get("payload") or {}).get("phase") == phase)
+
     def edges(self) -> list[dict]:
         """edges 뷰와 같은 모양 — 명함 교환을 무방향 간선 0.3 으로."""
         seen = {}
@@ -109,6 +129,16 @@ class MemoryRepo:
         v = max(vs, key=lambda v: v["version"])
         s = set(ids)
         return v, [m for m in self.t["table_members"] if m["version"] == v["version"] and m["participant_id"] in s]
+
+    def coffeechat_published(self, event_id: str = "dev") -> dict | None:
+        """이 행사의 최신 공개(published) 커피챗 버전 {version, params}. 화면(current_tables)이 읽는 버전과 같다. 없으면 None."""
+        vs = [v for v in self.t["assign_versions"] if v["round"] == "coffeechat" and v["status"] == "published"
+              and v.get("event_id", "dev") == event_id]
+        return max(vs, key=lambda v: v["version"]) if vs else None
+
+    def version_members(self, version: int) -> list[dict]:
+        """배정 버전 하나의 자리 전부 [{participant_id, table_no, seat_no, reason}]."""
+        return [m for m in self.t["table_members"] if m["version"] == version]
 
     def active_codebook(self, event_id: str) -> dict | None:
         return next((c for c in self.t["codebooks"] if c["event_id"] == event_id and c["active"]), None)
@@ -197,6 +227,34 @@ class SupabaseRepo:
     def checkins(self, ids):
         return {r["participant_id"] for r in self._in("checkins", "participant_id", "participant_id", ids)}
 
+    def late_checkins(self, ids):
+        return {r["participant_id"] for r in self._in("checkins", "participant_id, is_late", "participant_id", ids) if r.get("is_late")}
+
+    def left_checkins(self, ids):
+        from postgrest.exceptions import APIError
+        try:
+            rows = self._in("checkins", "participant_id, left_at", "participant_id", ids)
+        except APIError as e:
+            if e.code not in ("42703", "PGRST204"):     # 0019 전 DB(left_at 칸 없음)만 나간 사람 없음으로. 다른 오류는 그대로
+                raise
+            return set()
+        return {r["participant_id"] for r in rows if r.get("left_at")}
+
+    def left_times(self, ids):
+        from postgrest.exceptions import APIError
+        try:
+            rows = self._in("checkins", "participant_id, left_at", "participant_id", ids)
+        except APIError as e:
+            if e.code not in ("42703", "PGRST204"):     # 0019 전 DB(left_at 칸 없음)만 나간 사람 없음으로. 다른 오류는 그대로
+                raise
+            return {}
+        return {r["participant_id"]: r["left_at"] for r in rows if r.get("left_at")}
+
+    def phase_times(self, phase):
+        rows = self._all(lambda: self.db.table("event_log").select("created_at").eq("kind", "ops_phase")
+                         .eq("payload->>phase", phase).order("created_at"))
+        return [r["created_at"] for r in rows]
+
     def edges(self):
         return self._all(lambda: self.db.table("edges").select("a, b, kind, weight"))
 
@@ -256,16 +314,24 @@ class SupabaseRepo:
         return [m for m in rows if m["participant_id"] in s]
 
     def coffeechat_source(self, ids, event_id="dev"):
-        vs = self._all(lambda: self.db.table("assign_versions").select("version, status, params")
+        vs = self._all(lambda: self.db.table("assign_versions").select("version, status, params, published_at")
                        .eq("round", "coffeechat").eq("event_id", event_id).in_("status", ["published", "retired"]))
         vs = [v for v in vs if (v.get("params") or {}).get("kind") != "final"]
         if not vs:
             return None, []
         v = max(vs, key=lambda v: v["version"])
         s = set(ids)
-        rows = self._all(lambda: self.db.table("table_members").select("version, table_no, participant_id, reason")
+        rows = self._all(lambda: self.db.table("table_members").select("version, table_no, participant_id, seat_no, reason")
                          .eq("version", v["version"]))
         return v, [m for m in rows if m["participant_id"] in s]
+
+    def coffeechat_published(self, event_id="dev"):
+        r = (self.db.table("assign_versions").select("version, status, params").eq("round", "coffeechat").eq("event_id", event_id)
+             .eq("status", "published").order("version", desc=True).limit(1).execute().data)
+        return r[0] if r else None
+
+    def version_members(self, version):
+        return self._all(lambda: self.db.table("table_members").select("participant_id, table_no, seat_no, reason").eq("version", version))
 
     def active_codebook(self, event_id):
         r = self.db.table("codebooks").select("*").eq("event_id", event_id).eq("active", True).limit(1).execute().data

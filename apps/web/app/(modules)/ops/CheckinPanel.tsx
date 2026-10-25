@@ -1,6 +1,8 @@
 "use client";
 // 체크인 관리. 참가자 전원을 보여 주고 이름으로 찾아 수동 체크인(지연 표시)한다. 워크인 추가와 숫자 재발급도 여기서 한다.
 // 첫 로그인이 곧 체크인이라 보통은 저절로 되고, 폰이 안 되는 사람만 여기서 처리한다.
+// 커피챗 공개 뒤 늦게 와서 커피챗 자리를 받은 사람은 체크인 칸에 몇 번 테이블 몇 번 자리인지 보인다(10/25, 의자를 하나 더 놓는다).
+// 일찍 나가는 사람은 나감 표시로 커피챗 배정에서 뺀다(10/25 민찬 결정, checkins.left_at). 본인이 화면에서 누르거나 운영자가 여기서 표시 · 되돌린다.
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
 
@@ -16,7 +18,15 @@ type P = {
   has_sid: boolean;
   checked_at: string | null;
   is_late: boolean;
+  left_at: string | null; // 일찍 나간다고 표시한 시각(0019)
+  left_self: boolean; // true 면 본인이 누름, false 면 운영자가 표시
+  coffee_late: CoffeeSeat | null;
 };
+type CoffeeSeat = { table_no: number; seat_no: number | null; fallback: boolean };
+
+function coffeeText(c: CoffeeSeat) {
+  return `늦게 와서 커피챗 ${c.table_no}번 테이블${c.seat_no != null ? ` ${c.seat_no}번 자리` : ""}${c.fallback ? "(인원이 가장 적은 테이블)" : ""}. 의자를 하나 더 놓는다`;
+}
 
 const ROLE: Record<string, string> = { student: "재학생", alumni: "졸업생", professor: "교수", staff: "운영진", other: "기타" };
 
@@ -55,9 +65,26 @@ export default function CheckinPanel() {
     setBusy(p.id);
     setNotice(null);
     try {
-      const r = await api<{ checked_at: string; already: boolean }>("/api/ops/checkin", { json: { participant_id: p.id, is_late: late } });
+      const r = await api<{ checked_at: string; already: boolean; coffee_seat: CoffeeSeat | null }>("/api/ops/checkin", { json: { participant_id: p.id, is_late: late } });
       if (!r.ok) return setError(r.message);
-      setNotice(r.data.already ? `${p.display_name} 님은 이미 ${hm(r.data.checked_at)} 에 체크인돼 있다` : `${p.display_name} 님 체크인${late ? " (지연)" : ""}`);
+      setNotice(
+        r.data.already
+          ? `${p.display_name} 님은 이미 ${hm(r.data.checked_at)} 에 체크인돼 있다`
+          : `${p.display_name} 님 체크인${late ? " (지연)" : ""}${r.data.coffee_seat ? `. ${coffeeText(r.data.coffee_seat)}` : ""}`,
+      );
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function leave(p: P, undo: boolean) {
+    setBusy(p.id);
+    setNotice(null);
+    try {
+      const r = await api<{ left_at: string | null; already: boolean }>("/api/ops/checkin/leave", { json: { participant_id: p.id, undo } });
+      if (!r.ok) return setError(r.message);
+      setNotice(undo ? `${p.display_name} 님 나감 표시를 되돌렸다. 커피챗 배정에 다시 들어간다` : `${p.display_name} 님 나감 표시. 커피챗 계산에서 빠진다(이미 공개된 자리는 빈자리로 둔다)`);
       await load();
     } finally {
       setBusy(null);
@@ -81,6 +108,7 @@ export default function CheckinPanel() {
     return !s || p.display_name.includes(s) || (p.affiliation ?? "").includes(s);
   });
   const checked = (people ?? []).filter((p) => p.checked_at).length;
+  const leftN = (people ?? []).filter((p) => p.checked_at && p.left_at).length;
 
   return (
     <div className="space-y-3">
@@ -95,7 +123,7 @@ export default function CheckinPanel() {
           <input type="checkbox" checked={late} onChange={(e) => setLate(e.target.checked)} /> 지연 체크인으로 표시
         </label>
         <span className="text-xs text-gray-500">
-          체크인 {checked} / {people?.length ?? 0}
+          체크인 {checked} / {people?.length ?? 0} · 나감 {leftN}
         </span>
         <button type="button" onClick={() => setShowAdd((v) => !v)} className="ml-auto rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs">
           {showAdd ? "워크인 추가 닫기" : "워크인 추가"}
@@ -138,6 +166,8 @@ export default function CheckinPanel() {
                       <span className="text-green-700">
                         {hm(p.checked_at)}
                         {p.is_late ? " 지연" : ""}
+                        {p.left_at && <span className="mt-0.5 block rounded bg-gray-200 px-1 text-[11px] text-gray-700">나감 {hm(p.left_at)}{p.left_self ? "(본인)" : "(운영자)"}</span>}
+                        {p.coffee_late && <span className="mt-0.5 block rounded bg-orange-100 px-1 text-[11px] text-orange-800">{coffeeText(p.coffee_late)}</span>}
                       </span>
                     ) : (
                       <span className="text-gray-400">-</span>
@@ -147,6 +177,11 @@ export default function CheckinPanel() {
                     {!p.checked_at && (
                       <button type="button" disabled={busy !== null} onClick={() => checkin(p)} className="rounded-lg bg-black px-2 py-1 text-xs font-semibold text-white disabled:bg-gray-300">
                         체크인
+                      </button>
+                    )}
+                    {p.checked_at && (
+                      <button type="button" disabled={busy !== null} onClick={() => leave(p, !!p.left_at)} className="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                        {p.left_at ? "되돌리기" : "나감 표시"}
                       </button>
                     )}
                     <button type="button" disabled={busy !== null} onClick={() => resetPin(p)} className="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs">
@@ -183,11 +218,11 @@ function WalkinForm({ onAdded }: { onAdded: (msg: string) => void }) {
     setBusy(true);
     setError(null);
     try {
-      const r = await api<{ participant: { id: string; display_name: string }; pin: string; seat: { table_no: number; seat_no: number } | null }>("/api/ops/add-participant", {
+      const r = await api<{ participant: { id: string; display_name: string }; pin: string; seat: { table_no: number; seat_no: number } | null; coffee_seat: CoffeeSeat | null }>("/api/ops/add-participant", {
         json: { display_name: name.trim(), affiliation: aff.trim() || undefined, role, cohort: cohort ? Number(cohort) : undefined, is_host: host },
       });
       if (!r.ok) return setError(r.message);
-      onAdded(`${r.data.participant.display_name} 님 추가. 숫자 4자리: ${r.data.pin} (지금만 보인다. 본인에게 바로 알려 준다). ${r.data.seat ? `자리: ${r.data.seat.table_no}번 테이블 ${r.data.seat.seat_no}번 좌석(인원이 가장 적은 테이블 끝). ` : ""}주소는 체크인 마감 계산 때 붙는다`);
+      onAdded(`${r.data.participant.display_name} 님 추가. 숫자 4자리: ${r.data.pin} (지금만 보인다. 본인에게 바로 알려 준다). ${r.data.seat ? `자리: ${r.data.seat.table_no}번 테이블 ${r.data.seat.seat_no}번 좌석(인원이 가장 적은 테이블 끝). ` : ""}${r.data.coffee_seat ? `${coffeeText(r.data.coffee_seat)}. ` : ""}주소는 체크인 마감 계산 때 붙는다`);
     } finally {
       setBusy(false);
     }

@@ -1,5 +1,6 @@
 // POST /api/ops/add-participant  운영자. 워크인 추가. 숫자를 주지 않으면 무작위로 만들어 한 번만 돌려준다.
 // 개발 지시서 v0.2 A-05: 공개된 테이블토크 배정이 있으면 고정 테이블(교수 · 운영진석)을 뺀 테이블 중 인원이 가장 적은 곳의 끝 좌석에 바로 앉힌다(assign_seat 기본 true).
+// 커피챗 배정이 공개된 뒤면 커피챗 자리도 바로 준다(coffee_seat, 10/25 민찬 결정, lib/coffeechatLate.ts. assign_seat 를 따름).
 // 주소(SID)는 여기서 붙이지 않는다. 체크인 마감 계산(/api/ops/compute job checkin)이 저장된 코드북으로 붙인다.
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -7,6 +8,7 @@ import { db } from "@/lib/db";
 import { ok, handle, eventId } from "@/lib/api";
 import { requireAdmin } from "@/lib/session";
 import { logEvent } from "@/lib/log";
+import { seatLateCoffeechat } from "@/lib/coffeechatLate";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +67,8 @@ export async function POST(req: Request) {
     const { error: e2 } = await db().from("profiles").insert({ participant_id: p.id, offer_text: b.offer_text, seek_text: b.seek_text, topic_tags: b.topic_tags });
     if (e2) throw e2;
     const seat = b.assign_seat ? await walkinSeat(p.id as string) : null;
-    await logEvent("walkin_added", admin.pid, { target: p.id, seat });
-    return ok({ participant: p, pin, seat }, 201);
+    const coffee_seat = b.assign_seat ? await seatLateCoffeechat(p.id as string, admin.pid) : null;
+    await logEvent("walkin_added", admin.pid, { target: p.id, seat, coffee_seat });
+    return ok({ participant: p, pin, seat, coffee_seat }, 201);
   });
 }

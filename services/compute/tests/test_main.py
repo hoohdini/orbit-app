@@ -46,6 +46,21 @@ def test_flow_and_conflict():
     assert c2.post("/precompute", json={}, headers=H).status_code == 409
 
 
+def test_coffeechat_late():
+    """커피챗 공개 뒤 늦게 온 사람 자리(10/25): 비밀값 · 공개 전 409 · 공개 뒤 자리."""
+    c = client(n=40, n_staff=0)
+    pid = main._repo.t["participants"][0]["id"]
+    assert c.post("/coffeechat/late", json={"participant_id": pid}).status_code == 401
+    assert c.post("/coffeechat/late", json={"participant_id": pid}, headers=H).status_code == 409   # 공개된 커피챗 없음
+    assert c.post("/precompute", json={}, headers=H).status_code == 200
+    late = main._repo.t["participants"][-1]["id"]
+    main._repo.t["checkins"] += [{"participant_id": p["id"]} for p in main._repo.t["participants"] if p["id"] != late]
+    v = c.post("/coffeechat", json={}, headers=H).json()["version"]
+    next(x for x in main._repo.t["assign_versions"] if x["version"] == v)["status"] = "published"
+    r = c.post("/coffeechat/late", json={"participant_id": late, "version": v}, headers=H)
+    assert r.status_code == 200 and r.json()["reason"]["late_join"] and r.json()["seat_no"] >= 2, r.text
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

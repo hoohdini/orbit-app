@@ -6,13 +6,15 @@ import { ok, fail, handle, eventId } from "@/lib/api";
 import { requireAdmin } from "@/lib/session";
 import { db } from "@/lib/db";
 import { pairScores, groupMean } from "@/lib/pairs";
+import { leftOf } from "@/lib/checkinLeft";
 
-// 같은 기수 상한. 계산 서비스(services/compute/service.py TABLETALK_COHORT_CAP · COFFEECHAT_COHORT_CAP, 10/5)와 같은 값이다
-const COHORT_CAP: Record<string, number> = { tabletalk: 3, coffeechat: 2 };
+// 같은 기수 상한. 계산 서비스(services/compute/service.py TABLETALK_COHORT_CAP · COFFEECHAT_COHORT_CAP)와 같은 값이다.
+// 커피챗은 10테이블이 되면서 테이블토크와 같은 3명(10/22 민찬 결정, 예전 3~4명 그룹은 2명)
+const COHORT_CAP: Record<string, number> = { tabletalk: 3, coffeechat: 3 };
 
 export const dynamic = "force-dynamic";
 
-type Reason = { text?: string; random?: boolean } | null;
+type Reason = { text?: string; random?: boolean; lead?: boolean; late_join?: boolean } | null;   // lead = 커피챗 주도 선배(10/22), late_join = 커피챗 공개 뒤 늦게 와서 앉음(10/25)
 
 export async function GET(_req: Request, { params }: { params: Promise<{ version: string }> }) {
   return handle(async () => {
@@ -22,7 +24,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
 
     const { data: v, error: vErr } = await db()
       .from("assign_versions")
-      .select("version, round, status")
+      .select("version, round, status, params")
       .eq("version", version)
       .eq("event_id", eventId())
       .maybeSingle();
@@ -42,7 +44,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
     if (pErr) throw pErr;
     const who = new Map((people ?? []).map((p) => [p.id as string, p]));
 
-    type Row = { id: string; display_name: string; affiliation: string | null; role: string; cohort: number | null; seat_no: number | null; random: boolean; reason: string };
+    type Row = { id: string; display_name: string; affiliation: string | null; role: string; cohort: number | null; seat_no: number | null; random: boolean; lead: boolean; late_join: boolean; left?: boolean; reason: string };
     const tables = new Map<number, { table_no: number; mean_score: number | null; check: boolean; members: Row[] }>();
     for (const r of rows ?? []) {
       const t = r.table_no as number;
@@ -57,6 +59,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
         cohort: (p?.cohort as number | null) ?? null,
         seat_no: (r.seat_no as number | null) ?? null,
         random: !!reason?.random,
+        lead: !!reason?.lead,
+        late_join: !!reason?.late_join,
         reason: reason?.text ?? "",
       });
     }
@@ -86,7 +90,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
       for (const c of cnt.values()) cohortOver += Math.max(0, c - cap);
     }
 
-    // 재회 쌍: 커피챗 그룹 안에서 공개된 테이블토크 때 같은 테이블이었던 쌍
+    // 재회 쌍: 커피챗 그룹 안에서 공개된 테이블토크 때 같은 테이블이었던 쌍. 늦게 와서 앉은 사람(late_join)은 테이블토크에 없었으므로 세지 않는다(10/25)
     let reunion: number | null = null;
     if (v.round === "coffeechat") {
       const { data: tt, error: tErr } = await db().from("current_tables").select("participant_id, table_no").eq("round", "tabletalk").eq("event_id", eventId());
@@ -96,6 +100,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
       for (const t of list)
         for (let i = 0; i < t.members.length; i++)
           for (let j = i + 1; j < t.members.length; j++) {
+            if (t.members[i].late_join || t.members[j].late_join) continue;
             const a = ttOf.get(t.members[i].id);
             if (a !== undefined && a === ttOf.get(t.members[j].id)) reunion++;
           }
@@ -103,6 +108,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
 
     const { data: ci, error: ciErr } = ids.length ? await db().from("checkins").select("participant_id").in("participant_id", ids) : { data: [], error: null };
     if (ciErr) throw ciErr;
+    // 일찍 나간다고 표시한 사람(0019, 10/25 민찬 결정). 공개 뒤에 나가면 자리는 그대로 두고 표시만 한다(빈자리). 0019 전 DB 면 아무도 없음
+    const left = await leftOf(ids);
+    for (const t of list) for (const m of t.members) m.left = left.has(m.id);
     const sizes = list.map((t) => t.members.length);
 
     return ok({
@@ -120,6 +128,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
         reunion_pairs: reunion,
         cohort_over: cohortOver,
         not_checked_in: ids.length - (ci ?? []).length,
+        left: left.size, // 계산 뒤 나감: 이 버전 구성원 중 지금 나감 표시가 있는 사람(자리는 빈자리)
+        left_excluded: typeof (v.params as { left?: unknown } | null)?.left === "number" ? ((v.params as { left: number }).left) : null, // 계산에서 뺌: 계산 때 나감 표시로 뺀 수(params.left, 10/25 전 버전 · 테이블토크는 null)
       },
       tables: list,
     });

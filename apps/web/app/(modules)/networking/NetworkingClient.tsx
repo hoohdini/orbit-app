@@ -105,6 +105,7 @@ export default function NetworkingClient() {
 
   const canSwitch = ccVersion !== null && (acked || ccNow) && !!s.tabletalk;
   const isTT = shown === "tabletalk";
+  const mySeat = view !== "unpublished" ? view.assignment.members.find((m) => m.id === meId)?.seat_no : null; // 커피챗 내 자리(10/23 부터)
   // 커피챗 첫 배치 단계인데 아직 공개 전이면 배정 대기 카드(피그마 배정 전환 안내 - 푸쉬 전). 공개되면 상태 API 가 15초 안에 바꾼다
   const waiting = s.phase === "coffeechat_seated" && s.published.coffeechat === null;
 
@@ -132,19 +133,19 @@ export default function NetworkingClient() {
             ) : (
               <p className="rounded-3xl border border-line p-6 text-center text-xs text-ink-3">궤도를 불러오지 못했습니다</p>
             )}
-            <p className="text-xs text-ink-2">가까울수록 나와 잘 맞는 {isTT ? "구성원" : "그룹원"}입니다.</p>
+            <p className="text-xs text-ink-2">가까울수록 나와 잘 맞는 구성원입니다.</p>
           </section>
 
           <section className="space-y-3">
             <div className="flex items-center justify-between rounded-3xl border border-navy bg-strip px-6 py-[18px]">
               <div>
-                <p className="text-xs font-medium text-accent">{isTT ? "MY TABLE" : "MY GROUP"}</p>
+                <p className="text-xs font-medium text-accent">MY TABLE</p>
                 <p className="text-[72px] font-bold leading-[80px] text-navy">{view.assignment.no}</p>
               </div>
               <div className="text-right">
-                <p className="text-lg font-bold text-navy">{isTT ? `${view.assignment.no}번 테이블` : `커피챗 ${view.assignment.no}그룹`}</p>
+                <p className="text-lg font-bold text-navy">{isTT ? `${view.assignment.no}번 테이블` : `커피챗 ${view.assignment.no}번 테이블${mySeat ? ` ${mySeat}번 자리` : ""}`}</p>
                 <p className="mt-1 text-[13px] text-ink-2">
-                  {view.assignment.members.length}명{isTT ? " · 좌석 순서대로" : ""}
+                  {view.assignment.members.length}명{isTT || view.assignment.members.some((m) => m.seat_no) ? " · 좌석 순서대로" : ""}
                 </p>
               </div>
             </div>
@@ -156,7 +157,7 @@ export default function NetworkingClient() {
             <ol className="overflow-hidden rounded-3xl border border-navy bg-white py-1">
               {view.assignment.members.map((m, i) => {
                 const me = m.id === meId;
-                const no = isTT ? (m.seat_no ?? i + 1) : null;
+                const no = isTT ? (m.seat_no ?? i + 1) : (m.seat_no ?? null); // 커피챗 좌석은 10/23 부터(예전 버전은 번호 없음)
                 const sub = [m.affiliation, m.career_line].filter(Boolean).join(" · ");
                 const accent = isTT ? (m.offer_text ? `Offer · ${m.offer_text}` : "") : m.reason ? m.reason : m.seek_text ? `Seek: "${m.seek_text}"` : "";
                 return (
