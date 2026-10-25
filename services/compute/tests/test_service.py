@@ -673,7 +673,28 @@ def test_coffeechat_left_early():
     repo.t["table_members"] = [m for m in repo.t["table_members"] if m not in extra]
     # 행사 직후 추천(final): 나간 사람도 뺀 것 없이 추천을 받는다. 공개 뒤에 나간 사람은 원본 자리 그대로, 계산 전에 나간 사람은 자리 없이(late)
     repo.t["checkins"].append({"participant_id": late})
-    f = service.coffeechat(repo, enc, final=True)
+    seen = {}
+    orig_write = service._write_recs
+
+    def spy(repo_, v, P, ids_, scores, met, *a, **k):                      # final 추천이 '만난 사람'으로 뺀 쌍을 본다
+        seen["ids"], seen["met"] = list(ids_), met.copy()
+        return orig_write(repo_, v, P, ids_, scores, met, *a, **k)
+    service._write_recs = spy
+    try:
+        f = service.coffeechat(repo, enc, final=True)
+    finally:
+        service._write_recs = orig_write
+    # 10/25 민찬 결정: 공개 뒤 나간 사람과 같은 커피챗 테이블 사람은 '만난 사람'이 아니다(교환 · 테이블토크 동석이 없으면 서로 추천에 오를 수 있음)
+    pos = {pid: i for i, pid in enumerate(seen["ids"])}
+    ttv = next(v["version"] for v in repo.t["assign_versions"] if v["round"] == "tabletalk" and v["status"] == "published")
+    tt = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == ttv}
+    ex = {(e["scanner_id"], e["scanned_id"]) for e in repo.t.get("card_exchanges", [])}
+    stay = [pid for pid in mates[2:] if pid in pos]
+    pairs = [(a, b) for a in mates[:2] for b in stay if tt.get(a) != tt.get(b) and (a, b) not in ex and (b, a) not in ex]
+    assert pairs, "시험 입력에 테이블토크도 교환도 없던 커피챗 동석 쌍이 있어야 한다"
+    assert all(not seen["met"][pos[a], pos[b]] and not seen["met"][pos[b], pos[a]] for a, b in pairs)
+    stay_pairs = [(a, b) for a in stay for b in stay if a != b]
+    assert all(seen["met"][pos[a], pos[b]] for a, b in stay_pairs)         # 남아 있던 동석자끼리는 그대로 '만난 사람'
     fm = {m["participant_id"]: m for m in repo.t["table_members"] if m["version"] == f["version"]}
     assert f["left"] == 0 and f["late"] == 1 + 3                         # 늦게 온 사람(원본에 자리 없음) + 계산 전에 나간 셋
     assert all(fm[pid]["table_no"] == t for pid in mates[:2]) and not any(pid in fm for pid in gone)

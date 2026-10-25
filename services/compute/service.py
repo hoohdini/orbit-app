@@ -575,7 +575,16 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
         n_reasons = len(ev)
 
     # 커피챗 버전 추천 목록(B-06). 테이블토크 · 커피챗 동석자와 명함을 교환한 사람은 뺀다
-    met = forbid | seating.same_table_pairs(r.table) | (W > 0)
+    same = seating.same_table_pairs(r.table)
+    if final:
+        # 커피챗 공개 뒤 일찍 나간 사람은 자리만 남고 실제로 동석자를 만나지 않았다 → 커피챗 동석을 '만난 사람'으로 보지 않는다(10/25 민찬 결정).
+        # 테이블토크 동석(forbid) · 명함 교환(W)은 실제로 있었던 일이라 그대로 뺀다
+        gone = repo.left_checkins(ids)
+        if gone:
+            g = np.array([pid in gone for pid in ids])
+            same[g, :] = False
+            same[:, g] = False
+    met = forbid | same | (W > 0)
     np.fill_diagonal(met, True)
     exposure = _write_recs(repo, v, P, ids, _rec_scores(S2, O2, a, P, intents, rec_mode), met, tags, intents,
                            [(c,) for c in first_prefix], n_exact, n_explore, seed)
