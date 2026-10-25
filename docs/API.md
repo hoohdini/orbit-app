@@ -29,7 +29,7 @@
 |---|---|---|---|---|---|
 | 공용 | /api/health | GET | 없음 | { version, db: ok/fail } | 있음 |
 | 공용 | /api/state | GET | 없음 | { phase, phase_label, phase_at, notice: {text, expires_at} 또는 null, consent(agreed · refused · pending), share(명함 공개 및 추천 활용, 0014), tabletalk: {version, table_no, seat_no} 또는 null, coffeechat: {version, group_no, seat_no(10/23 부터, 예전 버전은 null)} 또는 null, published: {tabletalk, coffeechat}(공개 버전 번호 또는 null), recs_open, checked_in, left_at(일찍 나간다고 표시한 시각 또는 null, 0019), leave_open(일찍 나가요를 받는 단계인지), mission: {window(not_started · open · closed), done_count, total, progress(= done_count / total, 10/22)}, now } 참가자 화면이 15초마다 부르는 상태 하나(v0.2 B-09). 상태 띠(H-01) · 추천 접힘(H-04) · 만족도 노출(N-03) · 새 배정 안내(N-06, published 와 기기에 저장한 확인 버전을 비교) · 미션(E-01) · 일찍 나가요(10/25, left_at 이 있으면 다시 참여할게요를 보임) | 있음 |
-| 공용 | /api/checkin/leave | POST | undo?(기본 false) | { left_at } 일찍 나가요(10/25 민찬 결정, 아래 일찍 나가는 사람 절). 본인 표시(left_by null), undo true 면 다시 참여(left_at 을 비움). 이미 같은 상태면 그대로 두고 같은 값. 체크인 안 했으면 409 NOT_CHECKED_IN, 등록 · 개회 ~ 커피챗 단계가 아니면 409 LEAVE_NOT_OPEN. event_log checkin_leave · checkin_leave_undo | 있음 |
+| 공용 | /api/checkin/leave | POST | undo?(기본 false) | { left_at } 일찍 나가요(10/25 민찬 결정, 아래 일찍 나가는 사람 절). 본인 표시(left_by null), undo true 면 다시 참여(left_at 을 비움). 이미 같은 상태면 그대로 두고 같은 값. 체크인 안 했으면 409 NOT_CHECKED_IN, 등록 · 개회 ~ 커피챗 단계가 아니면 409 LEAVE_NOT_OPEN, DB 에 0019 가 없으면 503 LEAVE_UNAVAILABLE. event_log checkin_leave · checkin_leave_undo | 있음 |
 | onboarding | /api/onboarding/login | POST | display_name, pin(숫자 4자리), participant_id? | { participant: {id, display_name, role, is_admin}, consented } 또는 동명이인이면 { choose: [{id, display_name, affiliation, role, cohort}] }. 실패 401, 5회 실패 후 10분 423 | 있음 |
 | onboarding | /api/onboarding/logout | POST | 없음 | { ok } | 있음 |
 | onboarding | /api/onboarding/consent | POST | agreed: true 또는 false, item?(collect · share) | { consent, consent_at, consent_refused_at, share, share_consent_at, share_refused_at } 거부도 저장한다(v0.2 H-00). 다시 동의하면 거부 기록을 지운다. 10/11(0014) 동의 두 항목: collect = 개인정보 수집 및 이용, share = 명함 공개 및 추천 활용. item 을 빼면 두 항목을 같이 정한다(온보딩), 마이페이지 내 정보는 항목별로 보낸다 | 있음 |
@@ -69,7 +69,7 @@
 | ops | /api/ops/compute | GET | 없음 | { reachable, model_loaded?, version? } 계산 서비스 상태. 운영자만 | 있음 |
 | ops | /api/ops/compute | POST | job: precompute(전날) · checkin(체크인 마감) · coffeechat(포스터세션 중) · final(시상 · 폐회 뒤 행사 직후 추천, 계산 서비스 /coffeechat {final:true}) | { job, ms, result } result 는 계산 서비스 응답(초안 version 등. checkin 은 새 초안이 없어 version 이 null. final 은 late = 커피챗 뒤에 들어와 자리 없이 추천만 받은 사람 수). 거절이면 409 COMPUTE_REFUSED. final 을 모르는 예전 계산 서비스면 409 COMPUTE_OLD. 운영자만 | 있음 |
 | ops | /api/ops/participants | GET | 없음 | { participants: [{id, display_name, affiliation, role, cohort, is_host, is_admin, consented, consent_refused, has_sid, checked_at, is_late, left_at, left_self, coffee_late}] } 이 행사 전원. left_at 은 일찍 나간다고 표시한 시각(0019), left_self 는 본인이 눌렀으면 true · 운영자가 표시했으면 false(10/25). coffee_late 는 커피챗 공개 뒤 늦게 와서 공개된 커피챗에 자리를 받은 사람의 {table_no, seat_no, fallback}, 아니면 null(10/25, 콘솔이 의자 추가 표시). 운영자만 | 있음 |
-| ops | /api/ops/checkin/leave | POST | participant_id, undo? | { left_at, already } 운영자의 나감 표시 · 되돌리기(10/25 민찬 결정). 표시하면 left_by = 운영자. 단계와 상관없이 받는다(구현하며 정함). 체크인 안 한 사람은 409 NOT_CHECKED_IN. event_log ops_checkin_leave · ops_checkin_leave_undo. 운영자만 | 있음 |
+| ops | /api/ops/checkin/leave | POST | participant_id, undo? | { left_at, already } 운영자의 나감 표시 · 되돌리기(10/25 민찬 결정). 표시하면 left_by = 운영자. 단계와 상관없이 받는다(구현하며 정함). 체크인 안 한 사람은 409 NOT_CHECKED_IN, DB 에 0019 가 없으면 503 LEAVE_UNAVAILABLE. event_log ops_checkin_leave · ops_checkin_leave_undo. 운영자만 | 있음 |
 | ops | /api/ops/checkin | POST | participant_id, is_late? | { checked_at, is_late, already, coffee_seat } 수동 체크인. 이미 돼 있으면 already true. 커피챗 배정이 공개된 뒤 처음 체크인하면 커피챗 자리 coffee_seat {version, table_no, seat_no, fallback}(10/25), 아니면 null. 운영자만 | 있음 |
 | ops | /api/ops/labels | GET | 없음 | { codebook_version, labels: [{prefix, label, members}] } 활성 코드북의 이름표. 운영자만 | 있음 |
 | ops | /api/ops/labels | POST | codebook_version, prefix, label | { saved: true } 이름표 한 줄 수정. 활성 코드북이 아니면 409 NOT_ACTIVE. 운영자만 | 있음 |
@@ -161,6 +161,7 @@ checkins.left_at(0019)이 있으면 일찍 나간 사람이다. 본인이 마이
 
 - 본인 버튼은 등록 · 개회부터 커피챗까지(lib/phase.ts LEAVE_OPEN)만 보이고 받는다. 마무리 뒤에는 숨긴다. 운영자는 단계와 상관없이 고친다
 - 말없이 나간 사람은 알 수 없다. 표시한 사람만 뺀다
+- 0019 가 DB 에 아직 없으면(칸이 없다는 오류 42703 · PGRST204) 읽는 곳 전부(/api/state, 콘솔 체크인 · 상태판 · 배정 보기, 늦게 온 사람 자리)가 아무도 나가지 않은 것으로 보고 계속 돈다(lib/checkinLeft.ts, 계산 서비스 repo.left_checkins 와 같음). 나감 표시 API 두 개만 503 LEAVE_UNAVAILABLE
 
 ## 계산 서비스 (services/compute, 내부 HTTP)
 

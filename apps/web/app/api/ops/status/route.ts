@@ -7,6 +7,7 @@ import { ok, handle, eventId } from "@/lib/api";
 import { requireAdmin } from "@/lib/session";
 import { eventParticipantIds, countIn, opsGet, selectIn, ROUNDS } from "../_lib";
 import { phaseLabel, isPhase } from "@/lib/phase";
+import { leftOf } from "@/lib/checkinLeft";
 
 // 0 = 고르게 받음, 1 = 한 사람이 다 받음
 function gini(xs: number[]): number | null {
@@ -35,10 +36,11 @@ export async function GET() {
       opsGet<string>("phase"),
       opsGet<{ at: string; by: string }>("phase_meta"),
       db().from("assign_versions").select("round, version, published_at").eq("event_id", ev).eq("status", "published").order("version", { ascending: false }),
-      selectIn<{ participant_id: string; left_at: string | null }>("checkins", "participant_id, left_at", "participant_id", ids),
+      selectIn<{ participant_id: string }>("checkins", "participant_id", "participant_id", ids),
       selectIn<{ scanned_id: string; source: string; status: string }>("card_exchanges", "scanned_id, source, status", "scanned_id", ids),
     ]);
     if (published.error) throw published.error;
+    const left = await leftOf(checkedRows.map((r) => r.participant_id)); // 0019 전 DB 면 0
 
     const received = new Map<string, number>(checkedRows.map((r) => [r.participant_id, 0]));
     for (const r of scannedRows) {
@@ -60,7 +62,7 @@ export async function GET() {
       phase_at: phaseMeta?.at ?? null,
       participants: ids.length,
       checkins,
-      left: checkedRows.filter((r) => r.left_at).length,
+      left: left.size,
       satisfaction: { answered: satisfaction, rate: rate(satisfaction) },
       satisfaction_by_round: { tabletalk: { answered: satisfaction, rate: rate(satisfaction) }, coffeechat: { answered: satCoffee, rate: rate(satCoffee) } },
       skew: { gini: gini([...received.values()]), zero_received: [...received.values()].filter((v) => v === 0).length },

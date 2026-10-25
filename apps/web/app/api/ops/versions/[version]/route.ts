@@ -6,6 +6,7 @@ import { ok, fail, handle, eventId } from "@/lib/api";
 import { requireAdmin } from "@/lib/session";
 import { db } from "@/lib/db";
 import { pairScores, groupMean } from "@/lib/pairs";
+import { leftOf } from "@/lib/checkinLeft";
 
 // 같은 기수 상한. 계산 서비스(services/compute/service.py TABLETALK_COHORT_CAP · COFFEECHAT_COHORT_CAP)와 같은 값이다.
 // 커피챗은 10테이블이 되면서 테이블토크와 같은 3명(10/22 민찬 결정, 예전 3~4명 그룹은 2명)
@@ -105,10 +106,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
           }
     }
 
-    const { data: ci, error: ciErr } = ids.length ? await db().from("checkins").select("participant_id, left_at").in("participant_id", ids) : { data: [], error: null };
+    const { data: ci, error: ciErr } = ids.length ? await db().from("checkins").select("participant_id").in("participant_id", ids) : { data: [], error: null };
     if (ciErr) throw ciErr;
-    // 일찍 나간다고 표시한 사람(0019, 10/25 민찬 결정). 공개 뒤에 나가면 자리는 그대로 두고 표시만 한다(빈자리)
-    const left = new Set((ci ?? []).filter((c) => c.left_at).map((c) => c.participant_id as string));
+    // 일찍 나간다고 표시한 사람(0019, 10/25 민찬 결정). 공개 뒤에 나가면 자리는 그대로 두고 표시만 한다(빈자리). 0019 전 DB 면 아무도 없음
+    const left = await leftOf(ids);
     for (const t of list) for (const m of t.members) m.left = left.has(m.id);
     const sizes = list.map((t) => t.members.length);
 

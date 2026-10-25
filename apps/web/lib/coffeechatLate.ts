@@ -14,6 +14,7 @@ import { eventId } from "./api";
 import { logEvent } from "./log";
 import { readOps } from "./opsState";
 import { MISSION_CLOSED, isPhase } from "./phase";
+import { myCheckin, leftOf } from "./checkinLeft";
 
 const TIMEOUT_MS = 2_500;
 const FALLBACK_TEXT = "늦게 와서 배정(계산 서비스 응답 없음 · 인원이 가장 적은 테이블)";
@@ -51,11 +52,7 @@ export async function seatLateCoffeechat(pid: string, by: string | null = null):
   try {
     const ops = await readOps(["phase"]);
     if (isPhase(ops.phase) && MISSION_CLOSED.includes(ops.phase)) return null;
-    const hasLeft = async () => {
-      const { data, error: e } = await db().from("checkins").select("left_at").eq("participant_id", pid).maybeSingle();
-      if (e) throw e;
-      return !!data?.left_at;
-    };
+    const hasLeft = async () => !!(await myCheckin(pid)).left_at; // 0019 전 DB 면 늘 false
     if (await hasLeft()) return null;
     const { data: v, error } = await db()
       .from("assign_versions")
@@ -82,9 +79,7 @@ export async function seatLateCoffeechat(pid: string, by: string | null = null):
     // 계산 서비스를 기다리는 동안 다른 사람이 앉았을 수 있어 대체 테이블 · 좌석 번호는 응답(또는 시간 초과) 뒤에 다시 읽어 센다
     const rows = await readRows();
     if (rows.some((r) => r.participant_id === pid) || (await hasLeft())) return null;
-    const { data: leftRows, error: eL } = await db().from("checkins").select("participant_id").not("left_at", "is", null);
-    if (eL) throw eL;
-    const left = new Set((leftRows ?? []).map((r) => r.participant_id as string));
+    const left = await leftOf(rows.map((r) => r.participant_id as string));
     // n = 남아 있는 인원(대체 테이블 고르기), k = 나간 사람까지 센 행 수(좌석 번호)
     const count = new Map<number, { n: number; k: number; seat: number }>();
     for (const r of rows) {
