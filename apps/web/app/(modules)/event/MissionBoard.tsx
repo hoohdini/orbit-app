@@ -5,6 +5,7 @@
 // 서버 응답은 /api/poster/missions. USE_MOCK 을 켜면 mock.ts 의 가짜 데이터를 쓴다.
 // 탭은 처음부터 열려 있지만 미션 기록은 테이블토크부터 센다(10/11 성하 결정: 서버 미션 구간 그대로).
 // 후기 타일(④)은 커피챗이 끝난 뒤(feedback_open, wrapup · award)에만 열린다. 그 전은 잠그고 '커피챗이 끝나면 열립니다'를 보이며, 미션 마감 뒤에도 후기 타일만은 열려 있다(10/22 민찬 결정).
+// 조기 퇴장한 사람은 서버가 feedback_open 을 그 전에도 true 로 준다(10/25 민찬 결정).
 // 불러오지 못하면(401 · 500 · 네트워크) 불러오는 중에 머물지 않고 다시 시도를 띄운다. 폴링은 계속 다시 부른다.
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
