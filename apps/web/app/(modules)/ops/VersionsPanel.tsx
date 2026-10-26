@@ -190,6 +190,9 @@ export default function VersionsPanel() {
                     <a href={`/api/ops/print?version=${open.version}`} target="_blank" rel="noreferrer" className="rounded-lg border border-gray-300 px-2 py-1">
                       인쇄 좌석표
                     </a>
+                    <a href={`/api/ops/seatmap?version=${open.version}`} target="_blank" rel="noreferrer" className="rounded-lg border border-gray-300 px-2 py-1">
+                      홀 좌석 배치도
+                    </a>
                     <span className="text-gray-500">{pick.length === 2 ? "두 사람을 골랐다" : "이름을 눌러 자리를 바꿀 두 사람을 고른다"}</span>
                     {pick.length === 2 && (
                       <button type="button" disabled={busy !== null} onClick={swap} className="rounded-lg bg-black px-2 py-1 font-semibold text-white">
