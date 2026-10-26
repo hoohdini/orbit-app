@@ -350,6 +350,13 @@ def test_codebook_frozen_assign():
     assert len({(tuple(c), x) for c, x in zip(co, d)}) == N    # 주소 + 구분 번호는 모두 다름
 
 
+def test_codebook_no_seek():
+    O, *_ = fake_people()
+    cb = codebook.fit(O, O[:0], "cb-noseek", K=8, L=3, n_init=3)     # 찾는 사람을 아무도 안 쓴 명단(10/18 폼)
+    assert np.isfinite(cb.mu_seek).all() and np.allclose(cb.mu_seek, cb.mu_offer)
+    assert np.array_equal(cb.address(O, "seek"), cb.address(O, "offer"))
+
+
 def test_card_shift():
     O, S, *_ = fake_people()
     W = np.zeros((N, N))
