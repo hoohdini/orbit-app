@@ -33,8 +33,11 @@ class Codebook:
 
 def fit(offer: np.ndarray, seek: np.ndarray, version: str, K: int = 8, L: int = 3,
         n_init: int = 10, seed: int = 42) -> Codebook:
-    """offer · seek (n, dim) 로 코드북을 학습한다. 빈 Seek 행은 호출 전에 빼고 넘긴다."""
-    mu_o, mu_s = offer.mean(0), seek.mean(0)
+    """offer · seek (n, dim) 로 코드북을 학습한다. 빈 Seek 행은 호출 전에 빼고 넘긴다.
+    Seek 를 쓴 사람이 없으면(10/18 사전 등록 폼에는 찾는 사람 문항이 없다) Seek 평균을 Offer 평균으로 둔다.
+    빈 Seek 는 Offer 로 대신 채우므로(scoring.fill_blank_seek) Seek 주소가 Offer 주소와 같아진다. 예전에는 빈 평균이 NaN 이 되어 저장에서 멈췄다"""
+    mu_o = offer.mean(0)
+    mu_s = seek.mean(0) if len(seek) else mu_o
     R = np.vstack([offer - mu_o, seek - mu_s])
     centers = []
     for lv in range(L):
