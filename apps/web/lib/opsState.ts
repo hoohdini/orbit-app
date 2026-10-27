@@ -14,10 +14,20 @@ export async function readOps(keys: string[]): Promise<Record<string, unknown>> 
 }
 
 // 커피챗에 앉지 않는 사람(10/27 민찬 결정: 김강열 연사는 커피챗 불참 — 당일 '나감 표시'를 잊어도 자리가 생기지 않게).
-// 값은 participant id 배열. 계산 서비스(service.COFFEECHAT_SKIP_KEY)도 같은 키를 읽어 커피챗 계산에서 뺀다
+// 값은 participant id 배열(["<uuid>"]). {ids: [...]} 나 JSON 문자열로 넣어도 읽고, 대소문자는 소문자로 맞춘다(코드리뷰).
+// 계산 서비스(service.COFFEECHAT_SKIP_KEY)도 같은 키를 같은 규칙으로 읽어 커피챗 계산에서 뺀다. 넣는 SQL 은 docs/RUNBOOK_EVENT_DAY.md
 export const COFFEECHAT_SKIP_KEY = "coffeechat_skip";
 export function coffeechatSkip(v: unknown): Set<string> {
-  return new Set(Array.isArray(v) ? v.map(String) : []);
+  if (typeof v === "string") {
+    try {
+      v = JSON.parse(v);
+    } catch {
+      v = [v];
+    }
+  }
+  const ids = (v as { ids?: unknown } | null)?.ids;
+  const list: unknown[] = Array.isArray(v) ? v : Array.isArray(ids) ? ids : [];
+  return new Set(list.map((x) => String(x).trim().toLowerCase()).filter(Boolean));
 }
 
 export type OpsSnapshot = { phase: Phase | null; phaseMeta: PhaseMeta | null; notice: Notice | null; missionClosedAt: string | null };

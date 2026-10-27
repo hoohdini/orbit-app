@@ -25,6 +25,7 @@ type Metrics = {
   not_checked_in: number;
   left?: number; // 계산 뒤 나감: 구성원 중 지금 나감 표시가 있는 사람(0019)
   left_excluded?: number | null; // 계산에서 뺌: 계산 때 나감 표시로 뺀 수(params.left)
+  skip_seated?: number; // 커피챗 불참 명단인데 자리가 있는 사람 수(10/27)
 };
 type Detail = {
   version: number;
@@ -183,6 +184,9 @@ export default function VersionsPanel() {
                       <Metric label="체크인 안 한 사람" value={`${open.metrics.not_checked_in}명`} />
                       {open.round === "coffeechat" && (
                         <Metric label="계산에서 뺌 · 계산 뒤 나감" value={`${open.metrics.left_excluded ?? "-"}명 · ${open.metrics.left ?? 0}명`} warn={(open.metrics.left ?? 0) > 0} />
+                      )}
+                      {open.round === "coffeechat" && (open.metrics.skip_seated ?? 0) > 0 && (
+                        <Metric label="커피챗 불참인데 자리 있음" value={`${open.metrics.skip_seated}명 · 다시 계산`} warn />
                       )}
                     </div>
                   )}

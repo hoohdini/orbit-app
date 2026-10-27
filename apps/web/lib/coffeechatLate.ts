@@ -53,7 +53,7 @@ export async function seatLateCoffeechat(pid: string, by: string | null = null):
   try {
     const ops = await readOps(["phase", COFFEECHAT_SKIP_KEY]);
     if (isPhase(ops.phase) && MISSION_CLOSED.includes(ops.phase)) return null;
-    if (coffeechatSkip(ops[COFFEECHAT_SKIP_KEY]).has(pid)) return null; // 커피챗 불참으로 정해 둔 사람(10/27 민찬 결정)
+    if (coffeechatSkip(ops[COFFEECHAT_SKIP_KEY]).has(pid.toLowerCase())) return null; // 커피챗 불참으로 정해 둔 사람(10/27 민찬 결정)
     const hasLeft = async () => !!(await myCheckin(pid)).left_at; // 0019 전 DB 면 늘 false
     if (await hasLeft()) return null;
     const { data: v, error } = await db()

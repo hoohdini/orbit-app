@@ -734,7 +734,10 @@ def test_coffeechat_skip():
     repo.t["checkins"] += [{"participant_id": pid} for pid in ids]
     coh = {p["id"]: p["cohort"] for p in repo.t["participants"]}
     top = min((pid for pid in ids if coh[pid] is not None), key=lambda q: coh[q])   # 기수가 가장 높은 사람(주도 선배 1순위)
-    repo.ops_set(service.COFFEECHAT_SKIP_KEY, [top, "not-a-participant"])
+    assert service._coffee_skip(type("R", (), {"ops_get": lambda self, k: {"ids": ["AB"]}})()) == {"ab"}       # {ids: [...]} · 대소문자
+    assert service._coffee_skip(type("R", (), {"ops_get": lambda self, k: '["x"]'})()) == {"x"}                # JSON 문자열
+    assert service._coffee_skip(type("R", (), {"ops_get": lambda self, k: None})()) == set()
+    repo.ops_set(service.COFFEECHAT_SKIP_KEY, [top.upper(), "not-a-participant"])
     r = service.coffeechat(repo, enc, iters=300)
     cm = {m["participant_id"]: m for m in repo.t["table_members"] if m["version"] == r["version"]}
     assert r["n"] == len(ids) - 1 and top not in cm
@@ -746,6 +749,12 @@ def test_coffeechat_skip():
         assert "커피챗 불참" in str(e)
     else:
         raise AssertionError("커피챗 불참인 사람에게 자리를 골랐다")
+    # 행사 직후 추천(final): 자리 없이 추천만 받고, '늦게 온 사람' 수에 들지 않는다
+    f = service.coffeechat(repo, enc, final=True)
+    fm = {m["participant_id"] for m in repo.t["table_members"] if m["version"] == f["version"]}
+    assert top not in fm and f["late"] == 0
+    assert any(x["participant_id"] == top for x in repo.t["recs"] if x["version"] == f["version"])
+    assert next(x for x in repo.t["assign_versions"] if x["version"] == f["version"])["params"]["skip"] == 1
 
 
 def test_recs_rule_puts_givers_first():

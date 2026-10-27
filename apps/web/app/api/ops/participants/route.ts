@@ -59,7 +59,7 @@ export async function GET() {
         left_at: left.get(p.id as string)?.left_at ?? null,
         left_self: left.has(p.id as string) && !left.get(p.id as string)?.left_by,
         coffee_late: coffeeLate.get(p.id as string) ?? null,
-        coffee_skip: skip.has(p.id as string),
+        coffee_skip: skip.has((p.id as string).toLowerCase()),
       })),
     });
   });

@@ -24,6 +24,7 @@ coffeechat_late  커피챗 배정 공개 뒤 처음 체크인한 사람 한 명�
 """
 from __future__ import annotations
 
+import json
 import os
 import threading
 from collections import Counter
@@ -76,8 +77,16 @@ COFFEECHAT_SKIP_KEY = "coffeechat_skip"
 
 
 def _coffee_skip(repo) -> set[str]:
+    """id 집합(소문자). 배열 · {ids: [...]} · JSON 문자열 모두 읽는다(웹 lib/opsState.coffeechatSkip 과 같은 규칙, 코드리뷰)."""
     v = repo.ops_get(COFFEECHAT_SKIP_KEY)
-    return {str(x) for x in v} if isinstance(v, list) else set()
+    if isinstance(v, str):
+        try:
+            v = json.loads(v)
+        except ValueError:
+            v = [v]
+    if isinstance(v, dict):
+        v = v.get("ids")
+    return {str(x).strip().lower() for x in v if str(x).strip()} if isinstance(v, list) else set()
 
 
 def _people(repo, event_id: str, only_checked_in: bool) -> list[dict]:
@@ -389,7 +398,8 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     #   커피챗 그룹 · 추천 목록에도 없고 남의 커피챗 추천에도 나오지 않는다. 공개 뒤에 나간 사람의 자리는 웹이 그대로 둔다(빈자리, 다시 계산하지 않음)
     #   행사 직후 추천(final)은 빼지 않는다(구현하며 정함): 원본 커피챗 그룹을 그대로 쓰고, 행사 뒤 연락할 사람 추천은 일찍 간 사람에게도 쓸모가 있다
     left_ids = set() if final else repo.left_checkins([p["id"] for p in P])
-    skip_ids = set() if final else _coffee_skip(repo) & {p["id"] for p in P}   # 커피챗 불참으로 정해 둔 사람(COFFEECHAT_SKIP_KEY)
+    skip_all = _coffee_skip(repo)
+    skip_ids = set() if final else {p["id"] for p in P if p["id"].lower() in skip_all}   # 커피챗 불참으로 정해 둔 사람(COFFEECHAT_SKIP_KEY)
     P = [p for p in P if p["id"] not in left_ids and p["id"] not in skip_ids]
     if len(P) < 5:
         raise ValueError(f"배정할 사람이 {len(P)}명뿐이다 (5명 이상 필요)")
@@ -543,9 +553,12 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
             order, total = seating.seat_order(A, mem, fixed=fixed)
             seat.update({int(i): k + 1 for k, i in enumerate(order)})
             seat_sum[str(t + 1)] = round(total, 3)
+    if final:   # 행사 직후 추천: 불참 명단인 사람은 원본에 자리가 없어 앉지 않은 채 추천만 받는다 → '늦게 온 사람' 수에서 뺀다(코드리뷰)
+        skip_ids = {pid for i, pid in enumerate(ids) if not seated[i] and pid.lower() in skip_all}
+    late_n = int((~seated).sum()) - (len(skip_ids) if final else 0)
     params = {"kind": "final" if final else "coffeechat", "table_mode": table_mode, **_rec_params(P, intents, rec_mode), "beta": beta,
               "left": len(left_ids),                                   # 일찍 나간다고 표시해 뺀 사람 수(0019, final 은 0)
-              "skip": len(skip_ids),                                   # 커피챗 불참으로 정해 둬 뺀 사람 수(COFFEECHAT_SKIP_KEY, final 은 0)
+              "skip": len(skip_ids),                                   # 커피챗 불참으로 정해 둬 뺀 사람 수(COFFEECHAT_SKIP_KEY). final 은 자리 없이 추천만 받은 불참자 수
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2), "cards": card_stat,
               "sat_weights": sw, "sat_counts": dict(Counter(sat.values())), "sat_fast": sat_fast,
               "sat_picks": {"people": len(picked), "picked": sum(len(v) for v in picked.values())},
@@ -554,7 +567,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
               "poster_answers": len(rows), "poster_people": len(set(poster_n) | set(poster_not)), "search": query_stat,
               "forbid_hits": r.forbid_hits, "cohort_over": r.cohort_over, "n": n, "groups": len(sizes),
               "group_sizes": dict(Counter(sizes)),
-              **({"source_version": src["version"], "late": int((~seated).sum()), "leads": len(lead)} if final else {}),
+              **({"source_version": src["version"], "late": late_n, "leads": len(lead)} if final else {}),
               # 주도 선배: 인원 · 후보 수 · 2k 줄 밖에서 뽑은 수 · 뽑힌 사람보다 기수가 높은데 빠진 후보 수 · 테이블토크에서 만난 둘을 묶은 테이블 수
               **({"leads": len(lead), "lead_pool": len(lp.pool), "lead_beyond": lp.beyond, "lead_skipped": lp.skipped,
                   "lead_met": lp.met, "lead_seating": lead_seating, "late_checkins": int(is_late.sum()),
@@ -605,7 +618,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     exposure = _write_recs(repo, v, P, ids, _rec_scores(S2, O2, a, P, intents, rec_mode), met, tags, intents,
                            [(c,) for c in first_prefix], n_exact, n_explore, seed)
     _heartbeat(repo, "final" if final else "coffeechat")
-    return {"version": v, "final": final, "late": int((~seated).sum()), "left": len(left_ids), "n": n, "tables": len(sizes), "groups": len(sizes), "fallback": fallback,
+    return {"version": v, "final": final, "late": late_n, "left": len(left_ids), "n": n, "tables": len(sizes), "groups": len(sizes), "fallback": fallback,
             "response_rate": round(rate, 3), "forbid_hits": r.forbid_hits, "group_reasons": n_reasons,
             "leads": len(lead), "cohort_over": r.cohort_over,
             "exposure_min": int(exposure.min()), "exposure_max": int(exposure.max())}
@@ -648,7 +661,7 @@ def coffeechat_late(repo, enc, participant_id: str, event_id: str = "dev", versi
     left = repo.left_checkins([participant_id] + [m["participant_id"] for m in rows])
     if participant_id in left:
         raise ValueError("일찍 나간다고 표시한 사람이라 커피챗 자리를 정하지 않는다")
-    if participant_id in _coffee_skip(repo):
+    if participant_id.lower() in _coffee_skip(repo):
         raise ValueError("커피챗 불참으로 정해 둔 사람이라 커피챗 자리를 정하지 않는다")
 
     members: dict[int, list[str]] = {}
