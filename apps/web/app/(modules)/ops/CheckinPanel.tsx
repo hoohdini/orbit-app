@@ -21,6 +21,7 @@ type P = {
   left_at: string | null; // 일찍 나간다고 표시한 시각(0019)
   left_self: boolean; // true 면 본인이 누름, false 면 운영자가 표시
   coffee_late: CoffeeSeat | null;
+  coffee_skip?: boolean; // 커피챗 불참으로 정해 둔 사람(10/27). 체크인해도 커피챗 자리를 받지 않는다
 };
 type CoffeeSeat = { table_no: number; seat_no: number | null; fallback: boolean };
 
@@ -153,6 +154,7 @@ export default function CheckinPanel() {
                     <span className="font-medium">{p.display_name}</span>
                     {p.is_host && <span className="ml-1 rounded bg-purple-100 px-1 text-[10px] text-purple-800">호스트</span>}
                     {p.is_admin && <span className="ml-1 rounded bg-gray-900 px-1 text-[10px] text-white">운영자</span>}
+                    {p.coffee_skip && <span className="ml-1 rounded bg-gray-200 px-1 text-[10px] text-gray-700">커피챗 불참</span>}
                   </td>
                   <td className="px-3 py-2 text-xs text-gray-600">
                     {p.affiliation ?? "-"} · {ROLE[p.role] ?? p.role}

@@ -70,6 +70,14 @@ COFFEECHAT_COHORT_PENALTY = TABLETALK_COHORT_PENALTY   # 1명당 0.5
 # 커피챗 주도 선배 두 명의 좌석(seating.lead_fixed). facing = 마주 보게(8명이면 좌석 1 · 5번, 10/23 운영진 확정) · adjacent = 옆자리 · free = 따로 정하지 않음.
 # 환경변수 COFFEE_LEAD_SEATING 으로 바꿀 수 있다
 COFFEE_LEAD_SEATING = "facing"
+# 커피챗에 앉지 않는 사람(10/27 민찬 결정: 김강열 연사는 커피챗 불참 — 당일 '나감 표시'를 잊어도 자리가 생기지 않게).
+#   ops_state 의 이 키에 participant id 목록을 둔다(DB 구조 변경 없음). 커피챗 계산 · 늦게 온 사람 자리에서 빼고, 행사 직후 추천(final)은 빼지 않는다
+COFFEECHAT_SKIP_KEY = "coffeechat_skip"
+
+
+def _coffee_skip(repo) -> set[str]:
+    v = repo.ops_get(COFFEECHAT_SKIP_KEY)
+    return {str(x) for x in v} if isinstance(v, list) else set()
 
 
 def _people(repo, event_id: str, only_checked_in: bool) -> list[dict]:
@@ -381,7 +389,8 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     #   커피챗 그룹 · 추천 목록에도 없고 남의 커피챗 추천에도 나오지 않는다. 공개 뒤에 나간 사람의 자리는 웹이 그대로 둔다(빈자리, 다시 계산하지 않음)
     #   행사 직후 추천(final)은 빼지 않는다(구현하며 정함): 원본 커피챗 그룹을 그대로 쓰고, 행사 뒤 연락할 사람 추천은 일찍 간 사람에게도 쓸모가 있다
     left_ids = set() if final else repo.left_checkins([p["id"] for p in P])
-    P = [p for p in P if p["id"] not in left_ids]
+    skip_ids = set() if final else _coffee_skip(repo) & {p["id"] for p in P}   # 커피챗 불참으로 정해 둔 사람(COFFEECHAT_SKIP_KEY)
+    P = [p for p in P if p["id"] not in left_ids and p["id"] not in skip_ids]
     if len(P) < 5:
         raise ValueError(f"배정할 사람이 {len(P)}명뿐이다 (5명 이상 필요)")
     ids = [p["id"] for p in P]
@@ -536,6 +545,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
             seat_sum[str(t + 1)] = round(total, 3)
     params = {"kind": "final" if final else "coffeechat", "table_mode": table_mode, **_rec_params(P, intents, rec_mode), "beta": beta,
               "left": len(left_ids),                                   # 일찍 나간다고 표시해 뺀 사람 수(0019, final 은 0)
+              "skip": len(skip_ids),                                   # 커피챗 불참으로 정해 둬 뺀 사람 수(COFFEECHAT_SKIP_KEY, final 은 0)
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2), "cards": card_stat,
               "sat_weights": sw, "sat_counts": dict(Counter(sat.values())), "sat_fast": sat_fast,
               "sat_picks": {"people": len(picked), "picked": sum(len(v) for v in picked.values())},
@@ -638,6 +648,8 @@ def coffeechat_late(repo, enc, participant_id: str, event_id: str = "dev", versi
     left = repo.left_checkins([participant_id] + [m["participant_id"] for m in rows])
     if participant_id in left:
         raise ValueError("일찍 나간다고 표시한 사람이라 커피챗 자리를 정하지 않는다")
+    if participant_id in _coffee_skip(repo):
+        raise ValueError("커피챗 불참으로 정해 둔 사람이라 커피챗 자리를 정하지 않는다")
 
     members: dict[int, list[str]] = {}
     top_seat: dict[int, int] = {}

@@ -724,6 +724,30 @@ def test_coffeechat_left_early():
     assert all(pid in got for pid in gone + mates[:2])
 
 
+def test_coffeechat_skip():
+    """10/27 민찬 결정: 커피챗 불참으로 정해 둔 사람(ops_state coffeechat_skip)은 체크인해도 커피챗에 앉지 않고 주도 선배도 아니며
+    늦게 온 사람 자리도 받지 않는다. 나감 표시가 없어도 그렇다."""
+    repo, enc = seed_repo(n=44, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    repo.t["checkins"] += [{"participant_id": pid} for pid in ids]
+    coh = {p["id"]: p["cohort"] for p in repo.t["participants"]}
+    top = min((pid for pid in ids if coh[pid] is not None), key=lambda q: coh[q])   # 기수가 가장 높은 사람(주도 선배 1순위)
+    repo.ops_set(service.COFFEECHAT_SKIP_KEY, [top, "not-a-participant"])
+    r = service.coffeechat(repo, enc, iters=300)
+    cm = {m["participant_id"]: m for m in repo.t["table_members"] if m["version"] == r["version"]}
+    assert r["n"] == len(ids) - 1 and top not in cm
+    assert next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]["skip"] == 1
+    next(v for v in repo.t["assign_versions"] if v["version"] == r["version"])["status"] = "published"
+    try:
+        service.coffeechat_late(repo, None, top)
+    except ValueError as e:
+        assert "커피챗 불참" in str(e)
+    else:
+        raise AssertionError("커피챗 불참인 사람에게 자리를 골랐다")
+
+
 def test_recs_rule_puts_givers_first():
     """기본 추천 점수(rule): 취업 · 이직 정보를 원하는 학생의 추천 10명에 재직자가 많이 들어간다. REC_SCORE=min(예전)과 비교."""
     import os

@@ -13,6 +13,13 @@ export async function readOps(keys: string[]): Promise<Record<string, unknown>> 
   return Object.fromEntries((data ?? []).map((r) => [r.key as string, r.value]));
 }
 
+// 커피챗에 앉지 않는 사람(10/27 민찬 결정: 김강열 연사는 커피챗 불참 — 당일 '나감 표시'를 잊어도 자리가 생기지 않게).
+// 값은 participant id 배열. 계산 서비스(service.COFFEECHAT_SKIP_KEY)도 같은 키를 읽어 커피챗 계산에서 뺀다
+export const COFFEECHAT_SKIP_KEY = "coffeechat_skip";
+export function coffeechatSkip(v: unknown): Set<string> {
+  return new Set(Array.isArray(v) ? v.map(String) : []);
+}
+
 export type OpsSnapshot = { phase: Phase | null; phaseMeta: PhaseMeta | null; notice: Notice | null; missionClosedAt: string | null };
 
 export async function opsSnapshot(): Promise<OpsSnapshot> {

@@ -18,13 +18,13 @@ const SLOTS = [
   [7, 291], [137.5, 291], [268, 291],
 ] as const;
 
-export default function Orbit({ people, others, round }: { people: Person[]; others: Table[]; round: "tabletalk" | "coffeechat" }) {
+// 바깥 테이블 이름은 라운드와 상관없이 T(커피챗도 테이블, 10/27 민찬). round 는 부르는 쪽 호환으로 받기만 한다
+export default function Orbit({ people, others }: { people: Person[]; others: Table[]; round: "tabletalk" | "coffeechat" }) {
   const n = people.length;
   const [ref, s] = useFit<HTMLDivElement>(W, 1.15); // 피그마 353 폭 무대를 카드 폭에 맞춰 비율로
   const outer = [...others]
     .sort((a, b) => (a.grid && b.grid ? a.grid.row - b.grid.row || a.grid.col - b.grid.col : a.table_no - b.table_no))
     .slice(0, SLOTS.length);
-  const prefix = round === "tabletalk" ? "T" : "G";
   return (
     <div ref={ref} className="relative w-full overflow-hidden rounded-3xl border border-navy bg-white" style={{ height: H * s }} role="img" aria-label="나의 궤도">
       <div className="absolute left-1/2 top-0 h-[340px] w-[353px] origin-top" style={{ transform: `translateX(-50%) scale(${s})` }}>
@@ -38,8 +38,7 @@ export default function Orbit({ people, others, round }: { people: Person[]; oth
           <div key={t.table_no} className="absolute w-[76px] text-center" style={{ left: SLOTS[i][0], top: SLOTS[i][1] }}>
             <span className="mx-auto block size-3 rounded-full border-[1.5px] border-accent bg-white" />
             <p className="mt-0.5 text-[11px] text-ink-3">
-              {prefix}
-              {t.table_no}
+              T{t.table_no}
             </p>
             {t.label && <p className="truncate px-1 text-[11px] text-navy">{t.label}</p>}
           </div>
