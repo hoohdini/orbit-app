@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 const AUDIT_KINDS = [
   "ops_phase", "ops_notice", "ops_publish", "ops_unpublish", "ops_swap", "ops_compute", "ops_checkin",
-  "ops_label", "ops_raffle", "ops_award_exclude", "walkin_added", "pin_reset",
+  "ops_label", "ops_raffle", "ops_award_exclude", "walkin_added", "pin_reset", "ops_coffeechat_skip", "ops_coffeechat_skip_undo",
 ];
 
 const Query = z.object({ limit: z.coerce.number().int().min(1).max(200).default(50) });

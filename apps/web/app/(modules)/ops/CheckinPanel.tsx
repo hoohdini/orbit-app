@@ -92,6 +92,24 @@ export default function CheckinPanel() {
     }
   }
 
+  // 커피챗 불참 명단 넣기 · 빼기(10/27 민찬 결정). 당일 마음이 바뀐 사람을 바로 고친다
+  async function coffeeSkip(p: P, skip: boolean) {
+    setBusy(p.id);
+    setNotice(null);
+    try {
+      const r = await api<{ skip: boolean; already: boolean }>("/api/ops/coffeechat-skip", { json: { participant_id: p.id, skip } });
+      if (!r.ok) return setError(r.message);
+      setNotice(
+        skip
+          ? `${p.display_name} 님 커피챗 불참. 커피챗 자리를 받지 않는다(이미 계산했으면 커피챗 계산을 다시 돌린다)`
+          : `${p.display_name} 님 커피챗 불참 해제. 커피챗 계산에 들어간다(공개 뒤면 체크인한 경우 빈자리를 받는다)`,
+      );
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function resetPin(p: P) {
     setBusy(p.id);
     setNotice(null);
@@ -186,6 +204,9 @@ export default function CheckinPanel() {
                         {p.left_at ? "되돌리기" : "나감 표시"}
                       </button>
                     )}
+                    <button type="button" disabled={busy !== null} onClick={() => coffeeSkip(p, !p.coffee_skip)} className="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                      {p.coffee_skip ? "불참 해제" : "커피챗 불참"}
+                    </button>
                     <button type="button" disabled={busy !== null} onClick={() => resetPin(p)} className="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs">
                       숫자 재발급
                     </button>
