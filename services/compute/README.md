@@ -194,6 +194,7 @@ python sim/make_seat_eval_dataset.py                 # 가상 80명 CSV(적재 �
   행사 직후 추천(final)은 원본 커피챗의 좌석 번호를 그대로 쓴다
   가상 80명 시드 5개(`sim/eval_coffeechat_leads.py`, 문장 점수만): 10테이블 × 8명, 21위 아래에서 뽑힌 선배 평균 3.0명, 두 선배 숨은 분야 일치 60%, 재회 0 · 기수 넘침 0.
   동석자 중 좋은 상대 1.36명(주도 선배 없이 10테이블 1.39, 예전 3~4명 그룹 0.81). 쌍 점수 평균은 테이블이 커져 0.391 → 0.033(선배 없이 0.078)
+- 따로 앉힐 사람(10/30 성하 결정, `ops_state.coffeechat_apart` = [[id, id], ...], id 배열 하나는 한 묶음): 커피챗 계산에서 금지 쌍으로 넣고, 그래도 같은 테이블이면 한 명을 다른 테이블 사람과 맞바꾼다(`service._split_apart`, 주도 선배는 옮기지 않음, 기수가 같은 사람 먼저). 맞바꾼 횟수는 params.apart_swaps. 늦게 온 사람 자리도 묶음 사람이 앉은 테이블은 고르지 않는다. 행사 직후 추천(final)은 원본 그대로
 - 늦게 온 사람(10/25 민찬 결정, `service.coffeechat_late`, POST /coffeechat/late {event_id, participant_id, version?}): 커피챗 공개 뒤 처음 체크인한 사람 한 명의 자리를 고른다.
   DB 에 쓰지 않고 table_no · seat_no · reason 만 돌려준다(웹 lib/coffeechatLate.ts 가 공개 버전 table_members 에 쓰고, 2.5초 안에 답이 없으면 인원이 가장 적은 테이블로).
   점수는 행사 전 정보만: 저장된 벡터(sids)로 커피챗과 같은 좌석 점수(seat_directional → table_matrix min). 그날 신호는 없고 테이블토크 동석자 금지도 걸지 않는다(테이블토크에 없었다).

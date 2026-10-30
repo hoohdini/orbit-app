@@ -39,7 +39,7 @@
 | poster_responses | 포스터 응답(미션 ①). reason = 흥미 3단계(want, maybe, not_mine), 보여 준 순서, 소요 시간, 응답 순번, 퀴즈 시도 | poster 모듈 API | 0009. 0011 에서 관심 이유 4지선다(topic, method, experience, new_field)를 흥미 3단계로 바꿨다(칸 이름 reason 은 그대로). 계산 서비스가 B-05 전처리 뒤 커피챗에 반영(docs/DATA_SPEC.md). **배포 순서: DB 에 0011 · 0012 적용과 be/ 머지를 같이 → compute/ 머지** |
 | raffle_tickets | 응모권 | poster 모듈 API | v0.2 결정 6 으로 앱에서 발급하지 않는다(명찰 번호로 앱 밖). 표와 운영 콘솔 추첨은 남아 있다 |
 | event_feedback | 행사 후기(미션 ④). 한 사람당 한 행: rating(1 별로였다 · 2 좋았다 · 3 최고였다), tags(text[]), comment(100자) | event 모듈 API(/api/event/feedback) | 0018. 커피챗이 끝난 뒤(wrapup · award)에만 받는다. 행이 있으면 스탬프 1칸이고 미션 마감 시각으로 자르지 않는다(10/22 민찬 결정). created_at 은 처음 낸 시각, 다시 내면 updated_at 만 바뀐다(participant_id 로 upsert). 운영 콘솔에서는 아직 읽지 않는다 |
-| ops_state | 운영 상태(키 · 값). phase(9개 값, lib/phase.ts), phase_meta(바꾼 시각 · 사람), notice(공지와 만료 시각), mission_closed_at(미션 마감, 처음 wrapup 으로 넘어간 시각), award_excluded(특별 시상 제외 명단), award_draw(특별 시상 경계 공동 순위 추첨 결과, 10/25), coffeechat_skip(커피챗 불참 명단 = participant id 배열. 체크인해도 커피챗 · 늦게 온 사람 자리를 받지 않는다, 10/27), published_*, compute_heartbeat, raffle_result | 운영 콘솔, 계산 서비스 | 단계 값은 표가 아니라 API(zod)가 막는다 |
+| ops_state | 운영 상태(키 · 값). phase(9개 값, lib/phase.ts), phase_meta(바꾼 시각 · 사람), notice(공지와 만료 시각), mission_closed_at(미션 마감, 처음 wrapup 으로 넘어간 시각), award_excluded(특별 시상 제외 명단), award_draw(특별 시상 경계 공동 순위 추첨 결과, 10/25), coffeechat_skip(커피챗 불참 명단 = participant id 배열. 체크인해도 커피챗 · 늦게 온 사람 자리를 받지 않는다, 10/27), coffeechat_apart(커피챗에서 서로 다른 테이블에 앉힐 사람 묶음 = participant id 배열의 배열. 계산 서비스가 읽는다, 10/30), published_*, compute_heartbeat, raffle_result | 운영 콘솔, 계산 서비스 | 단계 값은 표가 아니라 API(zod)가 막는다 |
 | chat_logs | 챗봇 질문 기록(횟수 제한) | P2 | |
 
 ## 뷰

@@ -781,6 +781,54 @@ def test_coffeechat_late_plan():
     assert params["late_plan"] == 2 and params["late_checkins"] == 2
 
 
+def test_coffeechat_apart():
+    """10/30 성하 결정: 따로 앉힐 사람 묶음(ops_state coffeechat_apart)은 커피챗에서 서로 다른 테이블에 앉는다.
+    테이블토크 1번 고정 테이블처럼 한 테이블에 모여 있던 사람들이어도 그렇다."""
+    R = lambda v: type("R", (), {"ops_get": lambda self, k: v})()
+    assert service._apart_groups(R(["A", "b"])) == [{"a", "b"}]                     # id 목록은 한 묶음
+    assert service._apart_groups(R([["a", "b"], ["c"]])) == [{"a", "b"}]           # 한 명짜리 묶음은 버린다
+    assert service._apart_groups(R('{"groups": [["x", "y"]]}')) == [{"x", "y"}]
+    assert service._apart_groups(R(None)) == [] and service._apart_groups(R("not json")) == []
+
+    repo, enc = seed_repo(n=44, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    repo.t["checkins"] += [{"participant_id": pid} for pid in ids]
+    tt = [m for m in repo.t["table_members"] if m["version"] == repo.t["assign_versions"][-1]["version"]]
+    big = max({m["table_no"] for m in tt}, key=lambda t: sum(m["table_no"] == t for m in tt))
+    group = [m["participant_id"] for m in tt if m["table_no"] == big][:4]           # 테이블토크 같은 테이블 네 명
+    repo.ops_set(service.COFFEECHAT_APART_KEY, [g.upper() for g in group])
+    r = service.coffeechat(repo, enc, iters=300)
+    cm = {m["participant_id"]: m["table_no"] for m in repo.t["table_members"] if m["version"] == r["version"]}
+    assert len({cm[g] for g in group}) == len(group)
+    assert "apart_swaps" in next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]
+
+    # 늦게 온 사람 자리: 묶음 사람이 앉은 테이블이 가장 비어 있어도 고르지 않는다
+    next(v for v in repo.t["assign_versions"] if v["version"] == r["version"])["status"] = "published"
+    t0 = cm[group[0]]
+    others = [pid for pid, t in cm.items() if t == t0 and pid not in group][:2]
+    repo.t["table_members"] = [m for m in repo.t["table_members"]
+                               if not (m["version"] == r["version"] and m["participant_id"] in others + [group[1]])]
+    got = service.coffeechat_late(repo, None, group[1])
+    assert got["table_no"] not in {cm[g] for g in group if g != group[1]}
+
+    # 최적화가 같은 테이블에 두어도 맞바꿔 나눈다. 주도 선배(keep)는 옮기지 않고, 인원은 그대로
+    table = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2])
+    apart = np.zeros((9, 9), bool)
+    apart[0, 1] = apart[1, 0] = True
+    A = np.zeros((9, 9))
+    tb, swaps = service._split_apart(table, apart, np.zeros((9, 9), bool), A, np.full(9, -1), keep={1})
+    assert tb[0] != tb[1] and tb[1] == 0 and swaps == 1
+    assert sorted(np.bincount(tb).tolist()) == [3, 3, 3]
+    try:
+        service._split_apart(np.array([0, 0]), np.array([[False, True], [True, False]]), np.zeros((2, 2), bool), np.zeros((2, 2)), np.full(2, -1), set())
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("나눌 자리가 없는데 그대로 두었다")
+
+
 def test_recs_rule_puts_givers_first():
     """기본 추천 점수(rule): 취업 · 이직 정보를 원하는 학생의 추천 10명에 재직자가 많이 들어간다. REC_SCORE=min(예전)과 비교."""
     import os
