@@ -23,6 +23,10 @@ export default function PosterList() {
 
   return (
     <main className="space-y-4 px-5 py-5">
+      {/* 목록 아래에 있으면 버튼이 있는 줄 모른다(10/30) → 맨 위 */}
+      <Link href="/card/scan?via=event" className="flex h-14 items-center justify-center rounded-2xl bg-navy text-lg font-bold text-white">
+        QR 스캔하기
+      </Link>
       <div className="flex items-center justify-between">
         <p className="text-sm text-ink-2">포스터 QR을 찍어 보세요</p>
         <span className="text-[13px] font-medium text-ink-2">
@@ -64,9 +68,6 @@ export default function PosterList() {
           })}
         </ol>
       )}
-      <Link href="/card/scan?via=event" className="flex h-14 items-center justify-center rounded-2xl bg-navy text-lg font-bold text-white">
-        QR 스캔하기
-      </Link>
     </main>
   );
 }
