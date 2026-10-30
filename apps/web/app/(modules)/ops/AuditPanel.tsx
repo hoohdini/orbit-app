@@ -8,7 +8,7 @@ type Entry = { id: number; kind: string; actor: { id: string; display_name: stri
 const KIND: Record<string, string> = {
   ops_phase: "단계 전환", ops_notice: "공지", ops_publish: "공개", ops_unpublish: "철회", ops_swap: "수동 교체", ops_compute: "계산",
   ops_checkin: "수동 체크인", ops_label: "이름표", ops_raffle: "추첨", ops_award_exclude: "시상 제외", walkin_added: "워크인", pin_reset: "숫자 재발급",
-  ops_coffeechat_skip: "커피챗 불참", ops_coffeechat_skip_undo: "커피챗 불참 해제",
+  ops_coffeechat_skip: "커피챗 불참", ops_coffeechat_skip_undo: "커피챗 불참 해제", ops_coffeechat_late: "늦참 예정", ops_coffeechat_late_undo: "늦참 예정 해제",
 };
 
 export default function AuditPanel() {

@@ -757,6 +757,28 @@ def test_coffeechat_skip():
     assert next(x for x in repo.t["assign_versions"] if x["version"] == f["version"])["params"]["skip"] == 1
 
 
+def test_coffeechat_late_plan():
+    """10/30 민찬 결정: 늦참 예정(ops_state coffeechat_late)인 사람은 체크인 전이어도 커피챗 자리를 받고 주도 선배가 아니다.
+    체크인한 뒤에도 주도 선배에서 빠진다. 불참 명단에도 있으면 불참이 이긴다."""
+    repo, enc = seed_repo(n=44, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    coh = {p["id"]: p["cohort"] for p in repo.t["participants"]}
+    top2 = sorted((pid for pid in ids if coh[pid] is not None), key=lambda q: coh[q])[:2]   # 주도 선배 1 · 2순위
+    away, here = top2                                                    # away 는 체크인 안 함, here 는 체크인함
+    repo.t["checkins"] += [{"participant_id": pid} for pid in ids if pid != away]
+    gone = next(pid for pid in ids if pid not in top2)                   # 늦참 예정이면서 불참이면 불참
+    repo.ops_set(service.COFFEECHAT_LATE_KEY, [away.upper(), here, gone])
+    repo.ops_set(service.COFFEECHAT_SKIP_KEY, [gone])
+    r = service.coffeechat(repo, enc, iters=300)
+    cm = {m["participant_id"]: m for m in repo.t["table_members"] if m["version"] == r["version"]}
+    assert away in cm and here in cm and gone not in cm and r["n"] == len(ids) - 1
+    assert not cm[away]["reason"].get("lead") and not cm[here]["reason"].get("lead")
+    params = next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]
+    assert params["late_plan"] == 2 and params["late_checkins"] == 2
+
+
 def test_recs_rule_puts_givers_first():
     """기본 추천 점수(rule): 취업 · 이직 정보를 원하는 학생의 추천 10명에 재직자가 많이 들어간다. REC_SCORE=min(예전)과 비교."""
     import os

@@ -9,6 +9,7 @@ import { phaseLabel, recsOpen, missionWindow, leaveOpen, MISSION_CLOSED } from "
 import { seatLateCoffeechat } from "@/lib/coffeechatLate";
 import { missionStatus } from "@/lib/missions";
 import { myCheckin } from "@/lib/checkinLeft";
+import { ensureCheckin } from "@/lib/participants";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,14 @@ export async function GET() {
     if (mine.error) throw mine.error;
     if (published.error) throw published.error;
     const leftAt = ck.left_at;
+    // 행사 전 · 리허설에 로그인해 둔 사람은 다시 로그인하지 않으므로 '등록 · 개회' 부터는 여기서 체크인한다(10/30 민찬 결정). 실패해도 상태는 돌려준다
+    let checkedIn = ck.checked_in;
+    if (!checkedIn && ops.phase && ops.phase !== "before") {
+      try {
+        await ensureCheckin(s.pid);
+        checkedIn = true;
+      } catch {}
+    }
 
     const seat = (round: string) => (mine.data ?? []).find((r) => r.round === round);
     const tt = seat("tabletalk");
@@ -52,7 +61,7 @@ export async function GET() {
       coffeechat: cc ? { version: cc.version as number, group_no: cc.table_no as number, seat_no: (cc.seat_no as number | null) ?? null } : null, // 커피챗 좌석은 10/23 부터(예전 버전은 null)
       published: { tabletalk: pub("tabletalk"), coffeechat: pub("coffeechat") },
       recs_open: recsOpen(ops.phase),
-      checked_in: ck.checked_in, // 첫 로그인이 체크인이라 보통 true. 조기 퇴장 버튼은 체크인한 사람에게만
+      checked_in: checkedIn, // 첫 로그인(행사 전 단계 제외) · 등록 · 개회 뒤 첫 상태 조회가 체크인. 조기 퇴장 버튼은 체크인한 사람에게만
       left_at: leftAt, // 조기 퇴장을 누른(또는 운영자가 나감 표시한) 시각. null 이면 행사장에 있음(0019). 화면은 재입장을 보인다
       leave_open: leaveOpen(ops.phase), // 조기 퇴장 · 재입장을 받는 단계인지(등록 · 개회 ~ 커피챗)
       leave_available: !ck.legacy, // DB 에 0019(left_at 칸)가 있는지. false 면 화면이 버튼을 숨긴다

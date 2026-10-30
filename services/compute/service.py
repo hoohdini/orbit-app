@@ -74,11 +74,18 @@ COFFEE_LEAD_SEATING = "facing"
 # 커피챗에 앉지 않는 사람(10/27 민찬 결정: 김강열 연사는 커피챗 불참 — 당일 '나감 표시'를 잊어도 자리가 생기지 않게).
 #   ops_state 의 이 키에 participant id 목록을 둔다(DB 구조 변경 없음). 커피챗 계산 · 늦게 온 사람 자리에서 빼고, 행사 직후 추천(final)은 빼지 않는다
 COFFEECHAT_SKIP_KEY = "coffeechat_skip"
+# 늦참 예정(10/30 민찬 결정: 당일 '지연 체크인' 을 잊어도 되게 미리 넣어 둔다). 체크인 전이어도 커피챗 자리를 잡아 두고(도착할 때까지 빈자리)
+#   주도 선배에서 뺀다. 예전 콘솔 '지연 체크인으로 표시'(checkins.is_late)와 같은 효과. 행사 직후 추천(final)에는 쓰지 않는다
+COFFEECHAT_LATE_KEY = "coffeechat_late"
 
 
 def _coffee_skip(repo) -> set[str]:
-    """id 집합(소문자). 배열 · {ids: [...]} · JSON 문자열 모두 읽는다(웹 lib/opsState.coffeechatSkip 과 같은 규칙, 코드리뷰)."""
-    v = repo.ops_get(COFFEECHAT_SKIP_KEY)
+    return _id_list(repo, COFFEECHAT_SKIP_KEY)
+
+
+def _id_list(repo, key: str) -> set[str]:
+    """ops_state 의 id 목록(소문자). 배열 · {ids: [...]} · JSON 문자열 모두 읽는다(웹 lib/opsState.idList 와 같은 규칙, 코드리뷰)."""
+    v = repo.ops_get(key)
     if isinstance(v, str):
         try:
             v = json.loads(v)
@@ -394,6 +401,10 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     새 초안 버전(round=coffeechat, params.kind=final)으로 저장하고 운영자가 공개한다. 공개하면 원본 커피챗 버전은 retired 가 되고
     화면은 이 버전을 읽는다(그룹 · 번호는 같음). 최근 10분 쏠림 규칙(H-04, 웹)은 행사가 끝나면 최근 교환이 없어 저절로 꺼진다"""
     P = _people(repo, event_id, only_checked_in=True)
+    late_plan = set() if final else _id_list(repo, COFFEECHAT_LATE_KEY)   # 늦참 예정: 체크인 전이어도 자리를 잡아 둔다
+    if late_plan:
+        have = {p["id"] for p in P}
+        P = P + [p for p in repo.participants(event_id) if p["id"] not in have and p["id"].lower() in late_plan]
     # 일찍 나간다고 표시한 사람(checkins.left_at, 0019)은 커피챗 계산에서 뺀다 — 앉지도 않고 주도 선배 후보도 아니다(10/25 민찬 결정).
     #   커피챗 그룹 · 추천 목록에도 없고 남의 커피챗 추천에도 나오지 않는다. 공개 뒤에 나간 사람의 자리는 웹이 그대로 둔다(빈자리, 다시 계산하지 않음)
     #   행사 직후 추천(final)은 빼지 않는다(구현하며 정함): 원본 커피챗 그룹을 그대로 쓰고, 행사 뒤 연락할 사람 추천은 일찍 간 사람에게도 쓸모가 있다
@@ -523,7 +534,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     A = scoring.table_matrix(scoring.seat_directional(S2, O2), is_host, table_mode)
     A_np = scoring.table_matrix(seat_np, is_host, table_mode)
     seated, src, lp = np.ones(n, bool), None, None
-    late_ids = repo.late_checkins(ids) if not final else set()
+    late_ids = (repo.late_checkins(ids) | {pid for pid in ids if pid.lower() in late_plan}) if not final else set()
     is_late = np.array([pid in late_ids for pid in ids], bool)
     lead_seating = os.environ.get("COFFEE_LEAD_SEATING", COFFEE_LEAD_SEATING).strip() or COFFEE_LEAD_SEATING
     if lead_seating not in seating.LEAD_SEATING_MODES:
@@ -558,6 +569,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     late_n = int((~seated).sum()) - (len(skip_ids) if final else 0)
     params = {"kind": "final" if final else "coffeechat", "table_mode": table_mode, **_rec_params(P, intents, rec_mode), "beta": beta,
               "left": len(left_ids),                                   # 일찍 나간다고 표시해 뺀 사람 수(0019, final 은 0)
+              "late_plan": len([pid for pid in ids if pid.lower() in late_plan]),   # 늦참 예정으로 자리를 잡아 둔 사람 수(COFFEECHAT_LATE_KEY)
               "skip": len(skip_ids),                                   # 커피챗 불참으로 정해 둬 뺀 사람 수(COFFEECHAT_SKIP_KEY). final 은 자리 없이 추천만 받은 불참자 수
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2), "cards": card_stat,
               "sat_weights": sw, "sat_counts": dict(Counter(sat.values())), "sat_fast": sat_fast,
