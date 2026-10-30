@@ -24,6 +24,7 @@ coffeechat_late  커피챗 배정 공개 뒤 처음 체크인한 사람 한 명�
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import threading
@@ -77,6 +78,10 @@ COFFEECHAT_SKIP_KEY = "coffeechat_skip"
 # 늦참 예정(10/30 민찬 결정: 당일 '지연 체크인' 을 잊어도 되게 미리 넣어 둔다). 체크인 전이어도 커피챗 자리를 잡아 두고(도착할 때까지 빈자리)
 #   주도 선배에서 뺀다. 예전 콘솔 '지연 체크인으로 표시'(checkins.is_late)와 같은 효과. 행사 직후 추천(final)에는 쓰지 않는다
 COFFEECHAT_LATE_KEY = "coffeechat_late"
+# 커피챗에서 서로 다른 테이블에 앉힐 사람 묶음(10/30 성하 결정: BENOW 채용담당자 두 분은 한 명씩 따로).
+#   ops_state 의 이 키에 묶음 목록([["<id>", "<id>"], ...])을 둔다. id 하나짜리 목록(["<id>", "<id>"])은 한 묶음으로 읽는다.
+#   계산에서 금지 쌍으로 넣고(벌점), 그래도 같은 테이블이면 한 명을 다른 테이블 사람과 맞바꾼다(보장). 행사 직후 추천(final)은 원본 그대로
+COFFEECHAT_APART_KEY = "coffeechat_apart"
 
 
 def _coffee_skip(repo) -> set[str]:
@@ -94,6 +99,59 @@ def _id_list(repo, key: str) -> set[str]:
     if isinstance(v, dict):
         v = v.get("ids")
     return {str(x).strip().lower() for x in v if str(x).strip()} if isinstance(v, list) else set()
+
+
+def _apart_groups(repo) -> list[set[str]]:
+    """COFFEECHAT_APART_KEY 의 묶음 목록(소문자 id). 묶음 목록 · id 목록(한 묶음) · {groups: [...]} · JSON 문자열을 읽는다."""
+    v = repo.ops_get(COFFEECHAT_APART_KEY)
+    if isinstance(v, str):
+        try:
+            v = json.loads(v)
+        except ValueError:
+            return []
+    if isinstance(v, dict):
+        v = v.get("groups")
+    if not isinstance(v, list) or not v:
+        return []
+    raw = v if all(isinstance(g, list) for g in v) else [v]
+    groups = [{str(x).strip().lower() for x in g if str(x).strip()} for g in raw]
+    return [g for g in groups if len(g) >= 2]
+
+
+def _split_apart(table: np.ndarray, apart: np.ndarray, forbid: np.ndarray, A: np.ndarray, cohort: np.ndarray,
+                 keep: set[int]) -> tuple[np.ndarray, int]:
+    """apart 쌍이 같은 테이블이면 한 명을 다른 테이블 사람과 맞바꾼다(인원은 그대로). 주도 선배(keep)는 옮기지 않는다.
+    맞바꿀 사람은 새 apart 쌍을 만들지 않는 사람 중 기수가 같은 사람(기수 상한이 그대로), 금지 쌍이 덜 생기는 사람, 점수가 덜 떨어지는 사람 순.
+    고친 table 과 맞바꾼 횟수를 돌려준다. 못 고치면 ValueError(조용히 같은 테이블에 두지 않는다)"""
+    t = table.copy()
+    swaps = 0
+    for _ in range(len(t)):
+        bad = [(i, j) for i, j in zip(*np.nonzero(np.triu(apart, 1))) if t[i] == t[j]]
+        if not bad:
+            return t, swaps
+        i, j = bad[0]
+        movers = [x for x in (j, i) if x not in keep]
+        best = None
+        for m in movers:
+            home = t[m]
+            for k in range(len(t)):
+                if t[k] == home or k in keep:
+                    continue
+                there = [x for x in np.nonzero(t == t[k])[0] if x != k]
+                here = [x for x in np.nonzero(t == home)[0] if x != m]
+                if apart[m, there].any() or apart[k, here].any():
+                    continue
+                key = (cohort[k] != cohort[m],
+                       int(forbid[m, there].sum() + forbid[k, here].sum()),
+                       -float(A[m, there].sum() + A[k, here].sum() - A[m, here].sum() - A[k, there].sum()))
+                if best is None or key < best[0]:
+                    best = (key, m, k)
+        if best is None:
+            raise ValueError("커피챗에서 따로 앉힐 사람(coffeechat_apart)을 나눌 자리가 없다")
+        _, m, k = best
+        t[m], t[k] = t[k], t[m]
+        swaps += 1
+    raise ValueError("커피챗에서 따로 앉힐 사람(coffeechat_apart)을 나누지 못했다")
 
 
 def _people(repo, event_id: str, only_checked_in: bool) -> list[dict]:
@@ -536,6 +594,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     A = scoring.table_matrix(scoring.seat_directional(S2, O2), is_host, table_mode)
     A_np = scoring.table_matrix(seat_np, is_host, table_mode)
     seated, src, lp = np.ones(n, bool), None, None
+    apart_swaps = 0
     late_ids = (repo.late_checkins(ids) | {pid for pid in ids if pid.lower() in late_plan}) if not final else set()
     is_late = np.array([pid in late_ids for pid in ids], bool)
     lead_seating = os.environ.get("COFFEE_LEAD_SEATING", COFFEE_LEAD_SEATING).strip() or COFFEE_LEAD_SEATING
@@ -551,13 +610,25 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
         #   기수가 먼저(10/25 민찬 결정): 뽑은 사람마다 가장 높은 기수보다 한 기수 아래일 때마다 감점해, 분야는 비슷한 기수끼리만 가른다.
         #   테이블토크에서 만난 둘은 되도록 묶지 않는다(seating.pick_leads)
         #   지연 체크인한 사람(늦게 오는 사람)은 주도 선배에서 뺀다(구현하며 정함: 선배가 늦으면 테이블을 이끌 사람이 없다)
-        lp = seating.pick_leads(O @ O.T, cohort, len(sizes), forbid=forbid, exclude=is_late)
+        # 따로 앉힐 사람(COFFEECHAT_APART_KEY)은 금지 쌍에 더해 피하게 하고, 아래에서 한 번 더 확인한다. 추천 제외(met)에는 넣지 않는다
+        lower = [pid.lower() for pid in ids]
+        apart = np.zeros((n, n), bool)
+        for g in _apart_groups(repo):
+            gi = [i for i, pid in enumerate(lower) if pid in g]
+            apart[np.ix_(gi, gi)] = True
+        np.fill_diagonal(apart, False)
+        lp = seating.pick_leads(O @ O.T, cohort, len(sizes), forbid=forbid | apart, exclude=is_late)
         anchors = {i: t for t, pair in enumerate(lp.pairs) for i in pair}
         # 나머지는 예전과 같은 커피챗 점수(A: 만족도 · 명함 · 포스터 · 검색 반영)로 채운다. 주도 선배는 옮기지 않으므로 잘 맞는 선배 테이블로 모인다
-        r = seating.assign(A, is_host, cohort, forbid=forbid, random_ratio=random_ratio, iters=iters, seed=seed,
+        r = seating.assign(A, is_host, cohort, forbid=forbid | apart, random_ratio=random_ratio, iters=iters, seed=seed,
                            sizes=sizes, cohort_penalty=COFFEECHAT_COHORT_PENALTY, cohort_cap=COFFEECHAT_COHORT_CAP,
                            anchors=anchors)
         lead = {i for pair in lp.pairs for i in pair}
+        if apart.any():
+            tb, apart_swaps = _split_apart(r.table, apart, forbid, A, cohort, lead)
+            same = tb[:, None] == tb[None, :]
+            r = dataclasses.replace(r, table=tb, forbid_hits=int((forbid & same).sum() // 2),
+                                    cohort_over=seating.cohort_overflow(tb, cohort, cap=COFFEECHAT_COHORT_CAP))
         # 좌석 순서(테이블토크와 같은 seat_order). 주도 선배 둘의 자리를 먼저 정하고(마주 보게 등) 나머지를 이웃 점수 합 최대로
         seat = {}
         for t in range(len(sizes)):
@@ -573,6 +644,7 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
               "left": len(left_ids),                                   # 일찍 나간다고 표시해 뺀 사람 수(0019, final 은 0)
               "late_plan": len([pid for pid in ids if pid.lower() in late_plan]),   # 늦참 예정으로 자리를 잡아 둔 사람 수(COFFEECHAT_LATE_KEY)
               "skip": len(skip_ids),                                   # 커피챗 불참으로 정해 둬 뺀 사람 수(COFFEECHAT_SKIP_KEY). final 은 자리 없이 추천만 받은 불참자 수
+              "apart_swaps": apart_swaps,                              # 따로 앉힐 사람(COFFEECHAT_APART_KEY)을 나누려고 맞바꾼 횟수(final 은 0)
               "response_rate": round(rate, 3), "fallback": fallback, "edges": int((W > 0).sum() // 2), "cards": card_stat,
               "sat_weights": sw, "sat_counts": dict(Counter(sat.values())), "sat_fast": sat_fast,
               "sat_picks": {"people": len(picked), "picked": sum(len(v) for v in picked.values())},
@@ -715,6 +787,10 @@ def coffeechat_late(repo, enc, participant_id: str, event_id: str = "dev", versi
         same = sum(1 for x in members[t] if coh is not None and (P.get(x) or {}).get("cohort") == coh)
         cand.append({"table_no": t, "size": len(members[t]), "same_cohort": same,
                      "mean": round(float(np.mean(A[0, js])), 4) if js else None, "_js": js})
+    # 따로 앉힐 사람(COFFEECHAT_APART_KEY)이 이미 앉은 테이블은 고르지 않는다. 모든 테이블에 있으면 그대로(자리는 줘야 한다)
+    mates = set().union(*[g - {participant_id.lower()} for g in _apart_groups(repo) if participant_id.lower() in g])
+    away = [c for c in cand if not any(x.lower() in mates for x in members[c["table_no"]])]
+    cand = away or cand
     lo = min(c["size"] for c in cand)
     pool = [c for c in cand if c["size"] <= lo + 1]
     fit = [c for c in pool if coh is None or c["same_cohort"] + 1 <= COFFEECHAT_COHORT_CAP]
