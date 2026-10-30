@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/session";
 import { db } from "@/lib/db";
 import { pairScores, groupMean } from "@/lib/pairs";
 import { leftOf } from "@/lib/checkinLeft";
+import { readOps, COFFEECHAT_SKIP_KEY, coffeechatSkip } from "@/lib/opsState";
 
 // 같은 기수 상한. 계산 서비스(services/compute/service.py TABLETALK_COHORT_CAP · COFFEECHAT_COHORT_CAP)와 같은 값이다.
 // 커피챗은 10테이블이 되면서 테이블토크와 같은 3명(10/22 민찬 결정, 예전 3~4명 그룹은 2명)
@@ -111,6 +112,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
     // 일찍 나간다고 표시한 사람(0019, 10/25 민찬 결정). 공개 뒤에 나가면 자리는 그대로 두고 표시만 한다(빈자리). 0019 전 DB 면 아무도 없음
     const left = await leftOf(ids);
     for (const t of list) for (const m of t.members) m.left = left.has(m.id);
+    // 커피챗 불참 명단(10/27)인데 이 버전에 자리가 있는 사람. 명단을 계산 뒤에 넣었으면 생긴다 → 다시 계산
+    const skip = v.round === "coffeechat" ? coffeechatSkip((await readOps([COFFEECHAT_SKIP_KEY]))[COFFEECHAT_SKIP_KEY]) : new Set<string>();
+    const skipSeated = list.reduce((n, t) => n + t.members.filter((m) => skip.has(m.id.toLowerCase())).length, 0);
     const sizes = list.map((t) => t.members.length);
 
     return ok({
@@ -129,6 +133,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ version
         cohort_over: cohortOver,
         not_checked_in: ids.length - (ci ?? []).length,
         left: left.size, // 계산 뒤 나감: 이 버전 구성원 중 지금 나감 표시가 있는 사람(자리는 빈자리)
+        skip_seated: skipSeated, // 커피챗 불참 명단인데 자리가 있는 사람 수(0 이어야 함)
         left_excluded: typeof (v.params as { left?: unknown } | null)?.left === "number" ? ((v.params as { left: number }).left) : null, // 계산에서 뺌: 계산 때 나감 표시로 뺀 수(params.left, 10/25 전 버전 · 테이블토크는 null)
       },
       tables: list,

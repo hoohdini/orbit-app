@@ -77,7 +77,7 @@ export default function StatusPanel() {
         </div>
         {error && <p className="mt-2 rounded-lg bg-yellow-50 px-3 py-2 text-sm text-yellow-800">{error}</p>}
         <div className="mt-2 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat label="체크인" value={`${status.checkins} / ${status.participants}`} sub={`첫 로그인이 체크인 · 나감 표시 ${status.left ?? 0}명(계산 전이면 커피챗에서 빠짐, 공개 뒤면 빈자리)`} />
+          <Stat label="체크인" value={`${status.checkins} / ${status.participants}`} sub={`등록 · 개회부터 앱을 열면 체크인 · 나감 표시 ${status.left ?? 0}명(계산 전이면 커피챗에서 빠짐, 공개 뒤면 빈자리)`} />
           <Stat
             label="만족도 응답"
             value={rate == null ? "-" : `${Math.round(rate * 100)}%`}

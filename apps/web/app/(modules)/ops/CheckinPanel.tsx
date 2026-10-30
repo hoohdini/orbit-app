@@ -1,6 +1,6 @@
 "use client";
 // 체크인 관리. 참가자 전원을 보여 주고 이름으로 찾아 수동 체크인(지연 표시)한다. 워크인 추가와 숫자 재발급도 여기서 한다.
-// 첫 로그인이 곧 체크인이라 보통은 저절로 되고, 폰이 안 되는 사람만 여기서 처리한다.
+// 등록 · 개회부터 앱을 열면(첫 로그인 또는 상태 조회) 저절로 체크인되고, 폰이 안 되는 사람만 여기서 처리한다(10/30).
 // 커피챗 공개 뒤 늦게 와서 커피챗 자리를 받은 사람은 체크인 칸에 몇 번 테이블 몇 번 자리인지 보인다(10/25, 의자를 하나 더 놓는다).
 // 일찍 나가는 사람은 나감 표시로 커피챗 배정에서 뺀다(10/25 민찬 결정, checkins.left_at). 본인이 화면에서 누르거나 운영자가 여기서 표시 · 되돌린다.
 import { useCallback, useEffect, useState } from "react";
@@ -21,6 +21,8 @@ type P = {
   left_at: string | null; // 일찍 나간다고 표시한 시각(0019)
   left_self: boolean; // true 면 본인이 누름, false 면 운영자가 표시
   coffee_late: CoffeeSeat | null;
+  coffee_skip?: boolean; // 커피챗 불참으로 정해 둔 사람(10/27). 체크인해도 커피챗 자리를 받지 않는다
+  late_plan?: boolean; // 늦참 예정(10/30). 체크인 전이어도 커피챗 자리를 잡아 두고 주도 선배에서 뺀다
 };
 type CoffeeSeat = { table_no: number; seat_no: number | null; fallback: boolean };
 
@@ -91,6 +93,28 @@ export default function CheckinPanel() {
     }
   }
 
+  // 커피챗 불참 명단 넣기 · 빼기(10/27 민찬 결정). 당일 마음이 바뀐 사람을 바로 고친다
+  async function coffeeSkip(p: P, skip: boolean, kind: "skip" | "late" = "skip") {
+    setBusy(p.id);
+    setNotice(null);
+    try {
+      const r = await api<{ skip: boolean; already: boolean }>("/api/ops/coffeechat-skip", { json: { participant_id: p.id, skip, kind } });
+      if (!r.ok) return setError(r.message);
+      setNotice(
+        kind === "late"
+          ? skip
+            ? `${p.display_name} 님 늦참 예정. 커피챗 계산 때 자리를 잡아 두고 주도 선배에서 뺀다`
+            : `${p.display_name} 님 늦참 예정 해제`
+          : skip
+            ? `${p.display_name} 님 커피챗 불참. 커피챗 자리를 받지 않는다(이미 계산했으면 커피챗 계산을 다시 돌린다)`
+            : `${p.display_name} 님 커피챗 불참 해제. 커피챗 계산에 들어간다(공개 뒤면 체크인한 경우 빈자리를 받는다)`,
+      );
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function resetPin(p: P) {
     setBusy(p.id);
     setNotice(null);
@@ -153,12 +177,14 @@ export default function CheckinPanel() {
                     <span className="font-medium">{p.display_name}</span>
                     {p.is_host && <span className="ml-1 rounded bg-purple-100 px-1 text-[10px] text-purple-800">호스트</span>}
                     {p.is_admin && <span className="ml-1 rounded bg-gray-900 px-1 text-[10px] text-white">운영자</span>}
+                    {p.coffee_skip && <span className="ml-1 rounded bg-gray-200 px-1 text-[10px] text-gray-700">커피챗 불참</span>}
+                    {p.late_plan && <span className="ml-1 rounded bg-orange-100 px-1 text-[10px] text-orange-800">늦참 예정</span>}
                   </td>
-                  <td className="px-3 py-2 text-xs text-gray-600">
+                  <td className="min-w-[9rem] px-3 py-2 text-xs text-gray-600">
                     {p.affiliation ?? "-"} · {ROLE[p.role] ?? p.role}
                     {p.cohort ? ` · ${p.cohort}기` : ""}
                   </td>
-                  <td className="px-3 py-2 text-xs text-gray-600">
+                  <td className="min-w-[7rem] px-3 py-2 text-xs text-gray-600">
                     {p.consented ? "동의" : "동의 전"} · {p.has_sid ? "주소 있음" : "주소 없음"}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-xs">
@@ -173,20 +199,29 @@ export default function CheckinPanel() {
                       <span className="text-gray-400">-</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                  <td className="px-3 py-2">
+                    {/* 버튼이 늘어 폰 폭에서 표가 짓눌리지 않게 세로로 쌓는다(10/30) */}
+                    <div className="flex w-[5.5rem] flex-col gap-1">
                     {!p.checked_at && (
                       <button type="button" disabled={busy !== null} onClick={() => checkin(p)} className="rounded-lg bg-black px-2 py-1 text-xs font-semibold text-white disabled:bg-gray-300">
                         체크인
                       </button>
                     )}
                     {p.checked_at && (
-                      <button type="button" disabled={busy !== null} onClick={() => leave(p, !!p.left_at)} className="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                      <button type="button" disabled={busy !== null} onClick={() => leave(p, !!p.left_at)} className="rounded-lg border border-gray-300 px-2 py-1 text-xs">
                         {p.left_at ? "되돌리기" : "나감 표시"}
                       </button>
                     )}
-                    <button type="button" disabled={busy !== null} onClick={() => resetPin(p)} className="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                    <button type="button" disabled={busy !== null} onClick={() => coffeeSkip(p, !p.coffee_skip)} className="rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                      {p.coffee_skip ? "불참 해제" : "커피챗 불참"}
+                    </button>
+                    <button type="button" disabled={busy !== null} onClick={() => coffeeSkip(p, !p.late_plan, "late")} className="rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                      {p.late_plan ? "늦참 해제" : "늦참 예정"}
+                    </button>
+                    <button type="button" disabled={busy !== null} onClick={() => resetPin(p)} className="rounded-lg border border-gray-300 px-2 py-1 text-xs">
                       숫자 재발급
                     </button>
+                    </div>
                   </td>
                 </tr>
               ))}

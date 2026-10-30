@@ -22,7 +22,8 @@ const skipKey = (round: string) => `orbit:satisfaction-skip:${round}`;
 
 export default function SatisfactionGate() {
   const s = useOrbitState();
-  const round = s?.consent === "agreed" && s.phase ? ROUND_OF[s.phase] : undefined;
+  const r0 = s?.consent === "agreed" && s.phase ? ROUND_OF[s.phase] : undefined;
+  const round = r0 === "coffeechat" && !s?.coffeechat ? undefined : r0; // 커피챗 자리가 없으면(조기 퇴장 · 불참) 커피챗 만족도를 묻지 않는다(코드리뷰)
   const [open, setOpen] = useState<Round | null>(null);
   const [choice, setChoice] = useState<SatisfactionChoice | null>(null);
   const [mates, setMates] = useState<Mate[]>([]);

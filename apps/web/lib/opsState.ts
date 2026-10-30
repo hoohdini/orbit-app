@@ -13,6 +13,28 @@ export async function readOps(keys: string[]): Promise<Record<string, unknown>> 
   return Object.fromEntries((data ?? []).map((r) => [r.key as string, r.value]));
 }
 
+// 커피챗에 앉지 않는 사람(10/27 민찬 결정: 김강열 연사는 커피챗 불참 — 당일 '나감 표시'를 잊어도 자리가 생기지 않게).
+// 값은 participant id 배열(["<uuid>"]). {ids: [...]} 나 JSON 문자열로 넣어도 읽고, 대소문자는 소문자로 맞춘다(코드리뷰).
+// 계산 서비스(service.COFFEECHAT_SKIP_KEY)도 같은 키를 같은 규칙으로 읽어 커피챗 계산에서 뺀다. 넣는 SQL 은 docs/RUNBOOK_EVENT_DAY.md
+export const COFFEECHAT_SKIP_KEY = "coffeechat_skip";
+// 늦참 예정(10/30 민찬 결정). 체크인 전이어도 커피챗 자리를 잡아 두고 주도 선배에서 뺀다(예전 당일 '지연 체크인' 대신). 계산 서비스 COFFEECHAT_LATE_KEY
+export const COFFEECHAT_LATE_KEY = "coffeechat_late";
+export function coffeechatSkip(v: unknown): Set<string> {
+  return idList(v);
+}
+export function idList(v: unknown): Set<string> {
+  if (typeof v === "string") {
+    try {
+      v = JSON.parse(v);
+    } catch {
+      v = [v];
+    }
+  }
+  const ids = (v as { ids?: unknown } | null)?.ids;
+  const list: unknown[] = Array.isArray(v) ? v : Array.isArray(ids) ? ids : [];
+  return new Set(list.map((x) => String(x).trim().toLowerCase()).filter(Boolean));
+}
+
 export type OpsSnapshot = { phase: Phase | null; phaseMeta: PhaseMeta | null; notice: Notice | null; missionClosedAt: string | null };
 
 export async function opsSnapshot(): Promise<OpsSnapshot> {

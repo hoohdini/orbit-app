@@ -43,7 +43,7 @@ export default function OpsPage() {
       </div>
       <section id="checkin" className="scroll-mt-4">
         <h2 className="text-base font-semibold">체크인</h2>
-        <p className="mt-0.5 mb-2 text-xs text-gray-500">첫 로그인이 곧 체크인이다. 폰이 안 되는 사람만 여기서 수동으로 한다</p>
+        <p className="mt-0.5 mb-2 text-xs text-gray-500">등록 · 개회부터 앱을 열면 체크인된다(오늘 전 기록은 그때 지워진다). 폰이 안 되는 사람만 여기서 수동으로 한다. 늦게 올 사람은 미리 「늦참 예정」, 커피챗에 앉지 않을 사람은 「커피챗 불참」</p>
         <CheckinPanel />
       </section>
       <section id="compute" className="space-y-3 scroll-mt-4">

@@ -30,7 +30,8 @@ export default function PhasePanel() {
 
   async function go(phase: string, reopen = false) {
     const label = PHASES.find((p) => p.key === phase)?.label ?? phase;
-    if (!window.confirm(`단계를 ${label}(으)로 바꾼다. 참가자 화면이 15초 안에 바뀐다. 계속할까?`)) return;
+    const clear = phase !== "before" && st?.phase === "before" ? " 행사 날이면 오늘 전에 생긴 체크인 · 미션 마감 · 추첨 결과 · 커피챗 공개본(리허설 기록)을 지운다." : "";
+    if (!window.confirm(`단계를 ${label}(으)로 바꾼다. 참가자 화면이 15초 안에 바뀐다.${clear} 계속할까?`)) return;
     setBusy(true);
     const r = await api<{ phase_label: string; mission_closed_at: string | null }>("/api/ops/phase", { json: { phase, reopen_missions: reopen } });
     setBusy(false);

@@ -5,14 +5,15 @@
 //   인원이 가장 적은 테이블(같으면 번호가 작은 쪽)로 앉힌다. 좌석은 그 테이블의 다음 번호라 앉아 있는 사람 번호는 그대로다. 주도 선배로 두지 않는다.
 // 쓰는 곳은 공개된 커피챗 버전의 table_members(화면 current_tables 가 그대로 읽음). (version, participant_id) 기본 키로 두 번 들어가지 않는다.
 // 건너뜀: 공개된 커피챗이 없을 때, 행사 직후 추천(params.kind final)이 공개됐을 때, 단계가 마무리 · 시상(wrapup · award)일 때(커피챗이 끝남. 구현하며 정함),
-//   본인이 일찍 나간다고 표시했을 때(checkins.left_at, 0019 · 10/25 민찬 결정. 계산 서비스를 기다린 뒤에도 한 번 더 본다).
+//   본인이 일찍 나간다고 표시했을 때(checkins.left_at, 0019 · 10/25 민찬 결정. 계산 서비스를 기다린 뒤에도 한 번 더 본다),
+//   커피챗 불참으로 정해 둔 사람일 때(ops_state coffeechat_skip, 10/27 민찬 결정).
 // 인원을 셀 때 나감 표시한 사람은 빼고 센다(그 자리는 비어 있다). 좌석 번호는 그 사람 번호도 포함해 다음 번호(구현하며 정함).
 // 어떤 오류도 밖으로 던지지 않는다(로그인 · 체크인이 이것 때문에 실패하면 안 된다).
 import "server-only";
 import { db } from "./db";
 import { eventId } from "./api";
 import { logEvent } from "./log";
-import { readOps } from "./opsState";
+import { readOps, COFFEECHAT_SKIP_KEY, coffeechatSkip } from "./opsState";
 import { MISSION_CLOSED, isPhase } from "./phase";
 import { myCheckin, leftOf } from "./checkinLeft";
 
@@ -50,8 +51,9 @@ async function askCompute(pid: string, version: number): Promise<{ pick: Pick | 
 
 export async function seatLateCoffeechat(pid: string, by: string | null = null): Promise<LateSeat | null> {
   try {
-    const ops = await readOps(["phase"]);
+    const ops = await readOps(["phase", COFFEECHAT_SKIP_KEY]);
     if (isPhase(ops.phase) && MISSION_CLOSED.includes(ops.phase)) return null;
+    if (coffeechatSkip(ops[COFFEECHAT_SKIP_KEY]).has(pid.toLowerCase())) return null; // 커피챗 불참으로 정해 둔 사람(10/27 민찬 결정)
     const hasLeft = async () => !!(await myCheckin(pid)).left_at; // 0019 전 DB 면 늘 false
     if (await hasLeft()) return null;
     const { data: v, error } = await db()

@@ -724,6 +724,63 @@ def test_coffeechat_left_early():
     assert all(pid in got for pid in gone + mates[:2])
 
 
+def test_coffeechat_skip():
+    """10/27 민찬 결정: 커피챗 불참으로 정해 둔 사람(ops_state coffeechat_skip)은 체크인해도 커피챗에 앉지 않고 주도 선배도 아니며
+    늦게 온 사람 자리도 받지 않는다. 나감 표시가 없어도 그렇다."""
+    repo, enc = seed_repo(n=44, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    repo.t["checkins"] += [{"participant_id": pid} for pid in ids]
+    coh = {p["id"]: p["cohort"] for p in repo.t["participants"]}
+    top = min((pid for pid in ids if coh[pid] is not None), key=lambda q: coh[q])   # 기수가 가장 높은 사람(주도 선배 1순위)
+    assert service._coffee_skip(type("R", (), {"ops_get": lambda self, k: {"ids": ["AB"]}})()) == {"ab"}       # {ids: [...]} · 대소문자
+    assert service._coffee_skip(type("R", (), {"ops_get": lambda self, k: '["x"]'})()) == {"x"}                # JSON 문자열
+    assert service._coffee_skip(type("R", (), {"ops_get": lambda self, k: None})()) == set()
+    repo.ops_set(service.COFFEECHAT_SKIP_KEY, [top.upper(), "not-a-participant"])
+    r = service.coffeechat(repo, enc, iters=300)
+    cm = {m["participant_id"]: m for m in repo.t["table_members"] if m["version"] == r["version"]}
+    assert r["n"] == len(ids) - 1 and top not in cm
+    assert next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]["skip"] == 1
+    next(v for v in repo.t["assign_versions"] if v["version"] == r["version"])["status"] = "published"
+    try:
+        service.coffeechat_late(repo, None, top)
+    except ValueError as e:
+        assert "커피챗 불참" in str(e)
+    else:
+        raise AssertionError("커피챗 불참인 사람에게 자리를 골랐다")
+    # 행사 직후 추천(final): 자리 없이 추천만 받고, '늦게 온 사람' 수에 들지 않는다
+    f = service.coffeechat(repo, enc, final=True)
+    fm = {m["participant_id"] for m in repo.t["table_members"] if m["version"] == f["version"]}
+    assert top not in fm and f["late"] == 0
+    assert any(x["participant_id"] == top for x in repo.t["recs"] if x["version"] == f["version"])
+    assert next(x for x in repo.t["assign_versions"] if x["version"] == f["version"])["params"]["skip"] == 1
+
+
+def test_coffeechat_late_plan():
+    """10/30 민찬 결정: 늦참 예정(ops_state coffeechat_late)인 사람은 체크인 전이어도 커피챗 자리를 받고 주도 선배가 아니다.
+    체크인한 뒤에도 주도 선배에서 빠진다. 불참 명단에도 있으면 불참이 이긴다."""
+    repo, enc = seed_repo(n=44, n_staff=0), FakeEncoder()
+    ids = [p["id"] for p in repo.t["participants"]]
+    service.precompute(repo, enc, iters=300)
+    repo.t["assign_versions"][-1]["status"] = "published"
+    coh = {p["id"]: p["cohort"] for p in repo.t["participants"]}
+    top2 = sorted((pid for pid in ids if coh[pid] is not None), key=lambda q: coh[q])[:2]   # 주도 선배 1 · 2순위
+    away, here = top2                                                    # away 는 체크인 안 함, here 는 체크인함
+    repo.t["checkins"] += [{"participant_id": pid} for pid in ids if pid != away]
+    gone = next(pid for pid in ids if pid not in top2)                   # 늦참 예정이면서 불참이면 불참
+    nosid = "late-without-sid"                                           # 주소 없는 늦참 예정(전날 계산 뒤 추가)은 빼고 계산은 멈추지 않는다
+    repo.t["participants"].append({**next(p for p in repo.t["participants"] if p["id"] == ids[-1]), "id": nosid, "display_name": "주소없음"})
+    repo.ops_set(service.COFFEECHAT_LATE_KEY, [away.upper(), here, gone, nosid])
+    repo.ops_set(service.COFFEECHAT_SKIP_KEY, [gone])
+    r = service.coffeechat(repo, enc, iters=300)
+    cm = {m["participant_id"]: m for m in repo.t["table_members"] if m["version"] == r["version"]}
+    assert away in cm and here in cm and gone not in cm and nosid not in cm and r["n"] == len(ids) - 1
+    assert not cm[away]["reason"].get("lead") and not cm[here]["reason"].get("lead")
+    params = next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]
+    assert params["late_plan"] == 2 and params["late_checkins"] == 2
+
+
 def test_recs_rule_puts_givers_first():
     """기본 추천 점수(rule): 취업 · 이직 정보를 원하는 학생의 추천 10명에 재직자가 많이 들어간다. REC_SCORE=min(예전)과 비교."""
     import os

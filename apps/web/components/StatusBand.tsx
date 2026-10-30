@@ -4,8 +4,14 @@
 // 모양은 피그마 StatusStrip(10/11): 높이 36, 연한 남색 바탕, 왼쪽 라이브 점. 모든 탭에서 맨 위(헤더 바로 아래)에 둔다(10/11 일관성 정리)
 import { useOrbitState, type OrbitState } from "./useOrbitState";
 
+// 커피챗 · 마무리 · 시상은 커피챗 자리(네트워킹 탭 CC_NOW 와 같음. 커피챗 뒤로는 자리를 옮기지 않는다, 10/27 민찬).
+// 커피챗이 공개됐는데 내 자리가 없으면(조기 퇴장 · 커피챗 불참) 테이블토크 자리도 보이지 않는다
+const CC_NOW = ["coffeechat_seated", "wrapup", "award"];
+
 function where(s: OrbitState): string {
-  if (s.phase?.startsWith("coffeechat") && s.coffeechat) return `${s.coffeechat.group_no}번 테이블${s.coffeechat.seat_no ? ` ${s.coffeechat.seat_no}번 자리` : ""}`;
+  if (s.phase && CC_NOW.includes(s.phase) && s.published.coffeechat !== null) {
+    return s.coffeechat ? `${s.coffeechat.group_no}번 테이블${s.coffeechat.seat_no ? ` ${s.coffeechat.seat_no}번 자리` : ""}` : "";
+  }
   if (s.tabletalk) return `${s.tabletalk.table_no}번 테이블${s.tabletalk.seat_no ? ` ${s.tabletalk.seat_no}번 자리` : ""}`;
   return "";
 }

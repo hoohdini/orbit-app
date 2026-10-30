@@ -108,9 +108,12 @@ export default function NetworkingClient() {
   const mySeat = view !== "unpublished" ? view.assignment.members.find((m) => m.id === meId)?.seat_no : null; // 커피챗 내 자리(10/23 부터)
   // 커피챗 첫 배치 단계인데 아직 공개 전이면 배정 대기 카드(피그마 배정 전환 안내 - 푸쉬 전). 공개되면 상태 API 가 15초 안에 바꾼다
   const waiting = s.phase === "coffeechat_seated" && s.published.coffeechat === null;
+  // 커피챗이 공개됐는데 내 자리가 없음(조기 퇴장 · 커피챗 불참). 아래 테이블토크 배정을 지금 자리로 오해하지 않게(코드리뷰, 10/27)
+  const noSeat = ccNow && s.published.coffeechat !== null && !s.coffeechat;
 
   return (
     <main className="space-y-6 px-5 py-6">
+      {noSeat && <p className="rounded-3xl border border-dashed border-line p-4 text-center text-sm text-ink-2">커피챗 자리가 없습니다</p>}
       {view === "unpublished" ? (
         <p className="rounded-3xl border border-dashed border-line p-6 text-center text-sm text-ink-2">
           {isTT ? "테이블 배정이 곧 공개됩니다" : "커피챗 배정은 포스터 세션 뒤에 공개됩니다"}
@@ -143,7 +146,7 @@ export default function NetworkingClient() {
                 <p className="text-[72px] font-bold leading-[80px] text-navy">{view.assignment.no}</p>
               </div>
               <div className="text-right">
-                <p className="text-lg font-bold text-navy">{isTT ? `${view.assignment.no}번 테이블` : `커피챗 ${view.assignment.no}번 테이블${mySeat ? ` ${mySeat}번 자리` : ""}`}</p>
+                <p className="text-lg font-bold text-navy">{isTT ? `${noSeat ? "테이블토크 " : ""}${view.assignment.no}번 테이블` : `커피챗 ${view.assignment.no}번 테이블${mySeat ? ` ${mySeat}번 자리` : ""}`}</p>
                 <p className="mt-1 text-[13px] text-ink-2">
                   {view.assignment.members.length}명{isTT || view.assignment.members.some((m) => m.seat_no) ? " · 좌석 순서대로" : ""}
                 </p>
