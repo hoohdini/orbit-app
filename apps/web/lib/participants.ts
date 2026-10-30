@@ -2,8 +2,8 @@
 import "server-only";
 import { db } from "./db";
 import { eventId } from "./api";
-import { seatLateCoffeechat } from "./coffeechatLate";
-import { readOps } from "./opsState";
+import { seatLateCoffeechat, type LateSeat } from "./coffeechatLate";
+import { checkinOpen } from "./eventDay";
 
 export type ParticipantPublic = {
   id: string;
@@ -71,14 +71,13 @@ export async function getMyTable(id: string, round: "tabletalk" | "coffeechat") 
 
 // 첫 로그인이 곧 체크인이다. 이미 있으면 그대로 둔다.
 // 체크인이 이번에 새로 생겼고 커피챗 배정이 공개된 뒤면 커피챗 자리를 바로 준다(10/25 민찬 결정, lib/coffeechatLate.ts). 실패해도 로그인은 막지 않는다
-// '행사 전' 단계에서는 체크인하지 않는다(10/30 민찬 결정: 행사 전 · 리허설 로그인이 체크인으로 남지 않게). 그때 로그인해 둔 사람은
-//   단계가 '등록 · 개회' 로 바뀐 뒤 앱이 상태를 받아 올 때(/api/state) 체크인된다
-export async function ensureCheckin(id: string) {
-  const { phase } = await readOps(["phase"]);
-  if (phase === "before") return;
+// '행사 전' 단계이거나 단계를 오늘 바꾸지 않았으면 체크인하지 않는다(10/30 민찬 결정 · 코드리뷰, lib/eventDay.checkinOpen). 그때 로그인해 둔 사람은
+//   운영진이 단계를 연 뒤 앱이 상태를 받아 올 때(/api/state) 체크인된다. 새로 앉힌 커피챗 자리가 있으면 돌려준다
+export async function ensureCheckin(id: string): Promise<LateSeat | null> {
+  if (!(await checkinOpen())) return null;
   const { data, error } = await db().from("checkins").upsert({ participant_id: id }, { onConflict: "participant_id", ignoreDuplicates: true }).select("participant_id");
   if (error) throw error;
-  if (data?.length) await seatLateCoffeechat(id);
+  return data?.length ? await seatLateCoffeechat(id) : null;
 }
 
 export function currentEventId() {

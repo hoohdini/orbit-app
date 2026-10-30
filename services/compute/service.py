@@ -404,7 +404,9 @@ def coffeechat(repo, enc, event_id: str = "dev", min_response_rate: float = 0.5,
     late_plan = set() if final else _id_list(repo, COFFEECHAT_LATE_KEY)   # 늦참 예정: 체크인 전이어도 자리를 잡아 둔다
     if late_plan:
         have = {p["id"] for p in P}
-        P = P + [p for p in repo.participants(event_id) if p["id"] not in have and p["id"].lower() in late_plan]
+        extra = [p for p in repo.participants(event_id) if p["id"] not in have and p["id"].lower() in late_plan]
+        has_sid = repo.sids([p["id"] for p in extra]) if extra else {}
+        P = P + [p for p in extra if p["id"] in has_sid]   # 주소가 없는 늦참 예정(전날 계산 뒤 추가)은 빼고 도착하면 늦게 온 사람 자리로(코드리뷰)
     # 일찍 나간다고 표시한 사람(checkins.left_at, 0019)은 커피챗 계산에서 뺀다 — 앉지도 않고 주도 선배 후보도 아니다(10/25 민찬 결정).
     #   커피챗 그룹 · 추천 목록에도 없고 남의 커피챗 추천에도 나오지 않는다. 공개 뒤에 나간 사람의 자리는 웹이 그대로 둔다(빈자리, 다시 계산하지 않음)
     #   행사 직후 추천(final)은 빼지 않는다(구현하며 정함): 원본 커피챗 그룹을 그대로 쓰고, 행사 뒤 연락할 사람 추천은 일찍 간 사람에게도 쓸모가 있다

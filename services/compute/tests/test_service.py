@@ -769,11 +769,13 @@ def test_coffeechat_late_plan():
     away, here = top2                                                    # away 는 체크인 안 함, here 는 체크인함
     repo.t["checkins"] += [{"participant_id": pid} for pid in ids if pid != away]
     gone = next(pid for pid in ids if pid not in top2)                   # 늦참 예정이면서 불참이면 불참
-    repo.ops_set(service.COFFEECHAT_LATE_KEY, [away.upper(), here, gone])
+    nosid = "late-without-sid"                                           # 주소 없는 늦참 예정(전날 계산 뒤 추가)은 빼고 계산은 멈추지 않는다
+    repo.t["participants"].append({**next(p for p in repo.t["participants"] if p["id"] == ids[-1]), "id": nosid, "display_name": "주소없음"})
+    repo.ops_set(service.COFFEECHAT_LATE_KEY, [away.upper(), here, gone, nosid])
     repo.ops_set(service.COFFEECHAT_SKIP_KEY, [gone])
     r = service.coffeechat(repo, enc, iters=300)
     cm = {m["participant_id"]: m for m in repo.t["table_members"] if m["version"] == r["version"]}
-    assert away in cm and here in cm and gone not in cm and r["n"] == len(ids) - 1
+    assert away in cm and here in cm and gone not in cm and nosid not in cm and r["n"] == len(ids) - 1
     assert not cm[away]["reason"].get("lead") and not cm[here]["reason"].get("lead")
     params = next(x for x in repo.t["assign_versions"] if x["version"] == r["version"])["params"]
     assert params["late_plan"] == 2 and params["late_checkins"] == 2

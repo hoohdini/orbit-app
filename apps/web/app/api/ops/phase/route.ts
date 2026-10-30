@@ -2,7 +2,7 @@
 // 참가자 화면은 상태 API(/api/state) 15초 폴링으로 따라온다. 바꾼 사람과 시각은 phase_meta 와 event_log(ops_phase, 감사 로그 A-09)에 남는다.
 // 처음 마무리(wrapup) · 시상(award)으로 넘어가는 순간을 미션 마감 시각(mission_closed_at)으로 고정한다. 앞 단계로 되돌려도 마감은 풀리지 않는다
 // (실수로 넘겼으면 reopen_missions: true 로 함께 보내 마감을 지운다).
-// 행사 전이 아닌 단계(보통 등록 · 개회)로 바꿀 때마다 오늘(한국 시각) 전에 생긴 체크인 · 미션 마감 · 추첨 결과 · 커피챗 공개본을 치운다(lib/eventDay.ts, 10/30 민찬 결정)
+// 행사 날(EVENT_DATE)에 행사 전이 아닌 단계(보통 등록 · 개회)로 바꿀 때마다 오늘(한국 시각) 전에 생긴 체크인 · 미션 마감 · 추첨 결과 · 커피챗 공개본을 치운다(lib/eventDay.ts, 10/30 민찬 결정)
 import { z } from "zod";
 import { ok, handle } from "@/lib/api";
 import { requireAdmin } from "@/lib/session";
@@ -11,7 +11,7 @@ import { PHASE_KEYS, MISSION_CLOSED, phaseLabel } from "@/lib/phase";
 import { readOps } from "@/lib/opsState";
 import { opsSet } from "../_lib";
 import { db } from "@/lib/db";
-import { clearBeforeToday } from "@/lib/eventDay";
+import { clearBeforeToday, isEventDay } from "@/lib/eventDay";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,15 @@ export async function POST(req: Request) {
   return handle(async () => {
     const admin = await requireAdmin();
     const b = Body.parse(await req.json());
-    const cleared = b.phase !== "before" ? await clearBeforeToday() : null; // 등록 · 개회를 건너뛰어도 정리되게 행사 전이 아닌 단계마다(오늘 전 것만이라 여러 번 돌아도 같음)
+    // 행사 날에만, 행사 전이 아닌 단계마다(등록 · 개회를 건너뛰어도 정리되게. 오늘 전 것만이라 여러 번 돌아도 같음). 실패해도 단계는 바꾼다(코드리뷰)
+    let cleared: Awaited<ReturnType<typeof clearBeforeToday>> | { error: string } | null = null;
+    if (b.phase !== "before" && isEventDay()) {
+      try {
+        cleared = await clearBeforeToday();
+      } catch (e) {
+        cleared = { error: e instanceof Error ? e.message : String(e) };
+      }
+    }
     const cur = await readOps(["phase", "mission_closed_at"]);
     const at = new Date().toISOString();
 
