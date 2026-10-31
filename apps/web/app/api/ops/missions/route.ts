@@ -1,5 +1,5 @@
 // GET /api/ops/missions  이벤트 · 미션 · 시상 현황(개발 지시서 v0.2 A-07, 결정 12). 운영자만.
-// 체크인한 사람 기준 평균 스탬프 수(avg_stamps)와 평균 진행도, 스탬프 5칸 모두 찍은 사람 수, 미션별 완료자 수, 특별 시상 후보(제외 명단을 뺀 5위까지, 5위 공동이면 모두. 시상 5명 = 10/25 민찬 결정)와 수상 자리 나눔(award: 확정 · 경계 공동 순위 추첨, 10/25 민찬 결정), QR 처리 수와 탭 불일치 수.
+// 체크인한 사람 기준 평균 스탬프 수(avg_stamps)와 평균 진행도, 스탬프 5칸 모두 찍은 사람 수, 미션별 완료자 수, 특별 시상 후보(제외 명단을 뺀 10위까지, 10위 공동이면 모두. 10/31 성하. 시상 5명 = 10/25 민찬 결정)와 수상 자리 나눔(award: 확정 · 경계 공동 순위 추첨, 10/25 민찬 결정), QR 처리 수와 탭 불일치 수.
 // 미션은 4종 · 스탬프 5칸(① 포스터 1 · ② 퀴즈 1 · ③ 명함 교환 2 · ④ 후기 1, lib/missions.ts).
 // 시상 순서(10/23 민찬 결정, lib/award.ts): 스탬프 수 많은 순 → 추천 인물과의 교환 수(최대 5) 많은 순 → 유효 포스터 응답 수(5초 이상) 많은 순 → 그래도 같으면 공동 순위.
 // 시각 기준(5번째 스탬프 시각 등)은 서두르게 만들어서 쓰지 않는다. 공동 순위는 place 가 같고 tied true 다.
@@ -17,7 +17,9 @@ import { opsGet, eventParticipantIds, awardRanking, type AwardDraw } from "../_l
 
 export const dynamic = "force-dynamic";
 
-const TOP = AWARD_SEATS; // 시상 5명(10/25 민찬 결정). 5위가 공동이면 공동인 사람을 모두 보인다(5명을 넘으면 award.draw 로 추첨)
+// 후보 표는 10위까지 보인다(10/31 성하: 운영진이 표를 보고 직접 고른다). 10위가 공동이면 공동인 사람을 모두 보인다.
+// 수상 자리 나눔(award)은 그대로 5명(AWARD_SEATS) 기준이다
+const SHOW = 10;
 const SCAN_PAGE = 1000;
 
 export async function GET() {
@@ -30,7 +32,7 @@ export async function GET() {
     const { excluded, ranked } = await awardRanking(ids, stat);
 
     const candidates = ranked
-      .filter((c) => c.place <= TOP)
+      .filter((c) => c.place <= SHOW)
       .map((c) => ({
         place: c.place,
         tied: c.tied,
